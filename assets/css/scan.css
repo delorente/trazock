@@ -1,0 +1,120 @@
+/* =============================================================================
+   scan.css — app de escaneo (tema oscuro, portado del prototipo).
+   Mobile-first, layout vertical celular. Depende de app.css (tokens + .conn/.dot).
+   ============================================================================= */
+
+html, body.tz-scan-body {
+    height: 100%;
+    margin: 0;
+    background: #0f1117;
+    overscroll-behavior: none;
+}
+
+.tz-view {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Login / overlays centran un "phone" */
+#view-login { justify-content: center; align-items: center; padding: 2rem 1rem; }
+.tz-phone { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; }
+
+.tz-scan-header { background: var(--card); color: var(--text); }
+.tz-scan-sticky { position: sticky; top: 0; z-index: 20; }
+
+/* ── Cámara con retícula ──────────────────────────────────────────────────── */
+.tz-cam-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 45vh;
+    background: linear-gradient(160deg, #080e1a 0%, #0c1523 100%);
+    overflow: hidden;
+}
+.tz-scan-reader { position: absolute; inset: 0; }
+.tz-scan-reader video { width: 100% !important; height: 100% !important; object-fit: cover; }
+
+.tz-reticle-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.tz-reticle-overlay::after {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,.012) 3px, rgba(255,255,255,.012) 4px);
+}
+.reticle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -52%); width: 220px; height: 150px; }
+.reticle::before { content: ''; position: absolute; inset: 0; border: 1.5px solid rgba(59,130,246,.45); border-radius: 4px; }
+.tk { position: absolute; width: 16px; height: 16px; border-color: var(--blue); border-style: solid; }
+.tk.tl { top: 0; left: 0; border-width: 3px 0 0 3px; }
+.tk.tr { top: 0; right: 0; border-width: 3px 3px 0 0; }
+.tk.bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
+.tk.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+@keyframes scanline { 0% { top: 8%; } 50% { top: 87%; } 100% { top: 8%; } }
+.scan-line { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, rgba(59,130,246,.9), transparent); animation: scanline 2.2s ease-in-out infinite; }
+
+/* Controles de cámara (linterna / cambiar / beep) */
+.tz-cam-controls { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 14px; z-index: 6; }
+.tz-cam-btn {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.18);
+    color: #fff; font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+}
+.tz-cam-btn.active { background: var(--yellow); color: #000; border-color: var(--yellow); }
+.tz-cam-btn:disabled { opacity: .4; }
+
+/* ── Feedback de escaneo ──────────────────────────────────────────────────── */
+.tz-scan-feedback {
+    height: 36px; display: flex; align-items: center; justify-content: center;
+    font-weight: 600; color: #fff; transition: background-color .15s ease;
+    background: var(--card); flex-shrink: 0;
+}
+.tz-scan-feedback.ok { background: #198754; }
+.tz-scan-feedback.dup { background: var(--yellow); color: #000; }
+.tz-scan-feedback.error { background: var(--red); }
+
+/* ── Lista de escaneos ────────────────────────────────────────────────────── */
+.tz-scan-list { flex: 0 0 auto; max-height: 26vh; overflow-y: auto; background: var(--bg); }
+.si { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--border); }
+.si.new { animation: fadeUp .3s ease; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+.tz-scan-footer { background: var(--card); position: sticky; bottom: 0; flex-shrink: 0; border-top: 1px solid var(--border); }
+
+/* ── Overlay de carga ─────────────────────────────────────────────────────── */
+.tz-overlay {
+    position: fixed; inset: 0; background: rgba(15,17,23,.85);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1080;
+}
+
+/* Flash de borde al escanear (verde = ok, amarillo = ya escaneado) */
+.tz-cam-wrap.flash-ok::before,
+.tz-cam-wrap.flash-dup::before {
+    content: ''; position: absolute; inset: 0; z-index: 8; pointer-events: none;
+    border: 8px solid transparent; border-radius: 4px;
+    animation: tzFlash .5s ease-out;
+}
+.tz-cam-wrap.flash-ok::before  { border-color: var(--green); box-shadow: inset 0 0 30px rgba(34,197,94,.6); }
+.tz-cam-wrap.flash-dup::before { border-color: var(--yellow); box-shadow: inset 0 0 30px rgba(234,179,8,.6); }
+@keyframes tzFlash { from { opacity: 1; } to { opacity: 0; } }
+
+/* Overlay de lectura pausada por inactividad */
+.tz-cam-paused {
+    position: absolute; inset: 0; z-index: 9;
+    background: rgba(8,14,26,.88);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    color: #fff; text-align: center; padding: 1rem;
+}
+
+/* Toast (mensaje breve que se cierra solo) */
+.tz-toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+    background: var(--card); border: 1px solid var(--border); color: var(--text);
+    padding: 12px 18px; border-radius: 10px; z-index: 1090;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5); font-weight: 600; max-width: 90%;
+    display: flex; align-items: center; gap: 10px;
+    animation: tzToastIn .2s ease;
+}
+.tz-toast.ok { border-color: rgba(34,197,94,.5); }
+@keyframes tzToastIn { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* Items de la cola en el modal */
+#colaLista .tz-cola-item { padding: 12px 16px; border-bottom: 1px solid var(--border); }

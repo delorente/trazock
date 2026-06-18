@@ -1,0 +1,22 @@
+{
+  "name": "trazock/trazock",
+  "description": "Trazock - sistema de trazabilidad de stock",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": "^8.3",
+    "phpoffice/phpspreadsheet": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Trazock\\": "lib/"
+    },
+    "files": [
+      "lib/helpers.php"
+    ]
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  }
+}

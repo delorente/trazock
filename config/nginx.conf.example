@@ -1,0 +1,91 @@
+# =============================================================================
+# Nginx configuration example for Trazock — production (Vultr / Ubuntu)
+# =============================================================================
+#
+# When to use this file vs .htaccess:
+#   - .htaccess is read by Apache (WAMP dev, cPanel shared hosting).
+#     It is processed per-directory on every request — convenient but slower.
+#   - Nginx does NOT read .htaccess files at all. These directives MUST be
+#     placed directly in your server block (typically in
+#     /etc/nginx/sites-available/trazock or included from nginx.conf).
+#
+# Copy the relevant blocks into your server{} block and reload Nginx:
+#   sudo nginx -t && sudo systemctl reload nginx
+# =============================================================================
+
+server {
+    listen 443 ssl http2;
+    server_name trazock.example.com;  # replace with your real domain
+
+    root /var/www/trazock;            # replace with your deploy path
+    index index.php;
+
+    # -------------------------------------------------------------------------
+    # Block direct access to sensitive directories.
+    # Returns 404 (not 403) to avoid leaking directory existence.
+    # -------------------------------------------------------------------------
+    location ~ ^/(config|lib|sql|scripts)(/|$) {
+        deny all;
+        return 404;
+    }
+
+    # -------------------------------------------------------------------------
+    # Block access to dotfiles (.env, .git, .htaccess, etc.).
+    # -------------------------------------------------------------------------
+    location ~ /\. {
+        deny all;
+    }
+
+    # -------------------------------------------------------------------------
+    # Block direct downloads of project manifest files.
+    # -------------------------------------------------------------------------
+    location ~ ^/(composer\.(json|lock)|package(-lock)?\.json|\.gitignore)$ {
+        deny all;
+    }
+
+    # -------------------------------------------------------------------------
+    # Security headers.
+    # CSP y Permissions-Policy las emite PHP (lib/bootstrap.php) en cada respuesta
+    # dinámica, así que acá sólo reforzamos los headers base + HSTS para todo el sitio.
+    # -------------------------------------------------------------------------
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "same-origin" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # -------------------------------------------------------------------------
+    # Service Worker: necesita un scope más amplio que /scan/ para cachear /assets/*.
+    # Este header autoriza el scope raíz. (Exact match: gana sobre el regex de assets.)
+    # -------------------------------------------------------------------------
+    location = /scan/sw.js {
+        add_header Service-Worker-Allowed "/" always;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    # -------------------------------------------------------------------------
+    # PHP-FPM passthrough for .php files.
+    # -------------------------------------------------------------------------
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;  # adjust socket path
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    # -------------------------------------------------------------------------
+    # Static assets — serve directly, no PHP.
+    # -------------------------------------------------------------------------
+    location ~* \.(css|js|png|jpg|jpeg|gif|ico|woff2?)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    # -------------------------------------------------------------------------
+    # Everything else — try file, then 404.
+    # -------------------------------------------------------------------------
+    location / {
+        try_files $uri $uri/ =404;
+    }
+}
