@@ -45,6 +45,7 @@
 
     let detector = null;      // BarcodeDetector nativo (Android/MLKit) si está disponible
     let usarNativo = false;   // true → usamos el detector nativo; false → zxing-cpp
+    let fmtReportado = false; // diagnóstico temporal: reportar el formato real una vez
 
     let lastCode = null;
     let lastTime = 0;
@@ -99,11 +100,12 @@
         try {
             if ('BarcodeDetector' in window) {
                 const sop = await window.BarcodeDetector.getSupportedFormats();
-                if (sop && sop.indexOf('code_128') !== -1) {
-                    // Solo Code 128 + 2D: sin EAN/UPC, que el nativo confundía con el
-                    // Code 128 largo y devolvía un falso EAN-13 de 13 dígitos.
-                    const fmts = ['code_128', 'qr_code', 'data_matrix']
-                        .filter(f => sop.indexOf(f) !== -1);
+                // DIAGNÓSTICO: candidatos lineales de longitud variable (SIN EAN/UPC, que
+                // secuestraban el código como falso EAN-13). El primero que lea nos dice la
+                // simbología real vía b.format. Sumamos QR/DataMatrix por si acaso.
+                const fmts = ['code_128', 'code_39', 'code_93', 'codabar', 'itf', 'qr_code', 'data_matrix']
+                    .filter(f => sop.indexOf(f) !== -1);
+                if (fmts.length) {
                     detector = new window.BarcodeDetector({ formats: fmts });
                     usarNativo = true;
                 }
@@ -124,7 +126,13 @@
                 // Detector nativo: se le pasa el <video> directo, a resolución completa.
                 const bcs = await detector.detect(video);
                 if (corriendo && bcs && bcs.length) {
-                    onSuccess(bcs[0].rawValue);
+                    const b = bcs[0];
+                    // DIAGNÓSTICO temporal: la PRIMERA lectura muestra el formato real.
+                    if (!fmtReportado) {
+                        fmtReportado = true;
+                        try { alert('FORMATO: ' + b.format + '\nLARGO: ' + (b.rawValue || '').length + ' chars\nVALOR: ' + b.rawValue); } catch (e) { /* noop */ }
+                    }
+                    onSuccess(b.rawValue);
                 }
             } else {
                 // zxing-cpp sobre un cuadro del canvas, a resolución completa (sin downscale).
