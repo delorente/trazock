@@ -22,11 +22,14 @@
     const ANTIRREBOTE_MS = 2000;
     const FPS = 8; // cuadros por segundo a decodificar
 
-    // SOLO Code 128 (las etiquetas) + 2D (QR/DataMatrix, que no se confunden con un
-    // lineal). Se excluyen TODOS los demás lineales —ITF, Code 39/93, Codabar y también
-    // EAN/UPC— porque generan falsos positivos sobre el Code 128 largo: el detector
-    // "engancha" un subtramo y lo reporta como, p. ej., un EAN-13 de 13 dígitos.
-    const FORMATOS = ['Code128', 'QRCode', 'DataMatrix'];
+    // Las etiquetas son ITF (Interleaved 2 of 5) de 36 dígitos. Fijamos SOLO ITF para
+    // que ningún otro lector intervenga (motor zxing-cpp, usado en iOS).
+    const FORMATOS = ['ITF'];
+
+    // Formato esperado del código de la etiqueta: ITF de EXACTAMENTE 36 dígitos.
+    // ITF no tiene longitud fija ni checksum → el lector entrega parciales (14) o
+    // sobre-lecturas (40). Solo se acepta lo que cumple este patrón.
+    const CODIGO_VALIDO = /^\d{36}$/;
 
     let stream = null;
     let video = null;
@@ -79,9 +82,14 @@
         return c;
     }
 
-    function onSuccess(decodedText, fmt) {
+    function onSuccess(decodedText) {
         const code = (decodedText || '').trim();
         if (!code) return;
+        // Validación de formato: solo se aceptan códigos que cumplen el patrón esperado
+        // (ITF de 36 dígitos). Las lecturas parciales/sobre-leídas se descartan en
+        // silencio: nunca se guarda un código mal leído; el operador sostiene la lectura
+        // hasta que entra una válida (las correctas son siempre de 36).
+        if (!CODIGO_VALIDO.test(code)) return;
         const now = Date.now();
         // Antirrebote: mismo código dentro de la ventana → ignorar.
         if (code === lastCode && (now - lastTime) < ANTIRREBOTE_MS) {
@@ -89,10 +97,6 @@
         }
         lastCode = code;
         lastTime = now;
-        // DIAGNÓSTICO temporal: formato real de cada lectura aceptada (buena o mala).
-        if (fmt) {
-            try { alert('FORMATO: ' + fmt + '\nLARGO: ' + code.length + ' chars\nVALOR: ' + code); } catch (e) { /* noop */ }
-        }
         if (onScanCb) onScanCb(code);
     }
 
@@ -103,11 +107,9 @@
         try {
             if ('BarcodeDetector' in window) {
                 const sop = await window.BarcodeDetector.getSupportedFormats();
-                // DIAGNÓSTICO: candidatos lineales de longitud variable (SIN EAN/UPC, que
-                // secuestraban el código como falso EAN-13). El primero que lea nos dice la
-                // simbología real vía b.format. Sumamos QR/DataMatrix por si acaso.
-                const fmts = ['code_128', 'code_39', 'code_93', 'codabar', 'itf', 'qr_code', 'data_matrix']
-                    .filter(f => sop.indexOf(f) !== -1);
+                // Las etiquetas son ITF; fijamos solo ese formato en el detector nativo
+                // (Android/MLKit) para que nada más intervenga.
+                const fmts = ['itf'].filter(f => sop.indexOf(f) !== -1);
                 if (fmts.length) {
                     detector = new window.BarcodeDetector({ formats: fmts });
                     usarNativo = true;
@@ -129,8 +131,7 @@
                 // Detector nativo: se le pasa el <video> directo, a resolución completa.
                 const bcs = await detector.detect(video);
                 if (corriendo && bcs && bcs.length) {
-                    const b = bcs[0];
-                    onSuccess(b.rawValue, b.format);
+                    onSuccess(bcs[0].rawValue);
                 }
             } else {
                 // zxing-cpp sobre un cuadro del canvas, a resolución completa (sin downscale).
@@ -145,7 +146,7 @@
                     maxNumberOfSymbols: 1
                 });
                 if (corriendo && resultados && resultados.length) {
-                    onSuccess(resultados[0].text, resultados[0].format);
+                    onSuccess(resultados[0].text);
                 }
             }
         } catch (e) {
