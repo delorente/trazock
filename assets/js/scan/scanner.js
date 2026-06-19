@@ -45,7 +45,6 @@
 
     let detector = null;      // BarcodeDetector nativo (Android/MLKit) si está disponible
     let usarNativo = false;   // true → usamos el detector nativo; false → zxing-cpp
-    let fmtReportado = false; // diagnóstico temporal: reportar el formato real una vez
 
     let lastCode = null;
     let lastTime = 0;
@@ -80,7 +79,7 @@
         return c;
     }
 
-    function onSuccess(decodedText) {
+    function onSuccess(decodedText, fmt) {
         const code = (decodedText || '').trim();
         if (!code) return;
         const now = Date.now();
@@ -90,6 +89,10 @@
         }
         lastCode = code;
         lastTime = now;
+        // DIAGNÓSTICO temporal: formato real de cada lectura aceptada (buena o mala).
+        if (fmt) {
+            try { alert('FORMATO: ' + fmt + '\nLARGO: ' + code.length + ' chars\nVALOR: ' + code); } catch (e) { /* noop */ }
+        }
         if (onScanCb) onScanCb(code);
     }
 
@@ -127,12 +130,7 @@
                 const bcs = await detector.detect(video);
                 if (corriendo && bcs && bcs.length) {
                     const b = bcs[0];
-                    // DIAGNÓSTICO temporal: la PRIMERA lectura muestra el formato real.
-                    if (!fmtReportado) {
-                        fmtReportado = true;
-                        try { alert('FORMATO: ' + b.format + '\nLARGO: ' + (b.rawValue || '').length + ' chars\nVALOR: ' + b.rawValue); } catch (e) { /* noop */ }
-                    }
-                    onSuccess(b.rawValue);
+                    onSuccess(b.rawValue, b.format);
                 }
             } else {
                 // zxing-cpp sobre un cuadro del canvas, a resolución completa (sin downscale).
@@ -147,7 +145,7 @@
                     maxNumberOfSymbols: 1
                 });
                 if (corriendo && resultados && resultados.length) {
-                    onSuccess(resultados[0].text);
+                    onSuccess(resultados[0].text, resultados[0].format);
                 }
             }
         } catch (e) {
