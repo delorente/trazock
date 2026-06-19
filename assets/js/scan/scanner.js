@@ -43,6 +43,10 @@
     let videoInputs = [];     // cámaras de video disponibles (para "cambiar cámara")
     let wasmListo = false;
 
+    let detector = null;      // BarcodeDetector nativo (Android/MLKit) si está disponible
+    let usarNativo = false;   // true → usamos el detector nativo; false → zxing-cpp
+    let resReportada = false; // diagnóstico temporal de resolución (una sola vez)
+
     let lastCode = null;
     let lastTime = 0;
 
@@ -87,27 +91,60 @@
         if (onScanCb) onScanCb(code);
     }
 
+    // Intenta crear el BarcodeDetector nativo (Android: MLKit). Es el que mejor lee
+    // los Code 128 largos. iOS no lo tiene → quedamos con zxing-cpp.
+    async function prepararDetectorNativo() {
+        detector = null; usarNativo = false;
+        try {
+            if ('BarcodeDetector' in window) {
+                const sop = await window.BarcodeDetector.getSupportedFormats();
+                if (sop && sop.indexOf('code_128') !== -1) {
+                    const fmts = ['code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'data_matrix']
+                        .filter(f => sop.indexOf(f) !== -1);
+                    detector = new window.BarcodeDetector({ formats: fmts });
+                    usarNativo = true;
+                }
+            }
+        } catch (e) {
+            detector = null; usarNativo = false;
+        }
+    }
+
     // Decodifica un cuadro del video. No solapa: si el anterior sigue corriendo, salta.
     async function tick() {
         if (!corriendo || decoding || !video) return;
         if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
+
+        // Diagnóstico temporal (una vez): resolución real de captura + motor en uso.
+        if (!resReportada) {
+            resReportada = true;
+            try { alert('Cámara: ' + video.videoWidth + ' x ' + video.videoHeight
+                + (usarNativo ? '\nMotor: detector NATIVO' : '\nMotor: zxing-cpp')); } catch (e) { /* noop */ }
+        }
+
         decoding = true;
         try {
-            const w = video.videoWidth, h = video.videoHeight;
-            if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-            ctx.drawImage(video, 0, 0, w, h);
-            const img = ctx.getImageData(0, 0, w, h);
-            const resultados = await window.ZXingWASM.readBarcodes(img, {
-                formats: FORMATOS,
-                tryHarder: true,
-                // NO reducir la resolución: el downscaling (on por defecto) borra el
-                // detalle fino de los códigos largos/densos (Code 128 de 36 dígitos) y
-                // hacía que no se leyeran. A resolución completa sí los engancha.
-                tryDownscale: false,
-                maxNumberOfSymbols: 1
-            });
-            if (corriendo && resultados && resultados.length) {
-                onSuccess(resultados[0].text);
+            if (usarNativo && detector) {
+                // Detector nativo: se le pasa el <video> directo, a resolución completa.
+                const bcs = await detector.detect(video);
+                if (corriendo && bcs && bcs.length) {
+                    onSuccess(bcs[0].rawValue);
+                }
+            } else {
+                // zxing-cpp sobre un cuadro del canvas, a resolución completa (sin downscale).
+                const w = video.videoWidth, h = video.videoHeight;
+                if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+                ctx.drawImage(video, 0, 0, w, h);
+                const img = ctx.getImageData(0, 0, w, h);
+                const resultados = await window.ZXingWASM.readBarcodes(img, {
+                    formats: FORMATOS,
+                    tryHarder: true,
+                    tryDownscale: false,
+                    maxNumberOfSymbols: 1
+                });
+                if (corriendo && resultados && resultados.length) {
+                    onSuccess(resultados[0].text);
+                }
             }
         } catch (e) {
             /* cuadro no decodificado: ignorar */
@@ -139,6 +176,9 @@
             } catch (e) {
                 videoInputs = [];
             }
+
+            // 2b) Preparar el detector nativo (Android). iOS no lo tiene → zxing-cpp.
+            await prepararDetectorNativo();
 
             // 3) Montar / reutilizar el <video> dentro del contenedor (estilado por scan.css).
             const cont = document.getElementById(elId);
