@@ -22,11 +22,11 @@
     const ANTIRREBOTE_MS = 2000;
     const FPS = 8; // cuadros por segundo a decodificar
 
-    // Solo simbologías con checksum / longitud fija (sin parciales): Code 128 (las
-    // etiquetas), retail EAN/UPC, y QR/DataMatrix 2D. Se excluyen los lineales
-    // self-clocking de longitud variable (ITF, Code 39/93, Codabar), que producían
-    // falsos positivos parciales sobre el Code 128 real.
-    const FORMATOS = ['Code128', 'EAN-13', 'EAN-8', 'UPC-A', 'UPC-E', 'QRCode', 'DataMatrix'];
+    // SOLO Code 128 (las etiquetas) + 2D (QR/DataMatrix, que no se confunden con un
+    // lineal). Se excluyen TODOS los demás lineales —ITF, Code 39/93, Codabar y también
+    // EAN/UPC— porque generan falsos positivos sobre el Code 128 largo: el detector
+    // "engancha" un subtramo y lo reporta como, p. ej., un EAN-13 de 13 dígitos.
+    const FORMATOS = ['Code128', 'QRCode', 'DataMatrix'];
 
     let stream = null;
     let video = null;
@@ -45,7 +45,6 @@
 
     let detector = null;      // BarcodeDetector nativo (Android/MLKit) si está disponible
     let usarNativo = false;   // true → usamos el detector nativo; false → zxing-cpp
-    let resReportada = false; // diagnóstico temporal de resolución (una sola vez)
 
     let lastCode = null;
     let lastTime = 0;
@@ -99,7 +98,9 @@
             if ('BarcodeDetector' in window) {
                 const sop = await window.BarcodeDetector.getSupportedFormats();
                 if (sop && sop.indexOf('code_128') !== -1) {
-                    const fmts = ['code_128', 'ean_13', 'ean_8', 'upc_a', 'upc_e', 'qr_code', 'data_matrix']
+                    // Solo Code 128 + 2D: sin EAN/UPC, que el nativo confundía con el
+                    // Code 128 largo y devolvía un falso EAN-13 de 13 dígitos.
+                    const fmts = ['code_128', 'qr_code', 'data_matrix']
                         .filter(f => sop.indexOf(f) !== -1);
                     detector = new window.BarcodeDetector({ formats: fmts });
                     usarNativo = true;
@@ -114,13 +115,6 @@
     async function tick() {
         if (!corriendo || decoding || !video) return;
         if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
-
-        // Diagnóstico temporal (una vez): resolución real de captura + motor en uso.
-        if (!resReportada) {
-            resReportada = true;
-            try { alert('Cámara: ' + video.videoWidth + ' x ' + video.videoHeight
-                + (usarNativo ? '\nMotor: detector NATIVO' : '\nMotor: zxing-cpp')); } catch (e) { /* noop */ }
-        }
 
         decoding = true;
         try {
