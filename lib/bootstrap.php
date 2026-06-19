@@ -46,7 +46,7 @@ if (PHP_SAPI !== 'cli' && !headers_sent()) {
     header(
         "Content-Security-Policy: default-src 'self'; "
         . "img-src 'self' data:; media-src 'self' blob:; "
-        . "script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+        . "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; "
         . "connect-src 'self'; worker-src 'self'; manifest-src 'self'; "
         . "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     );

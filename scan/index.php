@@ -22,6 +22,7 @@ $boot = [
     'apiBase'   => url('api'),
     'scope'     => $appPath,
     'swUrl'     => url('scan/sw.js'),
+    'zxingWasm' => asset('assets/vendor/zxing-wasm/zxing_reader.wasm'),
     'usuario'   => null,
     'catalogos' => null,
     'csrf'      => null,
@@ -202,7 +203,7 @@ if ($user !== null) {
 window.TZ_BOOT = <?= json_encode($boot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 </script>
 <script src="<?= h(asset('assets/vendor/bootstrap/bootstrap.bundle.min.js')) ?>"></script>
-<script src="<?= h(asset('assets/vendor/html5-qrcode/html5-qrcode.min.js')) ?>"></script>
+<script src="<?= h(asset('assets/vendor/zxing-wasm/reader.iife.js')) ?>"></script>
 <script src="<?= h(asset('assets/vendor/idb/idb.js')) ?>"></script>
 <script src="<?= h(asset('assets/js/scan/db.js')) ?>"></script>
 <script src="<?= h(asset('assets/js/scan/scanner.js')) ?>"></script>

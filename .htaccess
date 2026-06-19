@@ -1,6 +1,12 @@
 # Disable directory listing for all directories.
 Options -Indexes
 
+# Servir WebAssembly con el MIME correcto (el escáner zxing-cpp usa un .wasm).
+# Sin esto, algunos navegadores fallan al compilar el módulo por streaming.
+<IfModule mod_mime.c>
+    AddType application/wasm .wasm
+</IfModule>
+
 # Block direct HTTP access to sensitive directories.
 # Any request whose URI starts with config/, lib/, sql/, or scripts/ is
 # immediately rejected with 403 Forbidden. PHP is never invoked.
