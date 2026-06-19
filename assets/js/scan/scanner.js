@@ -67,7 +67,9 @@
     // cámara trasera. En el primer arranque no hay lista de cámaras todavía (sin
     // permiso), así que usamos facingMode; al cambiar de cámara usamos deviceId.
     function videoConstraints() {
-        const c = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+        // Pedimos la MÁXIMA resolución posible: los Code 128 largos necesitan muchos
+        // píxeles a lo ancho. El equipo entrega lo más cercano que soporte (idealmente 4K).
+        const c = { width: { ideal: 3840 }, height: { ideal: 2160 } };
         const dev = videoInputs.length > 0 ? videoInputs[camIndex % videoInputs.length] : null;
         if (dev && dev.deviceId) {
             c.deviceId = { exact: dev.deviceId };
@@ -192,6 +194,9 @@
                 canvas = document.createElement('canvas');
                 ctx = canvas.getContext('2d', { willReadFrequently: true });
             }
+
+            // Foco continuo (best-effort) para nitidez en códigos densos sobre superficie curva.
+            try { if (track) await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) { /* no soportado */ }
 
             corriendo = true;
             if (decodeTimer) clearInterval(decodeTimer);
