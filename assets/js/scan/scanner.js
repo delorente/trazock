@@ -100,6 +100,10 @@
             const resultados = await window.ZXingWASM.readBarcodes(img, {
                 formats: FORMATOS,
                 tryHarder: true,
+                // NO reducir la resolución: el downscaling (on por defecto) borra el
+                // detalle fino de los códigos largos/densos (Code 128 de 36 dígitos) y
+                // hacía que no se leyeran. A resolución completa sí los engancha.
+                tryDownscale: false,
                 maxNumberOfSymbols: 1
             });
             if (corriendo && resultados && resultados.length) {
