@@ -35,10 +35,14 @@
     function formatosSoportados() {
         const F = window.Html5QrcodeSupportedFormats;
         if (!F) return undefined; // si no está el enum, html5-qrcode usa todos
-        // QR + los lineales más comunes (incluye ITF/Code128 para códigos numéricos largos).
+        // Solo simbologías con checksum / longitud fija (sin parciales): Code 128 (las
+        // etiquetas), retail EAN/UPC, y QR/DataMatrix 2D. Se EXCLUYEN los lineales
+        // self-clocking de longitud variable (ITF, Code 39, Code 93, Codabar) porque
+        // generan falsos positivos parciales (ej. 14 ó 18 dígitos) sobre el Code 128 real,
+        // sobre todo en iOS (ZXing). Code 128 lleva checksum: se lee completo o no se lee.
         return [
-            F.QR_CODE, F.CODE_128, F.CODE_39, F.CODE_93, F.CODABAR,
-            F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.ITF, F.DATA_MATRIX
+            F.QR_CODE, F.CODE_128,
+            F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.DATA_MATRIX
         ];
     }
 
@@ -53,14 +57,11 @@
         };
     }
 
-    // Restricciones de video: mayor resolución y foco continuo mejoran la lectura de
-    // códigos de barras densos (numéricos largos).
+    // Restricciones de video: alta resolución para poder resolver códigos de barras
+    // densos / numéricos largos. SIN advanced.focusMode, que rompía el arranque en
+    // iOS/Android (OverconstrainedError y la cámara quedaba en negro).
     function videoConstraints(deviceId) {
-        const c = {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            advanced: [{ focusMode: 'continuous' }]
-        };
+        const c = { width: { ideal: 1920 }, height: { ideal: 1080 } };
         if (deviceId) { c.deviceId = { exact: deviceId }; }
         else { c.facingMode = { ideal: 'environment' }; }
         return c;
@@ -88,8 +89,23 @@
 
             const deviceId = cameras.length > 0 ? cameras[camIndex % cameras.length].id : null;
 
-            await qr.start(videoConstraints(deviceId), config(), onSuccess, function () { /* ignorar fallos de frame */ });
+            // Primero intentamos ALTA RESOLUCIÓN (clave para los códigos largos/densos).
+            // Si ese arranque falla, recreamos la instancia (para no quedar "en transición")
+            // y reintentamos con la cámara trasera en constraints mínimos, que siempre arranca.
+            try {
+                await qr.start(videoConstraints(deviceId), config(), onSuccess, function () { /* ignorar fallos de frame */ });
+            } catch (ePrimario) {
+                try { await qr.stop(); } catch (e) { /* noop */ }
+                try { qr.clear(); } catch (e) { /* noop */ }
+                qr = new Html5Qrcode(elementId, { verbose: false });
+                await qr.start({ facingMode: 'environment' }, config(), onSuccess, function () { /* ignorar fallos de frame */ });
+            }
             corriendo = true;
+
+            // Foco continuo APLICADO DESPUÉS de arrancar (best-effort). Aplicarlo acá,
+            // y no en los constraints iniciales, evita romper el arranque y mejora
+            // mucho la lectura de códigos densos/largos (ITF, Code-128) y superficies curvas.
+            try { await qr.applyVideoConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) { /* no soportado: noop */ }
         },
 
         async stop() {
