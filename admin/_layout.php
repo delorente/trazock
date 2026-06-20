@@ -34,6 +34,7 @@ function panel_menu(): array
             'seccion' => 'Órdenes',
             'items'   => [
                 ['key' => 'captura',  'label' => 'Nueva carga', 'href' => 'ordenes-captura.php', 'icon' => 'cloud-upload-fill', 'roles' => ['admin', 'gestor']],
+                ['key' => 'reportes', 'label' => 'Reportes',    'href' => 'ordenes-reportes.php', 'icon' => 'bar-chart-fill', 'roles' => ['admin', 'gestor']],
             ],
         ],
         [

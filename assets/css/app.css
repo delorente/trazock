@@ -297,14 +297,26 @@ a { color: var(--blue); }
 .label-cell .li{font-size:10px;color:#555;margin-top:2px}
 .label-cell .lc{font-size:9px;color:#888;margin-top:6px;border-top:1px dashed #e6e6e6;padding-top:5px;letter-spacing:.03em;font-family:'Courier New',monospace}
 
+/* Impresión: se imprime solo el contenido marcado .print-area (etiquetas o
+   reportes). El resto del chrome del panel se oculta y la tabla se vuelve
+   legible sobre papel blanco. */
 @media print{
   @page{size:A4;margin:8mm 6mm}
-  body{background:#fff!important}
-  body *{visibility:hidden!important}
-  .label-sheet,.label-sheet *{visibility:visible!important}
-  .label-sheet{position:absolute;inset:0;display:block;gap:0;margin:0;padding:0}
+  body{background:#fff!important;color:#000}
+  #sidebar,#sidebar-overlay,#tzConfirmModal,.no-print{display:none!important}
+  #main{margin:0!important;padding:0!important;width:auto!important;max-width:none!important}
+  #main > :not(.print-area){display:none!important}
+  .print-area{color:#000}
+  /* Etiquetas (hoja A4, 8 por hoja) */
+  .label-sheet{display:block;gap:0;margin:0;padding:0}
   .sheet-page{box-shadow:none;border-radius:0;width:100%;padding:0;gap:0;break-after:page;page-break-after:always}
   .sheet-page:last-child{break-after:auto;page-break-after:auto}
   .label-cell{height:67mm;border:1px dotted #ccc;break-inside:avoid;page-break-inside:avoid}
   .label-cell .lq svg{width:32mm;height:32mm}
+  /* Reportes (tabla legible en blanco y negro) */
+  .print-area h1,.print-area h2,.print-area .rep-print-title{color:#000;font-size:16px;margin:0 0 8px}
+  .print-area table{width:100%;border-collapse:collapse;color:#000}
+  .print-area thead th{border-bottom:2px solid #000;color:#000;font-size:11px;text-align:left;padding:4px 6px}
+  .print-area tbody td{border-bottom:1px solid #bbb;color:#000;font-size:11px;padding:4px 6px}
+  .print-area .badge{background:none!important;color:#000!important;border:1px solid #999;padding:1px 4px}
 }

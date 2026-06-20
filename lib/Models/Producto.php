@@ -244,6 +244,17 @@ final class Producto
         return $stmt->rowCount();
     }
 
+    /** Marca como etiquetados los ítems de una sola orden (reimpresión puntual). */
+    public static function marcarEtiquetadasPorOrden(int $ordenId): int
+    {
+        $stmt = DB::getInstance()->prepare(
+            'UPDATE productos SET etiquetada_at = NOW()
+              WHERE orden_id = :id AND etiquetada_at IS NULL'
+        );
+        $stmt->execute([':id' => $ordenId]);
+        return $stmt->rowCount();
+    }
+
     // -------------------------------------------------------------------------
     // Seguimiento público (token opaco para la landing del cliente final)
     // -------------------------------------------------------------------------

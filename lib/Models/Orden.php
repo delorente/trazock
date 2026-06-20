@@ -14,6 +14,9 @@ use Trazock\DB;
  */
 final class Orden
 {
+    /** Estados posibles de una orden (derivados de sus ítems), para el filtro de Reportes. */
+    public const ESTADOS = ['RECIBIDO', 'EN_REPARTO', 'ENTREGADO', 'REINGRESADO', 'DEVUELTO'];
+
     /** Columnas escribibles de una orden (para crear/actualizar desde la carga). */
     private const CAMPOS = [
         'carga_id', 'nro_orden', 'nro_remito', 'fecha_remito', 'tipo_venta',
@@ -193,5 +196,48 @@ final class Orden
         $stmt = DB::getInstance()->prepare('SELECT COUNT(*) FROM ordenes o' . $where);
         $stmt->execute($params);
         return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * Totales de la grilla filtrada (para el sumbar de Reportes): nº de órdenes,
+     * Σ m³ y Σ de ítems físicos.
+     *
+     * @param array<string, mixed> $filtros
+     * @return array{ordenes:int, items:int, m3:float}
+     */
+    public static function totales(array $filtros): array
+    {
+        [$where, $params] = self::whereFiltros($filtros);
+        $db = DB::getInstance();
+
+        $stmt = $db->prepare('SELECT COUNT(*) AS ordenes, COALESCE(SUM(o.m3_total), 0) AS m3 FROM ordenes o' . $where);
+        $stmt->execute($params);
+        $a = $stmt->fetch() ?: [];
+
+        // Σ ítems = productos ligados a las órdenes filtradas (no se puede sumar en
+        // la consulta anterior sin multiplicar m3_total por la cantidad de ítems).
+        $stmt2 = $db->prepare('SELECT COUNT(*) FROM productos p JOIN ordenes o ON o.id = p.orden_id' . $where);
+        $stmt2->execute($params);
+
+        return [
+            'ordenes' => (int)($a['ordenes'] ?? 0),
+            'items'   => (int)$stmt2->fetchColumn(),
+            'm3'      => (float)($a['m3'] ?? 0),
+        ];
+    }
+
+    /**
+     * Provincias de destino distintas presentes en las órdenes (para el filtro).
+     *
+     * @return array<int, string>
+     */
+    public static function provincias(): array
+    {
+        $rows = DB::getInstance()->query(
+            "SELECT DISTINCT dest_provincia FROM ordenes
+             WHERE dest_provincia IS NOT NULL AND dest_provincia <> ''
+             ORDER BY dest_provincia"
+        )->fetchAll(\PDO::FETCH_COLUMN);
+        return array_map('strval', $rows);
     }
 }

@@ -76,10 +76,17 @@ y en `design/project/Seguimiento Trazock.html`. **Recrear con assets locales**, 
 
 ## PENDIENTE (en orden sugerido)
 1. ~~**Etiquetas PDF + QR**~~ ✅ HECHO — ver "Construido y VALIDADO" arriba.
-2. **Reportes** (`admin/ordenes-reportes.php` + re-agregar al menú en `_layout.php`):
-   grilla con `Orden::buscar` (ya filtra por provincia/estado/tipo_venta/fechas/búsqueda),
-   sumbar (Σ m³, #órdenes, #ítems), export Excel (ya hay PhpSpreadsheet — ver
-   `admin/exportar.php`), PDF e imprimir (CSS print). Diseño: sección `#reportes`.
+2. ~~**Reportes**~~ ✅ HECHO. `admin/ordenes-reportes.php`: grilla `Orden::buscar` con
+   filtros (provincia/estado/tipo_venta/fechas/búsqueda) + paginación, sumbar
+   (`Orden::totales`: Σ órdenes/m³/ítems), export Excel (`?export=xlsx`, PhpSpreadsheet),
+   e Imprimir/PDF (CSS print). Menú "Reportes" agregado en `_layout.php`. Detalle:
+   `admin/ordenes-detalle.php` (datos + ítems con badge ETIQUETADA + preview QR +
+   re-imprimir → `ordenes-etiquetas.php?orden=ID`). `Orden::provincias()/totales()/ESTADOS`.
+   - Impresión refactorizada a `.print-area` genérico en app.css (antes ocultaba todo
+     salvo `.label-sheet`): `#main > :not(.print-area){display:none}` + `.no-print`.
+     La hoja de etiquetas lleva `class="label-sheet print-area"`.
+   - PENDIENTE menor de detalle: "Editar orden" y timeline de historial (el diseño S6
+     los muestra; se omitieron por alcance). Los ítems muestran estado real.
 3. **Escáner ITF → QR**: en `assets/js/scan/scanner.js` cambiar el formato del detector
    nativo y zxing a **qr_code** (era ITF de 36 díg., ya no existe), y la validación
    `CODIGO_VALIDO` al patrón del QR. Sumar controles en `assets/js/scan/ui.js`:
