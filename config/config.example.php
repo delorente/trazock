@@ -98,6 +98,16 @@ define('ANTHROPIC_MODEL', 'claude-sonnet-4-6');
 // define('ANTHROPIC_CA_BUNDLE', 'C:/wamp64/cacert.pem');
 
 // =============================================================================
+// Superadmin protegido (acceso de emergencia)
+// =============================================================================
+// Nombre de usuario que el panel NO permite editar, desactivar ni borrar — tu
+// acceso garantizado si alguien cambia la clave del admin. Es un usuario admin
+// normal en la base (lo creás con scripts/crear-admin.php) pero blindado en la UI.
+// Dejalo comentado para desactivar la protección. El valor real va en
+// config/config.php (gitignored), no en este ejemplo.
+// define('SUPERADMIN_USER', 'dev');
+
+// =============================================================================
 // Timezone
 // =============================================================================
 

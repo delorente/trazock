@@ -23,17 +23,17 @@ function panel_menu(): array
         [
             'seccion' => 'Principal',
             'items'   => [
-                ['key' => 'dashboard',  'label' => 'Dashboard',  'href' => 'index.php',      'icon' => 'grid-1x2-fill',           'roles' => ['admin', 'gestor']],
-                ['key' => 'productos',  'label' => 'Productos',   'href' => 'productos.php',  'icon' => 'boxes',                   'roles' => ['admin', 'gestor']],
-                ['key' => 'lotes',      'label' => 'Lotes',       'href' => 'lotes.php',      'icon' => 'collection-fill',         'roles' => ['admin', 'gestor']],
-                ['key' => 'conflictos', 'label' => 'Conflictos',  'href' => 'conflictos.php', 'icon' => 'exclamation-triangle-fill','roles' => ['admin', 'gestor'], 'conflicto' => true],
-                ['key' => 'exportar',   'label' => 'Exportar',    'href' => 'exportar.php',   'icon' => 'download',                'roles' => ['admin', 'gestor']],
+                ['key' => 'dashboard',  'label' => 'Dashboard',  'href' => 'index.php',      'icon' => 'grid-1x2-fill',           'roles' => ['admin']],
+                ['key' => 'productos',  'label' => 'Productos',   'href' => 'productos.php',  'icon' => 'boxes',                   'roles' => ['admin']],
+                ['key' => 'lotes',      'label' => 'Lotes',       'href' => 'lotes.php',      'icon' => 'collection-fill',         'roles' => ['admin']],
+                ['key' => 'conflictos', 'label' => 'Conflictos',  'href' => 'conflictos.php', 'icon' => 'exclamation-triangle-fill','roles' => ['admin'], 'conflicto' => true],
+                ['key' => 'exportar',   'label' => 'Exportar',    'href' => 'exportar.php',   'icon' => 'download',                'roles' => ['admin']],
             ],
         ],
         [
             'seccion' => 'Órdenes',
             'items'   => [
-                ['key' => 'captura',  'label' => 'Nueva carga', 'href' => 'ordenes-captura.php', 'icon' => 'cloud-upload-fill', 'roles' => ['admin', 'gestor']],
+                ['key' => 'captura',  'label' => 'Nueva carga', 'href' => 'ordenes-captura.php', 'icon' => 'cloud-upload-fill', 'roles' => ['admin']],
                 ['key' => 'reportes', 'label' => 'Reportes',    'href' => 'ordenes-reportes.php', 'icon' => 'bar-chart-fill', 'roles' => ['admin', 'gestor']],
             ],
         ],

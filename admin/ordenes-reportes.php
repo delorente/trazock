@@ -17,7 +17,7 @@ use Trazock\Models\Carga;
 use Trazock\Models\Orden;
 use Trazock\Models\Zona;
 
-$user = Auth::requierePanel(); // admin o gestor
+$user = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo reportes)
 
 $filtros = [
     'q'           => trim((string)($_GET['q'] ?? '')),

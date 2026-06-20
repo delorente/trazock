@@ -15,11 +15,16 @@ Auth::iniciarSesion();
 // Si ya hay sesión válida, no mostrar login: mandar a donde corresponda.
 $actual = Auth::validarSesion();
 if ($actual !== null) {
-    $destino = in_array($actual['rol'], ['admin', 'gestor'], true)
-        ? url('admin/index.php')
-        : url('scan/');
-    header('Location: ' . $destino);
+    header('Location: ' . login_destino((string)$actual['rol']));
     exit;
+}
+
+/** Pantalla a la que va cada rol tras autenticarse. */
+function login_destino(string $rol): string
+{
+    if ($rol === 'admin')  { return url('admin/index.php'); }
+    if ($rol === 'gestor') { return url('admin/ordenes-reportes.php'); } // Supervisor: solo reportes
+    return url('scan/'); // operador / transportista
 }
 
 $error = null;
@@ -34,11 +39,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($usuario === '' || $password === '') {
         $error = 'Ingresá usuario y contraseña.';
     } elseif (Auth::login($usuario, $password)) {
-        $user    = Auth::usuarioActual();
-        $destino = in_array($user['rol'], ['admin', 'gestor'], true)
-            ? url('admin/index.php')
-            : url('scan/');
-        header('Location: ' . $destino);
+        $user = Auth::usuarioActual();
+        header('Location: ' . login_destino((string)$user['rol']));
         exit;
     } else {
         // Mensaje genérico: no distingue "usuario inexistente" de "password incorrecta"

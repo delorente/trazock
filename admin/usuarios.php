@@ -16,7 +16,7 @@ Auth::requiereRol('admin');
 
 $rolesLabel = [
     'admin'         => 'Administrador',
-    'gestor'        => 'Gestor',
+    'gestor'        => 'Supervisor',   // solo Reportes
     'operador'      => 'Operador',
     'transportista' => 'Transportista',
 ];
@@ -31,8 +31,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = (string)($_POST['accion'] ?? '');
     $id     = (int)($_POST['id'] ?? 0);
 
+    // El superadmin protegido (config: SUPERADMIN_USER) no se toca desde la UI.
+    $objetivo = $id > 0 ? Usuario::findById($id) : null;
+    $esProtegido = $objetivo !== null && Auth::esSuperadmin((string)$objetivo['usuario']);
+
     try {
-        if ($accion === 'toggle') {
+        if ($esProtegido) {
+            flash_set('warning', 'Ese usuario está protegido y no se puede modificar desde el panel.');
+        } elseif ($accion === 'toggle') {
             if ($id === (int)$user['id']) {
                 flash_set('warning', 'No podés desactivar tu propia cuenta.');
             } else {
@@ -112,6 +118,9 @@ panel_header('Usuarios', $user, 'usuarios', count($usuarios) . ' usuario(s)', $a
                         </span>
                     </td>
                     <td class="text-end">
+                        <?php if (Auth::esSuperadmin((string)$u['usuario'])): ?>
+                        <span class="badge b-inactivo" title="Acceso de emergencia: no se puede editar ni desactivar desde el panel"><i class="bi bi-shield-lock me-1"></i>protegido</span>
+                        <?php else: ?>
                         <button class="btn btn-sm btn-outline-secondary py-0 px-2" title="Editar"
                                 data-bs-toggle="modal" data-bs-target="#modalUsr"
                                 onclick='usrEditar(<?= json_encode([
@@ -130,6 +139,7 @@ panel_header('Usuarios', $user, 'usuarios', count($usuarios) . ' usuario(s)', $a
                             </button>
                         </form>
                         <?php endif; ?>
+                        <?php endif; /* superadmin */ ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -161,10 +171,10 @@ panel_header('Usuarios', $user, 'usuarios', count($usuarios) . ' usuario(s)', $a
         <div class="mb-3">
           <label class="form-label" for="usr_rol">Rol *</label>
           <select class="form-select" id="usr_rol" name="rol" required>
-            <option value="admin">Administrador</option>
-            <option value="gestor">Gestor</option>
-            <option value="operador">Operador</option>
-            <option value="transportista">Transportista</option>
+            <option value="admin">Administrador (acceso total)</option>
+            <option value="gestor">Supervisor (solo Reportes)</option>
+            <option value="operador">Operador (escáner)</option>
+            <option value="transportista">Transportista (escáner)</option>
           </select>
         </div>
         <div class="mb-3">

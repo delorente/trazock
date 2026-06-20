@@ -115,7 +115,7 @@ if (!function_exists('rol_badge')) {
     function rol_badge(?string $rol): string
     {
         $map = [
-            'admin' => 'Admin', 'gestor' => 'Gestor',
+            'admin' => 'Admin', 'gestor' => 'Supervisor',
             'operador' => 'Operador', 'transportista' => 'Transportista',
         ];
         return '<span class="badge b-' . h($rol ?? '') . '">' . h($map[$rol] ?? (string)$rol) . '</span>';

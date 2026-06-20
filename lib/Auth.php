@@ -221,7 +221,7 @@ final class Auth
      *
      * @return array<string, mixed>
      */
-    public static function requierePanel(): array
+    public static function requierePanel(array $roles = ['admin']): array
     {
         $user = self::validarSesion();
 
@@ -230,13 +230,33 @@ final class Auth
             exit;
         }
 
-        if (!in_array($user['rol'], ['admin', 'gestor'], true)) {
-            // Operador y transportista trabajan desde la app de escaneo.
+        $rol = (string)$user['rol'];
+
+        if (in_array($rol, ['operador', 'transportista'], true)) {
+            // Roles de la app de escaneo: nunca entran al panel.
             header('Location: ' . APP_BASE . '/scan/');
             exit;
         }
 
+        if (!in_array($rol, $roles, true)) {
+            // Rol de panel sin permiso para ESTA página → a su pantalla inicial.
+            $home = $rol === 'gestor' ? 'admin/ordenes-reportes.php' : 'admin/index.php';
+            header('Location: ' . APP_BASE . '/' . $home);
+            exit;
+        }
+
         return $user;
+    }
+
+    /**
+     * ¿Es el "superadmin protegido" (config: SUPERADMIN_USER)? Ese usuario no se
+     * puede editar, desactivar ni borrar desde el panel — es el acceso de emergencia
+     * del dueño. Si SUPERADMIN_USER no está definido/está vacío, no hay superadmin.
+     */
+    public static function esSuperadmin(?string $usuario): bool
+    {
+        $su = defined('SUPERADMIN_USER') ? trim((string)SUPERADMIN_USER) : '';
+        return $su !== '' && $usuario !== null && strcasecmp(trim($usuario), $su) === 0;
     }
 
     /**

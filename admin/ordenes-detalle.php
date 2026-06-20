@@ -15,12 +15,15 @@ use Trazock\EtiquetaQr;
 use Trazock\Models\Orden;
 use Trazock\Models\Producto;
 
-$user = Auth::requierePanel(); // admin o gestor
+$user    = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo lectura)
+$esAdmin = $user['rol'] === 'admin';
 
 // --- POST: editar datos de la orden (PRG + CSRF) -----------------------------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pid = (int)($_POST['id'] ?? 0);
-    if (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
+    if (!$esAdmin) {
+        flash_set('danger', 'No tenés permiso para editar órdenes.');
+    } elseif (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
         flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
     } elseif ($pid <= 0 || Orden::find($pid) === null) {
         flash_set('danger', 'Orden no encontrada.');
@@ -80,9 +83,11 @@ function item_estado(array $it): string
     return $est;
 }
 
-$acciones = $volver
-    . '<button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEditar"><i class="bi bi-pencil me-1"></i>Editar</button>'
-    . '<a class="btn btn-sm btn-outline-secondary" href="' . h($urlEti) . '"><i class="bi bi-tag me-1"></i>Re-imprimir etiquetas</a>';
+$acciones = $volver;
+if ($esAdmin) {
+    $acciones .= '<button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEditar"><i class="bi bi-pencil me-1"></i>Editar</button>'
+        . '<a class="btn btn-sm btn-outline-secondary" href="' . h($urlEti) . '"><i class="bi bi-tag me-1"></i>Re-imprimir etiquetas</a>';
+}
 
 panel_header('Detalle de orden', $user, 'reportes', '', $acciones);
 flash_render();
@@ -159,7 +164,7 @@ $campo = static function (string $label, string $valor): void {
         <div class="lc"><?= h((string)$m['codigo']) ?> · <?= h($num) ?></div>
       </div>
     </div>
-    <a class="btn btn-outline-secondary btn-sm w-100 mt-2" href="<?= h($urlEti) ?>"><i class="bi bi-printer me-1"></i>Re-imprimir etiquetas</a>
+    <?php if ($esAdmin): ?><a class="btn btn-outline-secondary btn-sm w-100 mt-2" href="<?= h($urlEti) ?>"><i class="bi bi-printer me-1"></i>Re-imprimir etiquetas</a><?php endif; ?>
     <?php else: ?>
     <div class="text-muted" style="font-size:13px">La orden no tiene ítems.</div>
     <?php endif; ?>
@@ -186,6 +191,7 @@ $campo = static function (string $label, string $valor): void {
 
 <style>@media(max-width:768px){.tz-detalle-grid{grid-template-columns:1fr!important}}</style>
 
+<?php if ($esAdmin): ?>
 <!-- Modal: editar datos de la orden -->
 <div class="modal fade" id="modalEditar" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -225,6 +231,7 @@ $campo = static function (string $label, string $valor): void {
     </form>
   </div>
 </div>
+<?php endif; /* modal solo admin */ ?>
 
 <script src="<?= h(asset('assets/vendor/qrcode-generator/qrcode.min.js')) ?>"></script>
 <script src="<?= h(asset('assets/js/etiquetas.js')) ?>"></script>
