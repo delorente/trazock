@@ -38,7 +38,7 @@ panel_header('Nueva carga', $user, 'captura',
         <p class="text-muted" style="font-size:12px;margin:0">JPG · PNG &nbsp;·&nbsp; podés seleccionar varias</p>
       </label>
       <input type="file" id="fileInput" accept="image/*" capture="environment" multiple class="d-none">
-      <p class="text-muted" style="font-size:12px;text-align:center;margin-top:.75rem;margin-bottom:0">Un camión lleva ≈ 8–10 páginas. Subilas y se procesan una por una.</p>
+      <p class="text-muted" style="font-size:12px;text-align:center;margin-top:.75rem;margin-bottom:0">Agregá las hojas (de a una o varias). Cuando estén todas, tocá <strong>Procesar</strong>.</p>
     </div>
 
     <div id="sheetWrap" class="d-none" style="border-top:1px solid var(--border)">
@@ -47,10 +47,10 @@ panel_header('Nueva carga', $user, 'captura',
       </div>
       <div id="sheetList"></div>
       <div style="padding:.75rem;border-top:1px solid var(--border)">
-        <a id="btnRevisar" class="btn btn-success w-100 fw-bold disabled" style="padding:.7rem;font-size:.95rem" href="#">
-          <i class="bi bi-table me-2"></i>Ir a la revisión
-        </a>
-        <div id="hint" class="text-muted" style="font-size:11px;text-align:center;margin-top:6px">Subí al menos una hoja para continuar.</div>
+        <button id="btnPrimario" class="btn btn-success w-100 fw-bold" style="padding:.7rem;font-size:.95rem" disabled>
+          <i class="bi bi-gear-fill me-2"></i>Procesar
+        </button>
+        <div id="hint" class="text-muted" style="font-size:11px;text-align:center;margin-top:6px">Agregá al menos una hoja.</div>
       </div>
     </div>
   </div>
@@ -79,42 +79,69 @@ const fileInput = document.getElementById('fileInput');
 const dropZone  = document.getElementById('dropZone');
 const sheetWrap = document.getElementById('sheetWrap');
 const sheetList = document.getElementById('sheetList');
+const btnPrim   = document.getElementById('btnPrimario');
+const hintEl    = document.getElementById('hint');
 
 ['dragover','dragenter'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.add('drag'); }));
 ['dragleave','drop'].forEach(e => dropZone.addEventListener(e, ev => { ev.preventDefault(); dropZone.classList.remove('drag'); }));
-dropZone.addEventListener('drop', ev => { if (ev.dataTransfer.files.length) procesarVarias(ev.dataTransfer.files); });
-fileInput.addEventListener('change', () => { if (fileInput.files.length) procesarVarias(fileInput.files); fileInput.value = ''; });
+dropZone.addEventListener('drop', ev => { if (ev.dataTransfer.files.length) encolar(ev.dataTransfer.files); });
+fileInput.addEventListener('change', () => { if (fileInput.files.length) encolar(fileInput.files); fileInput.value = ''; });
 
-let sheetN = 0;
-async function procesarVarias(files) {
+// Cola de hojas: {id, file, estado:'pendiente'|'ok'|'error', row}. Cargar NO dispara
+// el OCR; las hojas quedan en espera hasta que el usuario toca "Procesar".
+let cola = [];
+let nextId = 1;
+let procesando = false;
+
+function encolar(files) {
   sheetWrap.classList.remove('d-none');
-  for (const f of files) { await procesarHoja(f); }
-}
-
-function actualizarContadores() {
-  document.getElementById('sheetCount').textContent = sheetN;
-  document.getElementById('ordCount').textContent = TZ.totalOrdenes;
-  const btn = document.getElementById('btnRevisar');
-  if (TZ.cargaId && TZ.totalOrdenes > 0) {
-    btn.classList.remove('disabled');
-    btn.href = TZ.revision + '?carga=' + TZ.cargaId;
-    document.getElementById('hint').textContent = '';
+  for (const f of files) {
+    if (!f.type.startsWith('image/')) continue;
+    const id = nextId++;
+    const row = document.createElement('div');
+    row.className = 'sheet-item';
+    row.dataset.id = id;
+    row.innerHTML = `<div class="sheet-thumb"><i class="bi bi-image"></i></div>
+      <div class="sheet-info"><div class="sheet-name">${esc(f.name)}</div>
+        <div class="sheet-meta">En espera</div></div>
+      <button type="button" class="btn btn-sm btn-link text-muted p-0 ms-2" data-del="${id}" title="Quitar"><i class="bi bi-x-lg"></i></button>`;
+    sheetList.appendChild(row);
+    cola.push({ id, file: f, estado: 'pendiente', row });
   }
+  actualizar();
 }
 
-async function procesarHoja(file) {
-  sheetN++;
-  const row = document.createElement('div');
-  row.className = 'sheet-item';
-  row.innerHTML = `<div class="sheet-thumb"><i class="bi bi-hourglass-split"></i></div>
-    <div class="sheet-info"><div class="sheet-name">${esc(file.name)}</div>
-      <div class="sheet-meta">Procesando con OCR…</div>
-      <div class="s-prog"><div class="s-prog-fill" style="width:40%"></div></div></div>`;
-  sheetList.appendChild(row);
+// Quitar una hoja en espera (antes de procesar).
+sheetList.addEventListener('click', e => {
+  const btn = e.target.closest('[data-del]'); if (!btn || procesando) return;
+  const id = +btn.dataset.del;
+  const i = cola.findIndex(c => c.id === id);
+  if (i >= 0 && cola[i].estado === 'pendiente') { cola[i].row.remove(); cola.splice(i, 1); actualizar(); }
+});
+
+async function procesar() {
+  if (procesando) return;
+  const pendientes = cola.filter(c => c.estado === 'pendiente');
+  if (!pendientes.length) return;
+  procesando = true;
+  btnPrim.disabled = true;
+  for (const item of pendientes) {
+    await procesarHoja(item);
+  }
+  procesando = false;
+  actualizar();
+}
+
+async function procesarHoja(item) {
+  const meta  = item.row.querySelector('.sheet-meta');
+  const thumb = item.row.querySelector('.sheet-thumb');
+  const del   = item.row.querySelector('[data-del]'); if (del) del.remove();
+  thumb.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+  meta.innerHTML = 'Procesando con OCR…<div class="s-prog"><div class="s-prog-fill" style="width:40%"></div></div>';
 
   const fd = new FormData();
   fd.append('csrf_token', TZ.csrf);
-  fd.append('hoja', file);
+  fd.append('hoja', item.file);
   fd.append('tipo_venta', TZ.tipoVenta);
   if (TZ.cargaId) fd.append('carga_id', TZ.cargaId);
 
@@ -124,16 +151,45 @@ async function procesarHoja(file) {
     if (!r.ok || !d.ok) throw new Error(d.error || 'Error al procesar la hoja.');
     TZ.cargaId = d.carga_id;
     TZ.totalOrdenes = d.total;
-    row.querySelector('.sheet-thumb').innerHTML = '<i class="bi bi-check-lg" style="color:var(--green)"></i>';
-    row.querySelector('.sheet-meta').innerHTML = `<span style="color:var(--green)">${d.ordenes_hoja} órdenes</span>`;
-    row.querySelector('.s-prog').remove();
+    item.estado = 'ok';
+    thumb.innerHTML = '<i class="bi bi-check-lg" style="color:var(--green)"></i>';
+    meta.innerHTML = `<span style="color:var(--green)">${d.ordenes_hoja} órdenes</span>`;
   } catch (e) {
-    row.querySelector('.sheet-thumb').innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="color:var(--red)"></i>';
-    row.querySelector('.sheet-meta').innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`;
-    const pf = row.querySelector('.s-prog'); if (pf) pf.remove();
-    sheetN--; // no contar la hoja fallida
+    item.estado = 'error';
+    thumb.innerHTML = '<i class="bi bi-exclamation-triangle-fill" style="color:var(--red)"></i>';
+    meta.innerHTML = `<span style="color:var(--red)">${esc(e.message)}</span>`;
   }
-  actualizarContadores();
+}
+
+// Botón verde: "Procesar N" mientras haya pendientes; luego "Ir a la revisión".
+btnPrim.addEventListener('click', () => {
+  if (btnPrim.dataset.modo === 'revisar') { location.href = TZ.revision + '?carga=' + TZ.cargaId; }
+  else { procesar(); }
+});
+
+function actualizar() {
+  const pendientes = cola.filter(c => c.estado === 'pendiente').length;
+  document.getElementById('sheetCount').textContent = cola.length;
+  document.getElementById('ordCount').textContent = TZ.totalOrdenes;
+
+  if (procesando) { return; } // el loop maneja el botón
+
+  if (pendientes > 0) {
+    btnPrim.dataset.modo = 'procesar';
+    btnPrim.disabled = false;
+    btnPrim.innerHTML = `<i class="bi bi-gear-fill me-2"></i>Procesar ${pendientes} hoja${pendientes > 1 ? 's' : ''}`;
+    hintEl.textContent = TZ.totalOrdenes > 0 ? 'Hay hojas nuevas sin procesar.' : 'Tocá Procesar para extraer las órdenes con OCR.';
+  } else if (TZ.totalOrdenes > 0) {
+    btnPrim.dataset.modo = 'revisar';
+    btnPrim.disabled = false;
+    btnPrim.innerHTML = `<i class="bi bi-table me-2"></i>Ir a la revisión (${TZ.totalOrdenes} órdenes)`;
+    hintEl.textContent = 'Podés agregar más hojas antes de revisar.';
+  } else {
+    btnPrim.dataset.modo = 'procesar';
+    btnPrim.disabled = true;
+    btnPrim.innerHTML = '<i class="bi bi-gear-fill me-2"></i>Procesar';
+    hintEl.textContent = 'Agregá al menos una hoja.';
+  }
 }
 
 function esc(s){ const d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; }
