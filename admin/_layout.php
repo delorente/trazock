@@ -43,6 +43,7 @@ function panel_menu(): array
                 ['key' => 'usuarios',     'label' => 'Usuarios',     'href' => 'usuarios.php',     'icon' => 'people-fill',  'roles' => ['admin']],
                 ['key' => 'categorias',   'label' => 'Categorías',   'href' => 'categorias.php',   'icon' => 'tag-fill',     'roles' => ['admin']],
                 ['key' => 'proveedores',  'label' => 'Proveedores',  'href' => 'proveedores.php',  'icon' => 'truck',        'roles' => ['admin']],
+                ['key' => 'zonas',        'label' => 'Zonas',        'href' => 'zonas.php',        'icon' => 'map-fill',     'roles' => ['admin']],
                 ['key' => 'motivos',      'label' => 'Motivos',      'href' => 'motivos.php',      'icon' => 'chat-text-fill','roles' => ['admin']],
                 ['key' => 'seguimiento',  'label' => 'Seguimiento',  'href' => 'seguimiento.php',  'icon' => 'geo-alt-fill', 'roles' => ['admin']],
             ],

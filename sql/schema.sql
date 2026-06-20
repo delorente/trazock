@@ -392,3 +392,31 @@ ALTER TABLE `productos`
 -- =============================================================================
 -- END: 006_etiquetas.sql
 -- =============================================================================
+
+-- =============================================================================
+-- BEGIN: 007_zonas.sql — zonas de reparto (agrupan localidades de destino; el
+-- escáner valida cada QR de SALIDA_REPARTO contra la zona elegida). ciudad NULL
+-- en una localidad = "toda la provincia".
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `zonas` (
+    `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `nombre`     VARCHAR(80)  NOT NULL,
+    `activo`     TINYINT(1)   NOT NULL DEFAULT 1,
+    `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_zona_nombre` (`nombre`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `zona_localidades` (
+    `id`        INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `zona_id`   INT UNSIGNED NOT NULL,
+    `provincia` VARCHAR(80)  NOT NULL,
+    `ciudad`    VARCHAR(120) DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    INDEX `idx_zona` (`zona_id`),
+    CONSTRAINT `fk_zl_zona`
+        FOREIGN KEY (`zona_id`) REFERENCES `zonas` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- END: 007_zonas.sql
+-- =============================================================================
