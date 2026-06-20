@@ -92,6 +92,10 @@ define('ANTHROPIC_API_KEY', '');
 // claude-sonnet-4-6 es más barato si la precisión alcanza.
 define('ANTHROPIC_MODEL', 'claude-opus-4-8');
 
+// Bundle CA — SOLO en dev/Windows, donde el cURL de PHP no trae certificados.
+// En producción (Linux) dejar comentado o vacío: usa el CA del sistema.
+// define('ANTHROPIC_CA_BUNDLE', 'C:/wamp64/cacert.pem');
+
 // =============================================================================
 // Timezone
 // =============================================================================

@@ -160,6 +160,11 @@ TXT;
             ],
             CURLOPT_POSTFIELDS     => json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         ]);
+        // Bundle CA opcional (solo dev/Windows, donde el cURL de PHP no trae certs).
+        // En producción se deja sin definir → usa el CA del sistema.
+        if (defined('ANTHROPIC_CA_BUNDLE') && ANTHROPIC_CA_BUNDLE !== '') {
+            curl_setopt($ch, CURLOPT_CAINFO, ANTHROPIC_CA_BUNDLE);
+        }
         $raw  = curl_exec($ch);
         $err  = curl_error($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
