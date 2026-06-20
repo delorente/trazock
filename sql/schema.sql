@@ -316,3 +316,68 @@ INSERT INTO `estados_publicos` (`estado`, `titulo`, `descripcion`, `visible`, `o
 -- =============================================================================
 -- END: 004_seguimiento_publico.sql
 -- =============================================================================
+
+
+-- =============================================================================
+-- BEGIN: 005_ordenes.sql
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS `cargas` (
+    `id`               INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+    `usuario_id`       INT UNSIGNED    NOT NULL,
+    `fecha`            DATE            DEFAULT NULL,
+    `estado`           ENUM('borrador','confirmada') NOT NULL DEFAULT 'borrador',
+    `datos_extraidos`  LONGTEXT        DEFAULT NULL,
+    `cantidad_ordenes` INT UNSIGNED    NOT NULL DEFAULT 0,
+    `confirmada_at`    TIMESTAMP       NULL DEFAULT NULL,
+    `created_at`       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_estado` (`estado`),
+    INDEX `idx_usuario` (`usuario_id`),
+    CONSTRAINT `fk_cargas_usuario`
+        FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `ordenes` (
+    `id`               INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+    `carga_id`         INT UNSIGNED    DEFAULT NULL,
+    `nro_orden`        VARCHAR(30)     NOT NULL,
+    `nro_remito`       VARCHAR(30)     DEFAULT NULL,
+    `fecha_remito`     DATE            DEFAULT NULL,
+    `tipo_venta`       ENUM('local','online') DEFAULT NULL,
+    `cliente`          VARCHAR(150)    NOT NULL,
+    `cliente_apellido` VARCHAR(100)    DEFAULT NULL,
+    `telefonos`        VARCHAR(120)    DEFAULT NULL,
+    `dest_provincia`   VARCHAR(80)     DEFAULT NULL,
+    `dest_localidad`   VARCHAR(120)    DEFAULT NULL,
+    `dest_domicilio`   VARCHAR(200)    DEFAULT NULL,
+    `dest_cp`          VARCHAR(10)     DEFAULT NULL,
+    `valor_declarado`  DECIMAL(12,2)   DEFAULT NULL,
+    `m3_total`         DECIMAL(8,2)    DEFAULT NULL,
+    `estado`           VARCHAR(20)     NOT NULL DEFAULT 'RECIBIDO',
+    `created_at`       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_nro_orden` (`nro_orden`),
+    INDEX `idx_provincia` (`dest_provincia`),
+    INDEX `idx_estado` (`estado`),
+    INDEX `idx_tipo_venta` (`tipo_venta`),
+    INDEX `idx_fecha_remito` (`fecha_remito`),
+    INDEX `idx_carga` (`carga_id`),
+    CONSTRAINT `fk_ordenes_carga`
+        FOREIGN KEY (`carga_id`) REFERENCES `cargas` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE `productos`
+    ADD COLUMN `orden_id`    INT UNSIGNED      DEFAULT NULL AFTER `categoria_id`,
+    ADD COLUMN `descripcion` VARCHAR(150)      DEFAULT NULL AFTER `orden_id`,
+    ADD COLUMN `dimensiones` VARCHAR(40)       DEFAULT NULL AFTER `descripcion`,
+    ADD COLUMN `m3`          DECIMAL(6,2)      DEFAULT NULL AFTER `dimensiones`,
+    ADD COLUMN `secuencia`   SMALLINT UNSIGNED DEFAULT NULL AFTER `m3`,
+    ADD INDEX `idx_orden` (`orden_id`),
+    ADD CONSTRAINT `fk_productos_orden`
+        FOREIGN KEY (`orden_id`) REFERENCES `ordenes` (`id`);
+
+-- =============================================================================
+-- END: 005_ordenes.sql
+-- =============================================================================
