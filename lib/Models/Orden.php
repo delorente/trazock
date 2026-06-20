@@ -269,6 +269,20 @@ final class Orden
             $where[] = 'o.dest_provincia = :prov';
             $params[':prov'] = $f['provincia'];
         }
+        if (!empty($f['carga'])) {
+            $where[] = 'o.carga_id = :carga';
+            $params[':carga'] = (int)$f['carga'];
+        }
+        if (!empty($f['zona'])) {
+            // La orden pertenece a la zona si su (provincia, localidad) está en sus
+            // localidades. La collation unicode_ci compara sin distinguir mayúsculas
+            // ni acentos; ciudad NULL/'' en la zona = toda la provincia.
+            $where[] = 'EXISTS (SELECT 1 FROM zona_localidades zl
+                               WHERE zl.zona_id = :zona
+                                 AND zl.provincia = o.dest_provincia
+                                 AND (zl.ciudad IS NULL OR zl.ciudad = \'\' OR zl.ciudad = o.dest_localidad))';
+            $params[':zona'] = (int)$f['zona'];
+        }
         if (!empty($f['estado'])) {
             $where[] = 'o.estado = :estado';
             $params[':estado'] = $f['estado'];
@@ -303,7 +317,7 @@ final class Orden
         $limit  = max(1, min(1000, $limit));
         $offset = max(0, $offset);
 
-        $sql = 'SELECT o.id, o.nro_orden, o.nro_remito, o.fecha_remito, o.tipo_venta,
+        $sql = 'SELECT o.id, o.carga_id, o.nro_orden, o.nro_remito, o.fecha_remito, o.tipo_venta,
                        o.cliente, o.dest_provincia, o.dest_localidad, o.m3_total,
                        o.valor_declarado, o.estado, o.created_at AS fecha_ingreso,
                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items

@@ -184,6 +184,99 @@ final class Producto
     }
 
     // -------------------------------------------------------------------------
+    // Reporte "por productos" (una fila por ítem físico de una orden)
+    // -------------------------------------------------------------------------
+
+    /** Estados de producto, para el filtro del reporte por productos. */
+    public const ESTADOS = ['INGRESADO', 'EN_REPARTO', 'ENTREGADO', 'REINGRESADO', 'DEVUELTO', 'BAJA'];
+
+    /**
+     * @param array<string,mixed> $f
+     * @return array{0:string,1:array<string,mixed>}
+     */
+    private static function whereReporte(array $f): array
+    {
+        $where  = [];
+        $params = [];
+
+        if (!empty($f['q'])) {
+            $where[] = '(p.codigo LIKE :q1 OR o.nro_orden LIKE :q2 OR o.cliente LIKE :q3)';
+            $like = '%' . $f['q'] . '%';
+            $params[':q1'] = $like; $params[':q2'] = $like; $params[':q3'] = $like;
+        }
+        if (!empty($f['carga'])) {
+            $where[] = 'o.carga_id = :carga';
+            $params[':carga'] = (int)$f['carga'];
+        }
+        if (!empty($f['zona'])) {
+            $where[] = 'EXISTS (SELECT 1 FROM zona_localidades zl
+                               WHERE zl.zona_id = :zona
+                                 AND zl.provincia = o.dest_provincia
+                                 AND (zl.ciudad IS NULL OR zl.ciudad = \'\' OR zl.ciudad = o.dest_localidad))';
+            $params[':zona'] = (int)$f['zona'];
+        }
+        if (!empty($f['estado'])) {
+            $where[] = 'p.estado_actual = :estado';
+            $params[':estado'] = $f['estado'];
+        }
+        if (!empty($f['tipo_venta'])) {
+            $where[] = 'o.tipo_venta = :tv';
+            $params[':tv'] = $f['tipo_venta'];
+        }
+        if (!empty($f['fecha_desde'])) {
+            $where[] = 'o.fecha_remito >= :fd';
+            $params[':fd'] = $f['fecha_desde'];
+        }
+        if (!empty($f['fecha_hasta'])) {
+            $where[] = 'o.fecha_remito <= :fh';
+            $params[':fh'] = $f['fecha_hasta'];
+        }
+
+        // Solo ítems ligados a una orden (los del módulo OCR). El JOIN ya lo asegura.
+        return [$where === [] ? '' : (' WHERE ' . implode(' AND ', $where)), $params];
+    }
+
+    /**
+     * Filas del reporte por productos: un ítem físico por fila, con el contexto de
+     * su orden y carga.
+     *
+     * @param array<string,mixed> $filtros
+     * @return array<int, array<string,mixed>>
+     */
+    public static function reporte(array $filtros, int $limit = 100, int $offset = 0): array
+    {
+        [$where, $params] = self::whereReporte($filtros);
+        $limit  = max(1, min(5000, $limit));
+        $offset = max(0, $offset);
+
+        $sql = 'SELECT p.id, p.codigo, p.descripcion, p.dimensiones, p.m3, p.secuencia,
+                       p.estado_actual, p.etiquetada_at,
+                       o.id AS orden_id, o.carga_id, o.nro_orden, o.cliente, o.tipo_venta,
+                       o.dest_provincia, o.dest_localidad, o.created_at AS fecha_ingreso
+                FROM productos p
+                JOIN ordenes o ON o.id = p.orden_id'
+             . $where
+             . " ORDER BY o.created_at DESC, o.id DESC, p.secuencia LIMIT {$limit} OFFSET {$offset}";
+
+        $stmt = DB::getInstance()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * @param array<string,mixed> $filtros
+     */
+    public static function reporteContar(array $filtros): int
+    {
+        [$where, $params] = self::whereReporte($filtros);
+        $stmt = DB::getInstance()->prepare(
+            'SELECT COUNT(*) FROM productos p JOIN ordenes o ON o.id = p.orden_id' . $where
+        );
+        $stmt->execute($params);
+        return (int)$stmt->fetchColumn();
+    }
+
+    // -------------------------------------------------------------------------
     // Etiquetas (un rótulo con QR por ítem físico)
     // -------------------------------------------------------------------------
 

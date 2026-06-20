@@ -13,13 +13,16 @@ require __DIR__ . '/../lib/bootstrap.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Trazock\Auth;
+use Trazock\Models\Carga;
 use Trazock\Models\Orden;
+use Trazock\Models\Zona;
 
 $user = Auth::requierePanel(); // admin o gestor
 
 $filtros = [
     'q'           => trim((string)($_GET['q'] ?? '')),
-    'provincia'   => trim((string)($_GET['provincia'] ?? '')),
+    'zona'        => trim((string)($_GET['zona'] ?? '')),
+    'carga'       => trim((string)($_GET['carga'] ?? '')),
     'estado'      => trim((string)($_GET['estado'] ?? '')),
     'tipo_venta'  => trim((string)($_GET['tipo_venta'] ?? '')),
     'fecha_desde' => trim((string)($_GET['fecha_desde'] ?? '')),
@@ -35,6 +38,12 @@ function rep_destino(array $o): string
     return $d !== '' ? $d : '—';
 }
 
+/** Nº de carga/lote de ingreso al que pertenece la orden (índice para agrupar). */
+function rep_lote(array $o): string
+{
+    return $o['carga_id'] ? carga_num((int)$o['carga_id'], (string)($o['fecha_ingreso'] ?? '')) : '—';
+}
+
 // --- Modo export: stream del xlsx --------------------------------------------
 if (($_GET['export'] ?? '') === 'xlsx') {
     $rows = Orden::buscar($filtros, 5000, 0);
@@ -43,27 +52,28 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Órdenes');
 
-    $encabezados = ['Nº orden', 'Nº remito', 'F. remito', 'Tipo', 'Cliente', 'Destino',
+    $encabezados = ['Lote', 'Nº orden', 'Nº remito', 'F. remito', 'Tipo', 'Cliente', 'Destino',
                     'm³', 'Valor declarado', 'Ítems', 'Estado', 'F. ingreso'];
     $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:K1')->getFont()->setBold(true);
+    $sheet->getStyle('A1:L1')->getFont()->setBold(true);
 
     $fila = 2;
     foreach ($rows as $o) {
-        $sheet->setCellValue('A' . $fila, (string)$o['nro_orden']);
-        $sheet->setCellValue('B' . $fila, (string)($o['nro_remito'] ?? ''));
-        $sheet->setCellValue('C' . $fila, (string)($o['fecha_remito'] ?? ''));
-        $sheet->setCellValue('D' . $fila, (string)($o['tipo_venta'] ?? ''));
-        $sheet->setCellValue('E' . $fila, (string)($o['cliente'] ?? ''));
-        $sheet->setCellValue('F' . $fila, rep_destino($o));
-        $sheet->setCellValue('G' . $fila, (float)($o['m3_total'] ?? 0));
-        $sheet->setCellValue('H' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
-        $sheet->setCellValue('I' . $fila, (int)($o['cant_items'] ?? 0));
-        $sheet->setCellValue('J' . $fila, (string)($o['estado'] ?? ''));
-        $sheet->setCellValue('K' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
+        $sheet->setCellValue('A' . $fila, rep_lote($o));
+        $sheet->setCellValue('B' . $fila, (string)$o['nro_orden']);
+        $sheet->setCellValue('C' . $fila, (string)($o['nro_remito'] ?? ''));
+        $sheet->setCellValue('D' . $fila, (string)($o['fecha_remito'] ?? ''));
+        $sheet->setCellValue('E' . $fila, (string)($o['tipo_venta'] ?? ''));
+        $sheet->setCellValue('F' . $fila, (string)($o['cliente'] ?? ''));
+        $sheet->setCellValue('G' . $fila, rep_destino($o));
+        $sheet->setCellValue('H' . $fila, (float)($o['m3_total'] ?? 0));
+        $sheet->setCellValue('I' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
+        $sheet->setCellValue('J' . $fila, (int)($o['cant_items'] ?? 0));
+        $sheet->setCellValue('K' . $fila, (string)($o['estado'] ?? ''));
+        $sheet->setCellValue('L' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
         $fila++;
     }
-    foreach (range('A', 'K') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+    foreach (range('A', 'L') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -83,14 +93,16 @@ $offset    = ($pagina - 1) * $porPagina;
 $total     = Orden::contar($filtros);
 $totales   = Orden::totales($filtros);
 $ordenes   = Orden::buscar($filtros, $porPagina, $offset);
-$provincias = Orden::provincias();
+$zonas     = Zona::todas();
+$cargas    = Carga::recientes(100);
 $paginas   = (int)max(1, ceil($total / $porPagina));
 
 // Query string de los filtros (para paginación y export, sin 'pagina').
 $qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== ''));
 
 $acciones =
-    '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?') . 'export=xlsx') . '"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>'
+    '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-productos.php') . ($qsBase ? '?' . $qsBase : '')) . '"><i class="bi bi-box-seam me-1"></i>Por productos</a>'
+    . '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?') . 'export=xlsx') . '"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>'
     . '<button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>';
 
 panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · armado de rutas', $acciones);
@@ -98,11 +110,21 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
 <form method="get" action="<?= h(url('admin/ordenes-reportes.php')) ?>" class="card mb-3 no-print" style="padding:.85rem 1rem">
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-bottom:.6rem">
     <div>
-      <label class="form-label">Destino / prov.</label>
-      <select class="form-select form-select-sm" name="provincia">
+      <label class="form-label">Zona de reparto</label>
+      <select class="form-select form-select-sm" name="zona">
         <option value="">Todas</option>
-        <?php foreach ($provincias as $p): ?>
-          <option value="<?= h($p) ?>" <?= $p === $filtros['provincia'] ? 'selected' : '' ?>><?= h($p) ?></option>
+        <?php foreach ($zonas as $z): if (!$z['activo']) continue; ?>
+          <option value="<?= (int)$z['id'] ?>" <?= (string)$z['id'] === $filtros['zona'] ? 'selected' : '' ?>><?= h($z['nombre']) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <div>
+      <label class="form-label">Lote (carga)</label>
+      <select class="form-select form-select-sm" name="carga">
+        <option value="">Todas</option>
+        <?php foreach ($cargas as $c): if ($c['estado'] !== 'confirmada') continue; ?>
+          <option value="<?= (int)$c['id'] ?>" <?= (string)$c['id'] === $filtros['carga'] ? 'selected' : '' ?>>
+            <?= h(carga_num((int)$c['id'], (string)$c['created_at'])) ?> · <?= (int)$c['cantidad_ordenes'] ?> órd.</option>
         <?php endforeach; ?>
       </select>
     </div>
@@ -151,17 +173,18 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
     <div style="overflow-x:auto">
       <table class="table table-hover mb-0">
         <thead><tr>
-          <th>Nº orden</th><th style="text-align:center">Ítems</th><th>Destino</th><th>m³</th>
+          <th>Lote</th><th>Nº orden</th><th style="text-align:center">Ítems</th><th>Destino</th><th>m³</th>
           <th>Tipo</th><th>F. remito</th><th>Nº remito</th><th>F. ingreso</th>
           <th>Estado</th><th class="no-print"></th>
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-          <tr><td colspan="10" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
+          <tr><td colspan="11" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
         <?php else: foreach ($ordenes as $o):
             $tv = (string)($o['tipo_venta'] ?? '');
         ?>
           <tr>
+            <td class="mono" style="font-size:12px;color:var(--muted)"><?= h(rep_lote($o)) ?></td>
             <td class="mono" style="font-size:12px"><?= h((string)$o['nro_orden']) ?></td>
             <td style="text-align:center"><?= (int)($o['cant_items'] ?? 0) ?></td>
             <td style="font-size:13px"><?= h(rep_destino($o)) ?></td>
