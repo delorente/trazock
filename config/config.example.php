@@ -88,9 +88,10 @@ define('RATE_LIMIT_WINDOW', 900); // 15 * 60
 // API key de Anthropic (console.anthropic.com). NUNCA commitear la real.
 define('ANTHROPIC_API_KEY', '');
 
-// Modelo para la extracción. Opus 4.8 lee mejor los dígitos densos (recomendado);
-// claude-sonnet-4-6 es más barato si la precisión alcanza.
-define('ANTHROPIC_MODEL', 'claude-opus-4-8');
+// Modelo para la extracción. Sonnet 4.6 es preciso en los dígitos y barato
+// (~centavos por hoja); es el recomendado. Subí a claude-opus-4-8 solo si hiciera
+// falta más precisión (cuesta bastante más).
+define('ANTHROPIC_MODEL', 'claude-sonnet-4-6');
 
 // Bundle CA — SOLO en dev/Windows, donde el cURL de PHP no trae certificados.
 // En producción (Linux) dejar comentado o vacío: usa el CA del sistema.

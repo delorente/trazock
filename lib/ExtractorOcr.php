@@ -60,7 +60,7 @@ TXT;
         if (!defined('ANTHROPIC_API_KEY') || ANTHROPIC_API_KEY === '') {
             throw new RuntimeException('Falta ANTHROPIC_API_KEY en config.php.');
         }
-        $modelo = (defined('ANTHROPIC_MODEL') && ANTHROPIC_MODEL !== '') ? ANTHROPIC_MODEL : 'claude-opus-4-8';
+        $modelo = (defined('ANTHROPIC_MODEL') && ANTHROPIC_MODEL !== '') ? ANTHROPIC_MODEL : 'claude-sonnet-4-6';
 
         $jpeg = self::normalizarImagen($imagen);
 
