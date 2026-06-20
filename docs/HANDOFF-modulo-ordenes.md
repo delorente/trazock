@@ -24,7 +24,13 @@ Bundle en `design/project/`. Pantallas del módulo en
 etiqueta, reportes, detalle de orden). Seguimiento público (light) en el mismo archivo
 y en `design/project/Seguimiento Trazock.html`. **Recrear con assets locales**, no CDNs.
 
-## Modelo de datos (migraciones 005 + 006, aplicadas en dev)
+## Modelo de datos (migraciones 005–008, aplicadas en dev)
+- Migración 007: `zonas` + `zona_localidades`. Migración 008: paso público
+  `EN_TRANSITO` en `estados_publicos` (editable desde admin/seguimiento.php; primer
+  paso "en camino al centro de distribución", antes de INGRESADO).
+- `ProcesadorCarga::confirmar` además de ordenes+productos crea **un lote de tipo
+  INGRESO por carga** (agrupa el ingreso como el escaneo viejo) + la transición
+  INGRESADO de cada ítem, así la trazabilidad/historial quedan completos.
 - `cargas`: lote de ingreso. `datos_extraidos` (LONGTEXT JSON borrador editable),
   `estado` borrador|confirmada.
 - `ordenes`: `nro_orden` UNIQUE (= ON-0775-XXXXXXXX, va al QR y al seguimiento),

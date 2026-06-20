@@ -6,7 +6,10 @@ namespace Trazock;
 use PDO;
 use RuntimeException;
 use Trazock\Models\Carga;
+use Trazock\Models\Lote;
 use Trazock\Models\Orden;
+use Trazock\Models\Producto;
+use Trazock\Models\Transicion;
 
 /**
  * ProcesadorCarga — materializa el borrador de una carga (JSON revisado) en
@@ -43,6 +46,14 @@ final class ProcesadorCarga
             $creadas = 0;
             $itemsTot = 0;
             $omitidas = [];
+
+            // Un lote de tipo INGRESO agrupa toda la carga (igual que el ingreso por
+            // escaneo de la 1ra etapa): cada producto recibe su transición INGRESADO
+            // ligada a este lote, de modo que la trazabilidad y el historial quedan
+            // completos. Se crea de forma perezosa al primer producto materializado
+            // (si todas las órdenes eran duplicados, no se crea un lote vacío).
+            $now    = gmdate('Y-m-d H:i:s');
+            $loteId = null;
 
             foreach ($datos['ordenes'] as $o) {
                 $nro = trim((string)($o['nro_orden'] ?? ''));
@@ -88,15 +99,39 @@ final class ProcesadorCarga
                     $m3Unit = ($m3Lin !== null && $cant > 0) ? round($m3Lin / $cant, 3) : null;
                     for ($i = 0; $i < $cant; $i++) {
                         $sec++;
-                        self::crearProducto(
+                        $cod = self::codigo($nro, $sec);
+                        $pid = self::crearProducto(
                             $db,
-                            self::codigo($nro, $sec),
+                            $cod,
                             $ordenId,
                             self::s($l['codigo'] ?? null),
                             self::s($l['dimensiones'] ?? null),
                             $m3Unit,
                             $sec
                         );
+
+                        // Lote de INGRESO (perezoso) + transición INGRESADO del ítem.
+                        if ($loteId === null) {
+                            $loteId = Lote::crear([
+                                'uuid'               => self::uuid(),
+                                'tipo'               => 'INGRESO',
+                                'categoria_id'       => null,
+                                'proveedor_id'       => null,
+                                'transportista_id'   => null,
+                                'motivo_id'          => null,
+                                'motivo_libre'       => null,
+                                'responsable_id'     => (int)($carga['usuario_id'] ?? 0),
+                                'observaciones'      => 'Ingreso por OCR (carga #' . $cargaId . ')',
+                                'numero_remito'      => null,
+                                'timestamp_apertura' => $now,
+                                'timestamp_cierre'   => $now,
+                                'dispositivo_info'   => 'OCR',
+                            ]);
+                        }
+                        $tid = Transicion::insertar($pid, $loteId, null, 'INGRESADO', $now, false, null);
+                        Producto::fijarEstadoActual($pid, 'INGRESADO', $tid);
+                        Lote::insertarItem($loteId, $cod, $now, $tid, 'aplicado');
+
                         $itemsTot++;
                     }
                 }
@@ -114,11 +149,14 @@ final class ProcesadorCarga
         }
     }
 
-    /** Inserta un producto (ítem físico) en estado INGRESADO ligado a su orden. */
+    /**
+     * Inserta un producto (ítem físico) en estado INGRESADO ligado a su orden.
+     * Devuelve el id del producto (para registrar su transición de ingreso).
+     */
     private static function crearProducto(
         PDO $db, string $codigo, int $ordenId, ?string $descripcion,
         ?string $dimensiones, ?float $m3, int $secuencia
-    ): void {
+    ): int {
         $stmt = $db->prepare(
             "INSERT INTO productos
                 (codigo, orden_id, descripcion, dimensiones, m3, secuencia, estado_actual)
@@ -131,6 +169,19 @@ final class ProcesadorCarga
         $stmt->bindValue(':m3', $m3, $m3 === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
         $stmt->bindValue(':sec', $secuencia, PDO::PARAM_INT);
         $stmt->execute();
+        return (int)$db->lastInsertId();
+    }
+
+    /** UUID v4 para el lote de ingreso (formato que valida el resto del sistema). */
+    private static function uuid(): string
+    {
+        $b = random_bytes(16);
+        $b[6] = chr((ord($b[6]) & 0x0f) | 0x40);
+        $b[8] = chr((ord($b[8]) & 0x3f) | 0x80);
+        return implode('-', [
+            bin2hex(substr($b, 0, 4)), bin2hex(substr($b, 4, 2)), bin2hex(substr($b, 6, 2)),
+            bin2hex(substr($b, 8, 2)), bin2hex(substr($b, 10, 6)),
+        ]);
     }
 
     /** Código único del ítem: nro_orden-NN (2 dígitos, o más si hiciera falta). */
