@@ -20,7 +20,8 @@ $user = Auth::requierePanel();
 Auth::requiereRol('admin');
 
 // Estados válidos (claves de la tabla) para validar el POST.
-$ESTADOS_VALIDOS = ['INGRESADO', 'EN_REPARTO', 'ENTREGADO', 'REINGRESADO', 'DEVUELTO', 'BAJA'];
+// EN_TRANSITO es el paso público "en camino al centro de distribución" (migración 008).
+$ESTADOS_VALIDOS = ['EN_TRANSITO', 'INGRESADO', 'EN_REPARTO', 'ENTREGADO', 'REINGRESADO', 'DEVUELTO', 'BAJA'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
