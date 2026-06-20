@@ -258,8 +258,12 @@ final class Orden
         $params = [];
 
         if (!empty($f['q'])) {
-            $where[] = '(o.nro_orden LIKE :q OR o.nro_remito LIKE :q OR o.cliente LIKE :q)';
-            $params[':q'] = '%' . $f['q'] . '%';
+            // Placeholders distintos: con prepares nativos no se puede reusar :q.
+            $where[] = '(o.nro_orden LIKE :q1 OR o.nro_remito LIKE :q2 OR o.cliente LIKE :q3)';
+            $like = '%' . $f['q'] . '%';
+            $params[':q1'] = $like;
+            $params[':q2'] = $like;
+            $params[':q3'] = $like;
         }
         if (!empty($f['provincia'])) {
             $where[] = 'o.dest_provincia = :prov';

@@ -41,6 +41,9 @@ $num    = carga_num($cargaId, (string)($carga['created_at'] ?? ''));
 $fecha  = fmt_fecha((string)($carga['confirmada_at'] ?? $carga['created_at'] ?? ''), 'd/m/Y H:i');
 $urlEti = url('admin/ordenes-etiquetas.php') . '?carga=' . $cargaId;
 
+// Órdenes omitidas por duplicado (nro_orden ya existente), informadas al confirmar.
+$omitidas = max(0, (int)($_GET['omitidas'] ?? 0));
+
 // Ítem de muestra para la vista previa de la etiqueta (QR real).
 $items   = Producto::paraEtiquetasPorCarga($cargaId);
 $muestra = $items[0] ?? null;
@@ -62,6 +65,18 @@ panel_header('Carga confirmada', $user, 'captura', '', $volver);
     <div style="margin-left:auto"><span class="badge b-CONFIRMADA" style="font-size:12px;padding:4px 12px">CONFIRMADA</span></div>
   </div>
 </div>
+
+<?php if ($omitidas > 0): ?>
+<div class="card p-3 mb-3" style="border-color:rgba(234,179,8,.35);background:rgba(234,179,8,.06)">
+  <div style="font-size:13px;color:#fbbf24">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <strong><?= $omitidas ?></strong> orden(es) de esta hoja <strong>ya existían</strong> y se omitieron (no se duplican).
+    <?php if ((int)$res['ordenes'] === 0): ?>
+      No se creó ninguna orden nueva: ya estaban todas cargadas.
+    <?php endif; ?>
+  </div>
+</div>
+<?php endif; ?>
 
 <div style="display:grid;grid-template-columns:minmax(280px,340px) 1fr;gap:1rem;align-items:start">
   <div class="card p-3">

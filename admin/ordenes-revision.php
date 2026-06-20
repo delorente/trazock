@@ -184,7 +184,8 @@ async function confirmar(){
     });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo confirmar.');
-    location.href = TZ.confirmacion + '?carga=' + TZ.cargaId;
+    const omit = Array.isArray(d.omitidas) ? d.omitidas.length : 0;
+    location.href = TZ.confirmacion + '?carga=' + TZ.cargaId + (omit ? '&omitidas=' + omit : '');
   } catch(e){
     alert(e.message);
     btn.disabled = false; resumen();
