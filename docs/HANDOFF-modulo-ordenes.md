@@ -107,12 +107,21 @@ y en `design/project/Seguimiento Trazock.html`. **Recrear con assets locales**, 
      por HTTP. El escaneo real con cámara y la UX del modal NO se pudieron probar acá
      (necesitan celular). Probar en dispositivo antes de redeploy. Los catálogos cacheados
      viejos no traen `zonas` hasta refrescar online (re-login o reconexión).
-4. **Seguimiento por Nº de orden**: refactor de `seguimiento/index.php` → formulario de
-   ingreso de Nº de orden (sin token) → `Orden::findByNroOrden` → estado público
-   (reusa `estados_publicos`). Pseudo-estado "en tránsito al centro de distribución" si la
-   orden no está aún en la BD. NO expone datos del cliente (solo estado+fecha). Diseño:
-   `#pv-input/#pv-status/#pv-notfound` (light). El estado de orden se deriva de sus ítems
-   (hook en `ProcesadorLote` para recalcular `ordenes.estado` al transicionar productos).
+4. ~~**Seguimiento por Nº de orden**~~ ✅ HECHO y validado E2E.
+   - `seguimiento/index.php`: formulario `?orden=` (sin token) → `Orden::findByNroOrden`
+     → estado público derivado de los ítems (`Orden::estadoProductoDerivado`, reusa
+     `estados_publicos`). Si no está en la BD → pseudo-estado "en tránsito al centro de
+     distribución". NO expone datos del cliente (solo estado + fecha + nº). Tema claro,
+     reusa el render existente (`seg_card`). Compat: `?t=<token>` sigue mostrando el ítem.
+   - Hook en `ProcesadorLote`: junta los `orden_id` de los productos transicionados y
+     llama `Orden::recalcularEstado` antes del commit (alimenta Reportes y el seguimiento).
+     `Producto::findByCodigoForUpdate` ahora también trae `orden_id`.
+   - Vocabulario: orden usa RECIBIDO (= producto INGRESADO); resto igual. Derivación:
+     todos ENTREGADO→ENTREGADO, todos DEVUELTO→DEVUELTO, algún EN_REPARTO o entrega
+     parcial→EN_REPARTO, algún REINGRESADO→REINGRESADO, resto→RECIBIDO.
+   - Validado: lote SALIDA_REPARTO real movió la orden 12 RECIBIDO→EN_REPARTO y el
+     seguimiento público pasó a "En camino a tu domicilio" (done/current/pending). (La
+     orden 12 quedó en EN_REPARTO en dev por esta prueba.)
 5. **Pendientes operativos previos** (de la 1ra etapa, en producción intercongress.ar):
    rotar admin admin123, y el escáner/seguimiento desplegado es el viejo (token/ITF) —
    redeploy cuando el módulo nuevo esté probado.

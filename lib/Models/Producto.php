@@ -22,7 +22,7 @@ final class Producto
     public static function findByCodigoForUpdate(string $codigo): ?array
     {
         $stmt = DB::getInstance()->prepare(
-            'SELECT id, codigo, categoria_id, estado_actual, tiene_conflicto, transicion_actual_id
+            'SELECT id, codigo, categoria_id, orden_id, estado_actual, tiene_conflicto, transicion_actual_id
              FROM productos WHERE codigo = :codigo LIMIT 1 FOR UPDATE'
         );
         $stmt->execute([':codigo' => $codigo]);

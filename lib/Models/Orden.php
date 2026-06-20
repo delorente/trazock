@@ -90,6 +90,51 @@ final class Orden
     }
 
     /**
+     * Estado "de producto" representativo de la orden, derivado de sus ítems
+     * (INGRESADO/EN_REPARTO/ENTREGADO/REINGRESADO/DEVUELTO), o null si no tiene ítems.
+     * Lo usa el seguimiento público para indexar `estados_publicos`.
+     */
+    public static function estadoProductoDerivado(int $ordenId): ?string
+    {
+        $stmt = DB::getInstance()->prepare(
+            'SELECT estado_actual, COUNT(*) AS c FROM productos WHERE orden_id = :id GROUP BY estado_actual'
+        );
+        $stmt->execute([':id' => $ordenId]);
+        $cnt = [];
+        $total = 0;
+        foreach ($stmt->fetchAll() as $r) {
+            $cnt[(string)$r['estado_actual']] = (int)$r['c'];
+            $total += (int)$r['c'];
+        }
+        if ($total === 0) {
+            return null;
+        }
+        $g = static fn(string $k): int => $cnt[$k] ?? 0;
+
+        // Reglas (de "más avanzado" a "menos"): todos entregados / devueltos; si hay
+        // alguno en reparto o ya entregado parcialmente → en reparto; reingreso; resto recibido.
+        if ($g('ENTREGADO') === $total)  { return 'ENTREGADO'; }
+        if ($g('DEVUELTO')  === $total)  { return 'DEVUELTO'; }
+        if ($g('EN_REPARTO') > 0 || $g('ENTREGADO') > 0) { return 'EN_REPARTO'; }
+        if ($g('REINGRESADO') > 0)       { return 'REINGRESADO'; }
+        return 'INGRESADO';
+    }
+
+    /**
+     * Recalcula y persiste `ordenes.estado` (vocabulario de orden: RECIBIDO en vez
+     * de INGRESADO) a partir de los ítems. Lo invoca el ProcesadorLote al transicionar
+     * productos de una orden.
+     */
+    public static function recalcularEstado(int $ordenId): void
+    {
+        $p = self::estadoProductoDerivado($ordenId);
+        if ($p === null) {
+            return; // orden sin ítems: no se toca
+        }
+        self::actualizarEstado($ordenId, $p === 'INGRESADO' ? 'RECIBIDO' : $p);
+    }
+
+    /**
      * Resumen agregado de una carga confirmada (para la pantalla de confirmación
      * y la de etiquetas): nº de órdenes, ítems, m³ total y cuántos ítems ya tienen
      * su etiqueta impresa.

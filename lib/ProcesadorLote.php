@@ -10,6 +10,7 @@ use Trazock\Models\Categoria;
 use Trazock\Models\Conflicto;
 use Trazock\Models\Lote;
 use Trazock\Models\Motivo;
+use Trazock\Models\Orden;
 use Trazock\Models\Producto;
 use Trazock\Models\Proveedor;
 use Trazock\Models\Transicion;
@@ -99,6 +100,7 @@ final class ProcesadorLote
 
             // --- Procesar items en orden -------------------------------------------
             $vistosEnLote = [];
+            $ordenesTocadas = []; // orden_id => true: para recalcular su estado al final
 
             foreach ($items as $item) {
                 $codigo = trim((string)($item['codigo'] ?? ''));
@@ -143,6 +145,10 @@ final class ProcesadorLote
 
                 // === Producto EXISTENTE ============================================
                 $pid           = (int)$prod['id'];
+                // Si el producto pertenece a una orden, su estado público puede cambiar.
+                if (($prod['orden_id'] ?? null) !== null) {
+                    $ordenesTocadas[(int)$prod['orden_id']] = true;
+                }
                 $estadoDesdeStr = Transicion::estadoEnTimestamp($pid, $ts); // estado en la posición del ts
                 $estadoDesde    = $estadoDesdeStr !== null ? Estado::from($estadoDesdeStr) : null;
 
@@ -178,6 +184,12 @@ final class ProcesadorLote
                 } else {
                     Lote::insertarItem($loteId, $codigo, $ts, $tid, 'aplicado');
                 }
+            }
+
+            // Recalcular el estado denormalizado de las órdenes cuyos ítems se movieron
+            // (alimenta Reportes y el seguimiento público por Nº de orden).
+            foreach (array_keys($ordenesTocadas) as $ordenId) {
+                Orden::recalcularEstado($ordenId);
             }
 
             $resumen = Lote::resumen($loteId);

@@ -4,21 +4,23 @@ declare(strict_types=1);
 // =============================================================================
 // seguimiento/index.php — Landing PÚBLICA de seguimiento para el comprador.
 //
-// Acceso por token opaco: /seguimiento/?t=<32 hex>. Sin login y sin sesión (no
-// se inicia sesión ni se emiten cookies para visitantes anónimos). Solo expone
-// el texto público del estado del producto; nunca el código interno, el estado
-// enum crudo, ni los conflictos. El texto de cada estado se edita en
-// admin/seguimiento.php (tabla estados_publicos).
+// Flujo principal (módulo de órdenes): el comprador ingresa su Nº de orden
+// (el del QR/etiqueta, sin token) → /seguimiento/?orden=ON-0775-XXXXXXXX. Se
+// muestra el estado público de la orden, derivado de sus ítems. Si el número no
+// está aún en la BD, se muestra un pseudo-estado "en tránsito al centro de
+// distribución" (el comprador suele tener el número antes de que ingrese el camión).
+//
+// Compatibilidad: /seguimiento/?t=<32 hex> sigue mostrando el estado de un ÍTEM
+// por token opaco (links viejos). En ningún caso se exponen datos del cliente:
+// solo el estado público + fecha. Los textos se editan en admin/seguimiento.php.
 // =============================================================================
 
 require __DIR__ . '/../lib/bootstrap.php';
 
 use Trazock\Models\EstadoPublico;
+use Trazock\Models\Orden;
 use Trazock\Models\Producto;
 use Trazock\Models\Transicion;
-
-$token = trim((string)($_GET['t'] ?? ''));
-$prod  = $token !== '' ? Producto::findByToken($token) : null;
 
 // Íconos (Bootstrap Icons) por estado para la línea de tiempo. Decorativos.
 $ICONOS = [
@@ -54,6 +56,7 @@ function seg_head(string $titulo): void
         .seg-hero .ic{width:64px;height:64px;border-radius:50%;background:#e7f1ff;color:#0d6efd;display:inline-flex;align-items:center;justify-content:center;font-size:1.9rem;margin-bottom:.8rem}
         .seg-hero h1{font-size:1.4rem;font-weight:700;margin:0 0 .4rem}
         .seg-hero p{font-size:.95rem;color:#4b5563;margin:0;line-height:1.5}
+        .seg-nro{font-size:.8rem;color:#6b7280;margin-top:.6rem;font-weight:600;letter-spacing:.02em}
         .seg-meta{font-size:.78rem;color:#9ca3af;margin-top:.9rem}
         .seg-steps{list-style:none;margin:0;padding:1.2rem 1.4rem}
         .seg-step{display:flex;gap:.9rem;position:relative;padding-bottom:1.3rem}
@@ -74,6 +77,12 @@ function seg_head(string $titulo): void
         .seg-empty .ic{font-size:2.6rem;color:#d1d5db}
         .seg-empty h1{font-size:1.2rem;font-weight:700;margin:.6rem 0 .4rem}
         .seg-empty p{font-size:.9rem;color:#6b7280;margin:0}
+        .seg-form{padding:0 1.4rem 1.6rem}
+        .seg-input{width:100%;border:1px solid #d1d5db;border-radius:10px;padding:.8rem .9rem;font-size:1rem;text-transform:uppercase;letter-spacing:.03em;margin-bottom:.75rem}
+        .seg-input:focus{outline:none;border-color:#0d6efd;box-shadow:0 0 0 3px rgba(13,110,253,.15)}
+        .seg-btn{width:100%;border:none;border-radius:10px;background:#0d6efd;color:#fff;font-weight:700;padding:.8rem;font-size:1rem;cursor:pointer}
+        .seg-btn:hover{background:#0b5ed7}
+        .seg-note{font-size:.8rem;color:#9ca3af;text-align:center;margin-top:.9rem}
     </style>
 </head>
 <body>
@@ -92,36 +101,21 @@ function seg_foot(): void
     <?php
 }
 
-// -----------------------------------------------------------------------------
-// Token inexistente o inválido → página neutra (no se distingue "no existe" de
-// "mal formado", para no dar pistas a quien prueba tokens).
-// -----------------------------------------------------------------------------
-if ($prod === null) {
-    http_response_code(404);
-    seg_head('Seguimiento no disponible');
+/**
+ * Tarjeta de estado público (hero + línea de tiempo). Reutilizada por el flujo
+ * por orden y por el de token de ítem.
+ *
+ * @param array<string,string>      $iconos
+ * @param array<string,string>      $fechas  estado => fecha (vacío para órdenes)
+ */
+function seg_card(string $estadoActual, array $fechas, ?string $ultima, ?string $nro, array $iconos): void
+{
+    $mapa        = EstadoPublico::mapa();
+    $pasos       = EstadoPublico::pasosVisibles();
+    $actual      = $mapa[$estadoActual] ?? null;
+    $ordenActual = $actual !== null ? (int)$actual['orden'] : 0;
+    $iconoActual = $iconos[$estadoActual] ?? 'box-seam';
     ?>
-    <div class="seg-card seg-empty">
-        <div class="ic"><i class="bi bi-link-45deg"></i></div>
-        <h1>Enlace no disponible</h1>
-        <p>El enlace de seguimiento no es válido o ya no está disponible.
-           Verificá que hayas copiado la dirección completa.</p>
-    </div>
-    <?php
-    seg_foot();
-    exit;
-}
-
-$estadoActual = (string)$prod['estado_actual'];
-$mapa         = EstadoPublico::mapa();
-$pasos        = EstadoPublico::pasosVisibles();
-$fechas       = Transicion::fechasPorEstado((int)$prod['id']);
-
-$actual      = $mapa[$estadoActual] ?? null;
-$ordenActual = $actual !== null ? (int)$actual['orden'] : 0;
-$iconoActual = $ICONOS[$estadoActual] ?? 'box-seam';
-
-seg_head('Seguimiento de tu pedido');
-?>
     <div class="seg-card">
         <div class="seg-hero">
             <div class="ic"><i class="bi bi-<?= h($iconoActual) ?>"></i></div>
@@ -129,8 +123,11 @@ seg_head('Seguimiento de tu pedido');
             <?php if ($actual !== null && $actual['descripcion'] !== ''): ?>
                 <p><?= h($actual['descripcion']) ?></p>
             <?php endif; ?>
-            <?php if (!empty($prod['updated_at'])): ?>
-                <div class="seg-meta">Última actualización: <?= h(fmt_fecha($prod['updated_at'])) ?></div>
+            <?php if ($nro !== null && $nro !== ''): ?>
+                <div class="seg-nro">Orden <?= h($nro) ?></div>
+            <?php endif; ?>
+            <?php if (!empty($ultima)): ?>
+                <div class="seg-meta">Última actualización: <?= h(fmt_fecha($ultima)) ?></div>
             <?php endif; ?>
         </div>
 
@@ -141,10 +138,6 @@ seg_head('Seguimiento de tu pedido');
                 $e     = (string)$paso['estado'];
                 $orden = (int)$paso['orden'];
 
-                // Estado del paso. Con un estado actual "lineal" (orden > 0) usamos
-                // la comparación de orden; si el estado actual es excepcional
-                // (reingreso/devuelto/baja → orden 0) marcamos como completados los
-                // pasos que el producto efectivamente alcanzó, sin "paso actual".
                 if ($ordenActual > 0) {
                     $clase = $orden < $ordenActual ? 'done'
                            : ($orden === $ordenActual ? 'current' : 'pending');
@@ -152,7 +145,7 @@ seg_head('Seguimiento de tu pedido');
                     $clase = isset($fechas[$e]) ? 'done' : 'pending';
                 }
 
-                $icono = $ICONOS[$e] ?? 'circle';
+                $icono = $iconos[$e] ?? 'circle';
                 $fecha = $fechas[$e] ?? null;
             ?>
                 <li class="seg-step <?= $clase ?>">
@@ -176,6 +169,97 @@ seg_head('Seguimiento de tu pedido');
             <?php endforeach; ?>
         </ul>
         <?php endif; ?>
+    </div>
+    <?php
+}
+
+/** Formulario de ingreso del Nº de orden (pantalla inicial pública). */
+function seg_form(?string $valor = null): void
+{
+    ?>
+    <div class="seg-card">
+        <div class="seg-hero" style="padding-bottom:.4rem">
+            <div class="ic"><i class="bi bi-search"></i></div>
+            <h1>Seguí tu pedido</h1>
+            <p>Ingresá el número de orden que recibiste por correo o WhatsApp.</p>
+        </div>
+        <form class="seg-form" method="get" action="">
+            <input class="seg-input" type="text" name="orden" placeholder="ON-0775-XXXXXXXX"
+                   value="<?= h($valor ?? '') ?>" autocomplete="off" autofocus required>
+            <button class="seg-btn" type="submit"><i class="bi bi-search me-2"></i>Seguir mi pedido</button>
+        </form>
+    </div>
+    <?php
+}
+
+// =============================================================================
+// Despacho: ?t=<token> → ítem (compat); si no, por Nº de orden (flujo principal).
+// =============================================================================
+$token = trim((string)($_GET['t'] ?? ''));
+
+if ($token !== '') {
+    $prod = Producto::findByToken($token);
+    if ($prod === null) {
+        http_response_code(404);
+        seg_head('Seguimiento no disponible');
+        ?>
+        <div class="seg-card seg-empty">
+            <div class="ic"><i class="bi bi-link-45deg"></i></div>
+            <h1>Enlace no disponible</h1>
+            <p>El enlace de seguimiento no es válido o ya no está disponible.
+               Verificá que hayas copiado la dirección completa.</p>
+        </div>
+        <?php
+        seg_foot();
+        exit;
+    }
+    $estadoActual = (string)$prod['estado_actual'];
+    $fechas       = Transicion::fechasPorEstado((int)$prod['id']);
+    seg_head('Seguimiento de tu pedido');
+    seg_card($estadoActual, $fechas, $prod['updated_at'] ?? null, null, $ICONOS);
+    seg_foot();
+    exit;
+}
+
+// ----- Flujo por Nº de orden -------------------------------------------------
+$num = trim((string)($_GET['orden'] ?? ''));
+
+if ($num === '') {
+    seg_head('Seguí tu pedido');
+    seg_form();
+    seg_foot();
+    exit;
+}
+
+$orden = Orden::findByNroOrden($num);
+
+if ($orden !== null) {
+    // Estado público derivado de los ítems (sin per-step dates; muestra última act.).
+    $estado = Orden::estadoProductoDerivado((int)$orden['id']) ?? 'INGRESADO';
+    seg_head('Seguimiento ' . $num);
+    seg_card($estado, [], $orden['updated_at'] ?? null, $num, $ICONOS);
+    ?>
+    <div class="seg-note"><a href="<?= h(url('seguimiento/')) ?>" style="color:#6b7280;text-decoration:none"><i class="bi bi-arrow-left me-1"></i>Buscar otro pedido</a></div>
+    <?php
+    seg_foot();
+    exit;
+}
+
+// No encontrada (o aún no ingresada) → pseudo-estado "en tránsito al centro".
+seg_head('Seguimiento ' . $num);
+?>
+    <div class="seg-card">
+        <div class="seg-hero">
+            <div class="ic" style="background:#fff7e6;color:#d97706"><i class="bi bi-truck"></i></div>
+            <h1>En tránsito al centro de distribución</h1>
+            <p>Tu pedido todavía no llegó a nuestro depósito. Cuando lo recibamos vas a
+               poder ver acá el detalle del seguimiento.</p>
+            <div class="seg-nro">Orden <?= h($num) ?></div>
+        </div>
+    </div>
+    <div class="seg-note">
+        ¿Creés que hay un error? Revisá el número de orden ·
+        <a href="<?= h(url('seguimiento/')) ?>" style="color:#6b7280;text-decoration:none">Buscar de nuevo</a>
     </div>
 <?php
 seg_foot();
