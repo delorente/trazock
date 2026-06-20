@@ -82,6 +82,17 @@ define('RATE_LIMIT_ATTEMPTS', 5);
 define('RATE_LIMIT_WINDOW', 900); // 15 * 60
 
 // =============================================================================
+// Anthropic (Claude) — extracción OCR de hojas resumen
+// =============================================================================
+
+// API key de Anthropic (console.anthropic.com). NUNCA commitear la real.
+define('ANTHROPIC_API_KEY', '');
+
+// Modelo para la extracción. Opus 4.8 lee mejor los dígitos densos (recomendado);
+// claude-sonnet-4-6 es más barato si la precisión alcanza.
+define('ANTHROPIC_MODEL', 'claude-opus-4-8');
+
+// =============================================================================
 // Timezone
 // =============================================================================
 
