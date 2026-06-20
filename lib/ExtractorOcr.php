@@ -148,30 +148,51 @@ TXT;
      */
     private static function llamar(array $body): array
     {
-        $ch = curl_init(self::ENDPOINT);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST           => true,
-            CURLOPT_TIMEOUT        => self::TIMEOUT_S,
-            CURLOPT_HTTPHEADER     => [
-                'x-api-key: ' . ANTHROPIC_API_KEY,
-                'anthropic-version: ' . self::VERSION,
-                'content-type: application/json',
-            ],
-            CURLOPT_POSTFIELDS     => json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-        ]);
-        // Bundle CA opcional (solo dev/Windows, donde el cURL de PHP no trae certs).
-        // En producción se deja sin definir → usa el CA del sistema.
-        if (defined('ANTHROPIC_CA_BUNDLE') && ANTHROPIC_CA_BUNDLE !== '') {
-            curl_setopt($ch, CURLOPT_CAINFO, ANTHROPIC_CA_BUNDLE);
+        $json = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        // Reintento ante fallo de transporte: en algunos servidores (libcurl vieja /
+        // proxies) curl_exec() devuelve false de forma intermitente en POST grandes.
+        $raw   = false;
+        $code  = 0;
+        $detalle = '';
+        for ($intento = 1; $intento <= 2; $intento++) {
+            $ch = curl_init(self::ENDPOINT);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_TIMEOUT        => self::TIMEOUT_S,
+                CURLOPT_HTTPHEADER     => [
+                    'x-api-key: ' . ANTHROPIC_API_KEY,
+                    'anthropic-version: ' . self::VERSION,
+                    'content-type: application/json',
+                    // Desactiva el handshake 'Expect: 100-continue', que con POST grandes
+                    // y libcurl viejas puede colgar/cortar la conexión sin error claro.
+                    'Expect:',
+                ],
+                CURLOPT_POSTFIELDS     => $json,
+            ]);
+            // Bundle CA opcional (solo dev/Windows, donde el cURL de PHP no trae certs).
+            // En producción se deja sin definir → usa el CA del sistema.
+            if (defined('ANTHROPIC_CA_BUNDLE') && ANTHROPIC_CA_BUNDLE !== '') {
+                curl_setopt($ch, CURLOPT_CAINFO, ANTHROPIC_CA_BUNDLE);
+            }
+            $raw   = curl_exec($ch);
+            $errno = curl_errno($ch);
+            $err   = curl_error($ch);
+            $code  = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($raw !== false) {
+                break; // hubo respuesta HTTP (aunque sea 4xx/5xx): se maneja abajo
+            }
+            $detalle = "errno {$errno}" . ($err !== '' ? " ({$err})" : '');
+            if ($intento < 2) {
+                usleep(600000); // 0.6 s antes de reintentar
+            }
         }
-        $raw  = curl_exec($ch);
-        $err  = curl_error($ch);
-        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
 
         if ($raw === false) {
-            throw new RuntimeException('Error de red llamando a la API: ' . $err);
+            throw new RuntimeException('Error de red llamando a la API [' . $detalle . '].');
         }
         $data = json_decode((string)$raw, true);
         if ($code >= 400 || !is_array($data)) {
