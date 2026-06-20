@@ -171,10 +171,16 @@ TXT;
                 ],
                 CURLOPT_POSTFIELDS     => $json,
             ]);
-            // Bundle CA opcional (solo dev/Windows, donde el cURL de PHP no trae certs).
-            // En producción se deja sin definir → usa el CA del sistema.
-            if (defined('ANTHROPIC_CA_BUNDLE') && ANTHROPIC_CA_BUNDLE !== '') {
-                curl_setopt($ch, CURLOPT_CAINFO, ANTHROPIC_CA_BUNDLE);
+            // CA bundle para verificar el TLS. Orden de preferencia: el definido por
+            // config (dev/Windows), o el bundle propio versionado con la app
+            // (config/cacert.pem). Esto evita errno 60/77 (CACERT_BADFILE) cuando el CA
+            // del sistema no es legible para el PHP de la web. Si no hay ninguno, usa el
+            // del sistema.
+            $ca = (defined('ANTHROPIC_CA_BUNDLE') && ANTHROPIC_CA_BUNDLE !== '')
+                ? ANTHROPIC_CA_BUNDLE
+                : (is_file(__DIR__ . '/../config/cacert.pem') ? __DIR__ . '/../config/cacert.pem' : '');
+            if ($ca !== '') {
+                curl_setopt($ch, CURLOPT_CAINFO, $ca);
             }
             $raw   = curl_exec($ch);
             $errno = curl_errno($ch);
