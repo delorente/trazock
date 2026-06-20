@@ -24,7 +24,7 @@ Bundle en `design/project/`. Pantallas del módulo en
 etiqueta, reportes, detalle de orden). Seguimiento público (light) en el mismo archivo
 y en `design/project/Seguimiento Trazock.html`. **Recrear con assets locales**, no CDNs.
 
-## Modelo de datos (migración 005, aplicada en dev)
+## Modelo de datos (migraciones 005 + 006, aplicadas en dev)
 - `cargas`: lote de ingreso. `datos_extraidos` (LONGTEXT JSON borrador editable),
   `estado` borrador|confirmada.
 - `ordenes`: `nro_orden` UNIQUE (= ON-0775-XXXXXXXX, va al QR y al seguimiento),
@@ -33,6 +33,9 @@ y en `design/project/Seguimiento Trazock.html`. **Recrear con assets locales**, 
   estado (derivado: RECIBIDO/EN_REPARTO/ENTREGADO…).
 - `productos` +columnas: orden_id, descripcion (código tabulado), dimensiones, m3,
   secuencia. Cada ítem físico = un producto, `codigo = nro_orden-NN`, estado INGRESADO.
+- `productos.etiquetada_at` (migración 006): timestamp nullable, "etiqueta impresa".
+  Ortogonal a la máquina de estados (NO se agregó a `estado_actual`). La badge
+  "ETIQUETADA" del panel se deriva de él (etiquetada_at != NULL && estado INGRESADO).
 
 ## Construido y VALIDADO
 - `sql/migrations/005_ordenes.sql` (+ en `schema.sql`).
@@ -50,16 +53,29 @@ y en `design/project/Seguimiento Trazock.html`. **Recrear con assets locales**, 
 - Scripts de prueba: `scripts/test-extraccion.php <img>`, `scripts/test-procesador.php <json>`.
 - Verificado: extracción real OK (Nº orden/remito/teléfonos correctos), materialización OK
   (11 órdenes/33 ítems), páginas con auth + smoke test.
+- **Etiquetas PDF + QR (pendiente #1, COMPLETO y validado E2E):**
+  - QR REAL escaneable (no el `makeQR` falso del diseño). Lib vendorizada
+    `assets/vendor/qrcode-generator/qrcode.min.js` (Kazuhiko Arase, MIT). Render
+    client-side a SVG (`assets/js/etiquetas.js`) + impresión navegador `@media print`
+    → "Guardar como PDF". Sin dependencia PHP nueva, sin libs PDF.
+  - **GOTCHA verificado**: la lib por defecto codifica Latin1/SJIS y corrompe los
+    acentos (Córdoba/García). `etiquetas.js` fuerza `qrcode.stringToBytes =
+    stringToBytesFuncs['UTF-8']`. Validado decodificando con jsQR (5 payloads,
+    incl. acentos y v3/v4) → todos OK.
+  - `lib/EtiquetaQr.php`: payload autocontenido `nro_orden|sec/total|provincia|apellido`
+    + `parse()` (lo reusará el escáner) + `codigo()`. `helper carga_num()` (C-AAAA-NNN).
+  - `Producto::paraEtiquetasPorCarga/PorOrden` (ítems + contexto de orden + total),
+    `Producto::marcarEtiquetadasPorCarga`; `Orden::resumenCarga` (órdenes/ítems/m³/etiquetados).
+  - `admin/ordenes-confirmacion.php` (post-confirm: resumen + preview etiqueta real +
+    botón generar) y `admin/ordenes-etiquetas.php` (hoja A4, 8/hoja, marca etiquetada
+    al abrir). Revisión ahora redirige a confirmación al confirmar.
+  - CSS `.label-card/.label-sheet/.sheet-page/.label-cell` + `@media print` en app.css.
+  - Probado por HTTP con sesión admin: confirmación y etiquetas 200, payloads y
+    sec/total correctos, `etiquetada_at` seteado. (Quedó sembrada la carga dev #2 —
+    `ON-0775-…` — para inspección visual; borrar con el cleanup de test-procesador.)
 
 ## PENDIENTE (en orden sugerido)
-1. **Etiquetas PDF + QR** (cierra el circuito de depósito). Diseño: ver sección
-   `#etiqueta`/`.label-card` y `.sheet-a4` (A4, 8 por hoja, QR + DESTINO·APELLIDO·ITEM X de X).
-   - QR payload autocontenido (para validar destino offline en el escáner):
-     `nro_orden|sec/total|provincia|apellido`. El `codigo` (nro_orden-NN) es la clave.
-   - Libs PHP libres: generador QR (p.ej. endroid/qr-code o uno propio SVG) + PDF
-     (FPDF/Dompdf) o imprimir HTML con `@media print`. Evaluar mínima dependencia.
-   - Página `admin/ordenes-confirmacion.php` (post-confirm) + `admin/ordenes-etiquetas.php`
-     (hoja imprimible). Marcar productos como ETIQUETADA si se agrega ese estado/flag.
+1. ~~**Etiquetas PDF + QR**~~ ✅ HECHO — ver "Construido y VALIDADO" arriba.
 2. **Reportes** (`admin/ordenes-reportes.php` + re-agregar al menú en `_layout.php`):
    grilla con `Orden::buscar` (ya filtra por provincia/estado/tipo_venta/fechas/búsqueda),
    sumbar (Σ m³, #órdenes, #ítems), export Excel (ya hay PhpSpreadsheet — ver

@@ -381,3 +381,14 @@ ALTER TABLE `productos`
 -- =============================================================================
 -- END: 005_ordenes.sql
 -- =============================================================================
+
+-- =============================================================================
+-- BEGIN: 006_etiquetas.sql — marca de "etiqueta impresa" por ítem (ortogonal a
+-- la máquina de estados; la badge "ETIQUETADA" del panel se deriva de él).
+-- =============================================================================
+ALTER TABLE `productos`
+    ADD COLUMN `etiquetada_at` TIMESTAMP NULL DEFAULT NULL AFTER `secuencia`,
+    ADD INDEX `idx_etiquetada` (`etiquetada_at`);
+-- =============================================================================
+-- END: 006_etiquetas.sql
+-- =============================================================================

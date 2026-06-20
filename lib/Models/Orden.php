@@ -86,6 +86,36 @@ final class Orden
         $stmt->execute([':e' => $estado, ':id' => $id]);
     }
 
+    /**
+     * Resumen agregado de una carga confirmada (para la pantalla de confirmación
+     * y la de etiquetas): nº de órdenes, ítems, m³ total y cuántos ítems ya tienen
+     * su etiqueta impresa.
+     *
+     * @return array{ordenes:int, items:int, m3:float, etiquetados:int}
+     */
+    public static function resumenCarga(int $cargaId): array
+    {
+        // Placeholders distintos por subconsulta: con prepares nativos (EMULATE
+        // OFF) no se puede reusar un mismo nombre en varias posiciones.
+        $stmt = DB::getInstance()->prepare(
+            'SELECT
+                (SELECT COUNT(*) FROM ordenes WHERE carga_id = :c1) AS ordenes,
+                (SELECT COALESCE(SUM(m3_total), 0) FROM ordenes WHERE carga_id = :c2) AS m3,
+                (SELECT COUNT(*) FROM productos p JOIN ordenes o ON o.id = p.orden_id
+                   WHERE o.carga_id = :c3) AS items,
+                (SELECT COUNT(*) FROM productos p JOIN ordenes o ON o.id = p.orden_id
+                   WHERE o.carga_id = :c4 AND p.etiquetada_at IS NOT NULL) AS etiquetados'
+        );
+        $stmt->execute([':c1' => $cargaId, ':c2' => $cargaId, ':c3' => $cargaId, ':c4' => $cargaId]);
+        $r = $stmt->fetch() ?: [];
+        return [
+            'ordenes'     => (int)($r['ordenes'] ?? 0),
+            'items'       => (int)($r['items'] ?? 0),
+            'm3'          => (float)($r['m3'] ?? 0),
+            'etiquetados' => (int)($r['etiquetados'] ?? 0),
+        ];
+    }
+
     // -------------------------------------------------------------------------
     // Reportes (grilla con filtros)
     // -------------------------------------------------------------------------

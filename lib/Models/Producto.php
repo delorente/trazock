@@ -184,6 +184,67 @@ final class Producto
     }
 
     // -------------------------------------------------------------------------
+    // Etiquetas (un rótulo con QR por ítem físico)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Ítems de una carga, con el contexto de su orden, listos para etiquetar.
+     * Una fila por unidad física, ordenadas por orden y secuencia ("ítem X de N").
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function paraEtiquetasPorCarga(int $cargaId): array
+    {
+        return self::paraEtiquetas('o.carga_id = :id', $cargaId);
+    }
+
+    /**
+     * Ítems de una sola orden (reimpresión puntual de etiquetas).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function paraEtiquetasPorOrden(int $ordenId): array
+    {
+        return self::paraEtiquetas('p.orden_id = :id', $ordenId);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private static function paraEtiquetas(string $cond, int $id): array
+    {
+        $sql = 'SELECT p.id, p.codigo, p.secuencia, p.descripcion, p.dimensiones, p.m3,
+                       p.estado_actual, p.etiquetada_at,
+                       o.id AS orden_id, o.nro_orden, o.nro_remito, o.carga_id,
+                       o.cliente, o.cliente_apellido,
+                       o.dest_provincia, o.dest_localidad,
+                       (SELECT COUNT(*) FROM productos p2 WHERE p2.orden_id = p.orden_id) AS total_items
+                FROM productos p
+                JOIN ordenes o ON o.id = p.orden_id
+                WHERE ' . $cond . '
+                ORDER BY o.id, p.secuencia, p.id';
+        $stmt = DB::getInstance()->prepare($sql);
+        $stmt->execute([':id' => $id]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Marca como etiquetados (fija etiquetada_at) los ítems de una carga que aún
+     * no lo estaban. Idempotente. Devuelve cuántos se marcaron en esta llamada.
+     */
+    public static function marcarEtiquetadasPorCarga(int $cargaId): int
+    {
+        $stmt = DB::getInstance()->prepare(
+            'UPDATE productos p
+                JOIN ordenes o ON o.id = p.orden_id
+                SET p.etiquetada_at = NOW()
+              WHERE o.carga_id = :id AND p.etiquetada_at IS NULL'
+        );
+        $stmt->execute([':id' => $cargaId]);
+        return $stmt->rowCount();
+    }
+
+    // -------------------------------------------------------------------------
     // Seguimiento público (token opaco para la landing del cliente final)
     // -------------------------------------------------------------------------
 

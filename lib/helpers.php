@@ -68,6 +68,15 @@ if (!function_exists('lote_num')) {
     }
 }
 
+if (!function_exists('carga_num')) {
+    /** Número de carga legible: C-AAAA-NNN (año de creación + id correlativo). */
+    function carga_num(int $id, ?string $fechaCreacion = null): string
+    {
+        $anio = $fechaCreacion && strlen($fechaCreacion) >= 4 ? substr($fechaCreacion, 0, 4) : date('Y');
+        return 'C-' . $anio . '-' . str_pad((string)$id, 3, '0', STR_PAD_LEFT);
+    }
+}
+
 if (!function_exists('estado_badge')) {
     /** Badge de estado de producto (tema oscuro: clase b-ESTADO). */
     function estado_badge(?string $estado): string

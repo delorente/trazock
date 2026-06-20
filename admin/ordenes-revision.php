@@ -11,7 +11,6 @@ require __DIR__ . '/../lib/bootstrap.php';
 require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
-use Trazock\DB;
 use Trazock\Models\Carga;
 
 $user = Auth::requierePanel();
@@ -29,26 +28,10 @@ if ($carga === null) {
     exit;
 }
 
-// Carga ya confirmada → vista de resumen (solo lectura).
+// Carga ya confirmada → la pantalla canónica es la de confirmación (resumen +
+// generación de etiquetas).
 if ($carga['estado'] === 'confirmada') {
-    $n = (int)DB::getInstance()->query('SELECT COUNT(*) FROM ordenes WHERE carga_id = ' . $cargaId)->fetchColumn();
-    $items = (int)DB::getInstance()->query('SELECT COUNT(*) FROM productos p JOIN ordenes o ON o.id = p.orden_id WHERE o.carga_id = ' . $cargaId)->fetchColumn();
-    panel_header('Carga confirmada', $user, 'captura', '', $volver);
-    ?>
-    <div class="card p-4" style="border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.05);max-width:560px">
-      <div class="d-flex align-items-center gap-3 flex-wrap">
-        <div style="width:48px;height:48px;border-radius:50%;background:rgba(34,197,94,.15);display:grid;place-items:center;flex-shrink:0">
-          <i class="bi bi-check-circle-fill" style="font-size:1.5rem;color:#4ade80"></i>
-        </div>
-        <div>
-          <div style="font-size:16px;font-weight:700;color:#4ade80">Carga confirmada</div>
-          <div class="text-muted" style="font-size:12px"><?= $n ?> órdenes · <?= $items ?> ítems · ingresadas en depósito</div>
-        </div>
-      </div>
-      <p class="text-muted mb-0" style="font-size:13px;margin-top:1rem">Las órdenes quedaron en estado <strong>Recibido en depósito</strong> y los ítems con su código y QR. (La generación de etiquetas y los reportes vienen en los próximos pasos.)</p>
-    </div>
-    <?php
-    panel_footer();
+    header('Location: ' . url('admin/ordenes-confirmacion.php') . '?carga=' . $cargaId);
     exit;
 }
 
@@ -90,6 +73,7 @@ const TZ = {
   cargaId: <?= $cargaId ?>,
   apiConfirmar: <?= json_encode(url('api/ordenes-confirmar.php')) ?>,
   captura: <?= json_encode(url('admin/ordenes-captura.php')) ?>,
+  confirmacion: <?= json_encode(url('admin/ordenes-confirmacion.php')) ?>,
 };
 let ORD = <?= json_encode($ordenes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 const expandido = new Set();
@@ -200,7 +184,7 @@ async function confirmar(){
     });
     const d = await r.json();
     if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo confirmar.');
-    location.reload();
+    location.href = TZ.confirmacion + '?carga=' + TZ.cargaId;
   } catch(e){
     alert(e.message);
     btn.disabled = false; resumen();
