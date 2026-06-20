@@ -84,6 +84,57 @@
     }
     function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML; }
 
+    // ----- QR de Trazock: parseo y validación de zona -------------------------
+    // Payload: nro_orden|sec/total|provincia|ciudad|apellido  (ver lib/EtiquetaQr).
+    // La clave del ítem en la BD es codigo = nro_orden-NN (NN = sec, 2 dígitos).
+    function parseQR(raw) {
+        const parts = String(raw == null ? '' : raw).trim().split('|');
+        if (parts.length < 2) return null;
+        const nro = (parts[0] || '').trim();
+        const m = /^(\d+)\/(\d+)$/.exec((parts[1] || '').trim());
+        if (!nro || !m) return null;
+        const sec = parseInt(m[1], 10), total = parseInt(m[2], 10);
+        return {
+            nro_orden: nro, secuencia: sec, total: total,
+            codigo: nro + '-' + String(sec).padStart(2, '0'),
+            provincia: (parts[2] || '').trim(),
+            ciudad: (parts[3] || '').trim(),
+            apellido: (parts[4] || '').trim()
+        };
+    }
+    // Normaliza para comparar destinos: minúsculas, sin acentos, espacios colapsados.
+    var RE_DIACRITICOS = new RegExp('[\\u0300-\\u036f]', 'g'); // marcas combinantes (acentos)
+    function normLoc(s) {
+        return String(s == null ? '' : s).trim().toLowerCase()
+            .normalize('NFD').replace(RE_DIACRITICOS, '').replace(/\s+/g, ' ');
+    }
+    // ¿(provincia, ciudad) pertenece a la zona? Localidad con ciudad vacía = toda la prov.
+    function enZona(prov, ciu, localidades) {
+        if (!localidades || !localidades.length) return false;
+        const P = normLoc(prov), C = normLoc(ciu);
+        return localidades.some(function (l) {
+            if (normLoc(l.provincia) !== P) return false;
+            const lc = normLoc(l.ciudad);
+            return lc === '' || lc === C;
+        });
+    }
+    // Órdenes del lote con ítems sin escanear (según sec/total del QR).
+    function ordenesIncompletas(l) {
+        const m = {};
+        (l.items || []).forEach(function (it) {
+            if (!it.nro_orden || !it.total) return; // ítems legacy (sin QR) no se controlan
+            if (!m[it.nro_orden]) m[it.nro_orden] = { total: it.total, secs: {} };
+            if (it.total > m[it.nro_orden].total) m[it.nro_orden].total = it.total;
+            if (it.secuencia) m[it.nro_orden].secs[it.secuencia] = true;
+        });
+        const inc = [];
+        Object.keys(m).forEach(function (no) {
+            const escaneados = Object.keys(m[no].secs).length;
+            if (escaneados < m[no].total) inc.push({ nro_orden: no, escaneados: escaneados, total: m[no].total });
+        });
+        return inc;
+    }
+
     // ----- ARRANQUE -----------------------------------------------------------
     async function arrancar() {
         TZSync.init({ apiBase: API, onChange: refrescarBadge, onAuthError: sesionExpirada });
@@ -234,6 +285,12 @@
             html += campoTexto('cfgRemito', 'N° remito (opcional)');
         } else if (tipo === 'SALIDA_REPARTO') {
             html += campoSelect('cfgTransportista', 'Transportista', optionList(c.transportistas, 'id', 'nombre_completo'), true);
+            const zonas = c.zonas || [];
+            if (zonas.length) {
+                html += campoSelect('cfgZona', 'Zona de reparto', optionList(zonas, 'id', 'nombre'), true);
+            } else {
+                html += '<div class="alert alert-warning py-2 small">No hay zonas de reparto cargadas. Pedí al admin que cree al menos una (panel → Zonas).</div>';
+            }
         } else if (tipo === 'ENTREGA') {
             html += '<div class="alert alert-info py-2 small">El transportista sos vos (' + esc(estado.usuario.nombre) + ').</div>';
         } else if (tipo === 'REINGRESO') {
@@ -283,6 +340,14 @@
             timestamp_apertura: nowISO(), timestamp_cierre: null,
             dispositivo_info: navigator.userAgent, items: []
         };
+        // Salida a reparto: guardar la zona elegida + un snapshot de sus localidades
+        // (para validar cada QR aun sin conexión, sin depender del catálogo vigente).
+        if (tipo === 'SALIDA_REPARTO') {
+            lote.zona_id = valOf('cfgZona');
+            const z = ((estado.catalogos && estado.catalogos.zonas) || []).find(x => +x.id === +lote.zona_id);
+            lote.zona_nombre = z ? z.nombre : null;
+            lote.zona_localidades = z ? (z.localidades || []) : [];
+        }
         const faltante = validarConfig(tipo, lote);
         if (faltante) { err.textContent = faltante; err.classList.remove('d-none'); return; }
         estado.lote = lote;
@@ -294,6 +359,8 @@
     function validarConfig(tipo, l) {
         if (tipo === 'INGRESO' && !l.categoria_id) return 'Elegí una categoría.';
         if (tipo === 'SALIDA_REPARTO' && !l.transportista_id) return 'Elegí un transportista.';
+        if (tipo === 'SALIDA_REPARTO' && !l.zona_id) return 'Elegí una zona de reparto.';
+        if (tipo === 'SALIDA_REPARTO' && (!l.zona_localidades || l.zona_localidades.length === 0)) return 'La zona elegida no tiene localidades cargadas.';
         if ((tipo === 'REINGRESO' || tipo === 'BAJA') && !l.motivo_id) return 'Elegí un motivo.';
         if (tipo === 'SALIDA_DEVOLUCION' && (!l.proveedor_id || !l.motivo_id)) return 'Proveedor y motivo son obligatorios.';
         const libre = $('cfgMotivoLibre');
@@ -323,18 +390,40 @@
         const c = estado.catalogos;
         const nombreDe = (arr, id, k) => { const x = (arr || []).find(o => +o.id === +id); return x ? x[k] : ''; };
         if (l.tipo === 'INGRESO') return nombreDe(c.categorias, l.categoria_id, 'nombre');
-        if (l.tipo === 'SALIDA_REPARTO') return nombreDe(c.transportistas, l.transportista_id, 'nombre_completo');
+        if (l.tipo === 'SALIDA_REPARTO') {
+            const t = nombreDe(c.transportistas, l.transportista_id, 'nombre_completo');
+            return l.zona_nombre ? (t + ' · Zona ' + l.zona_nombre) : t;
+        }
         return '';
     }
-    async function onScan(codigo) {
+    async function onScan(raw) {
         const l = estado.lote; if (!l) return;
         reiniciarInactividad();
+
+        // El scanner ya garantiza el patrón básico; acá parseamos el payload completo.
+        const p = parseQR(raw);
+        if (!p) { feedback('error', '⚠ QR no reconocido'); flashCam('flash-dup'); vibrar([200]); beep(380); return; }
+        const codigo = p.codigo;
+
         if (l.items.some(i => i.codigo === codigo)) {
-            feedback('dup', '⚠ Código ya escaneado en este lote');
+            feedback('dup', '⚠ Ítem ya escaneado en este lote');
             flashCam('flash-dup'); vibrar([120, 60, 120]);
             return;
         }
-        l.items.push({ codigo: codigo, timestamp_cliente: nowISO() });
+
+        // Salida a reparto: el ítem debe pertenecer a la zona del lote. Error contundente.
+        if (l.tipo === 'SALIDA_REPARTO' && !enZona(p.provincia, p.ciudad, l.zona_localidades)) {
+            const dest = (p.ciudad || '') + (p.ciudad && p.provincia ? ' · ' : '') + (p.provincia || '—');
+            feedback('error', '⛔ Fuera de zona ' + (l.zona_nombre || '') + ': ' + dest, 3500);
+            flashCam('flash-dup'); vibrar([300, 90, 300]); beep(330);
+            return;
+        }
+
+        l.items.push({
+            codigo: codigo, timestamp_cliente: nowISO(),
+            nro_orden: p.nro_orden, secuencia: p.secuencia, total: p.total,
+            provincia: p.provincia, ciudad: p.ciudad
+        });
         feedback('ok', '✓ ' + codigo);
         flashCam('flash-ok'); vibrar(60); beep();
         $('scanContador').textContent = l.items.length + ' items';
@@ -361,10 +450,10 @@
         }).catch(() => feedback('error', '⚠ No se pudo reanudar la cámara.'));
     }
     let feedbackTimer = null;
-    function feedback(clase, texto) {
+    function feedback(clase, texto, ms) {
         const el = $('scanFeedback'); el.className = 'tz-scan-feedback ' + clase; el.textContent = texto;
         clearTimeout(feedbackTimer);
-        feedbackTimer = setTimeout(() => { el.className = 'tz-scan-feedback'; el.textContent = ''; }, 1200);
+        feedbackTimer = setTimeout(() => { el.className = 'tz-scan-feedback'; el.textContent = ''; }, ms || 1200);
     }
     function agregarALista(codigo) {
         const ul = $('scanLista');
@@ -394,6 +483,22 @@
     async function cerrarLote() {
         const l = estado.lote; if (!l) return;
         if (l.items.length === 0) { feedback('dup', 'El lote no tiene items.'); return; }
+
+        // Control de órdenes con ítems sin escanear (según sec/total del QR).
+        const inc = ordenesIncompletas(l);
+        if (inc.length > 0) {
+            if (l.tipo === 'ENTREGA') {
+                // En una entrega se exigen TODOS los ítems de la orden: no se cierra.
+                await modalIncompletas(inc, 'bloqueo');
+                return;
+            }
+            if (l.tipo === 'SALIDA_REPARTO') {
+                // Aviso explícito: deja cerrar pero exige confirmar que se vio el aviso.
+                const seguir = await modalIncompletas(inc, 'aviso');
+                if (!seguir) return;
+            }
+        }
+
         l.timestamp_cierre = nowISO();
         overlay(true, 'Guardando lote…');
         const registro = {
@@ -412,6 +517,57 @@
         if (navigator.onLine) { TZSync.syncAhora(); showToast('Lote enviado', 'ok'); }
         else { showToast('Lote guardado — se enviará al reconectar', 'ok'); }
         irSelector();
+    }
+
+    // Modal de órdenes incompletas. modo='aviso' (reparto: deja cerrar con
+    // confirmación explícita) | 'bloqueo' (entrega: no deja cerrar). Devuelve una
+    // promesa que resuelve true solo si el operador confirma "Cerrar igual".
+    function modalIncompletas(incompletas, modo) {
+        return new Promise(function (resolve) {
+            const bloqueo = modo === 'bloqueo';
+            const faltan = incompletas.reduce((s, o) => s + (o.total - o.escaneados), 0);
+            const lista = incompletas.map(o =>
+                '<li><span class="mono">' + esc(o.nro_orden) + '</span> — ' + o.escaneados + ' de ' + o.total +
+                ' (faltan <strong>' + (o.total - o.escaneados) + '</strong>)</li>').join('');
+
+            const el = document.createElement('div');
+            el.className = 'modal fade'; el.tabIndex = -1;
+            el.setAttribute('data-bs-backdrop', 'static'); el.setAttribute('data-bs-keyboard', 'false');
+            el.innerHTML =
+                '<div class="modal-dialog modal-dialog-centered"><div class="modal-content">' +
+                '<div class="modal-header"><h5 class="modal-title text-' + (bloqueo ? 'danger' : 'warning') + '">' +
+                '<i class="bi bi-exclamation-triangle-fill me-2"></i>' +
+                (bloqueo ? 'Faltan ítems de la orden' : 'Órdenes incompletas') + '</h5></div>' +
+                '<div class="modal-body"><p class="mb-2">' +
+                (bloqueo
+                    ? 'En una <strong>entrega</strong> tenés que escanear <strong>todos</strong> los ítems de cada orden. Faltan ' + faltan + ' ítem(s):'
+                    : 'Hay ' + incompletas.length + ' orden(es) con ítems sin escanear (' + faltan + ' en total):') +
+                '</p><ul class="mb-0">' + lista + '</ul>' +
+                (bloqueo ? '' :
+                    '<div class="form-check mt-3"><input class="form-check-input" type="checkbox" id="ackInc">' +
+                    '<label class="form-check-label" for="ackInc">Recibí el aviso y quiero <strong>cerrar igual</strong> el lote.</label></div>') +
+                '</div><div class="modal-footer">' +
+                (bloqueo
+                    ? '<button type="button" class="btn btn-primary" data-act="cancel">Seguir escaneando</button>'
+                    : '<button type="button" class="btn btn-secondary" data-act="cancel">Volver</button>' +
+                      '<button type="button" class="btn btn-danger" data-act="ok" id="btnCerrarIgual" disabled>Cerrar igual</button>') +
+                '</div></div></div>';
+            document.body.appendChild(el);
+
+            const m = bootstrap.Modal.getOrCreateInstance(el);
+            let result = false;
+            if (!bloqueo) {
+                const chk = el.querySelector('#ackInc'), btn = el.querySelector('#btnCerrarIgual');
+                chk.addEventListener('change', () => { btn.disabled = !chk.checked; });
+            }
+            el.addEventListener('click', function (e) {
+                const b = e.target.closest('[data-act]'); if (!b) return;
+                result = (b.getAttribute('data-act') === 'ok');
+                m.hide();
+            });
+            el.addEventListener('hidden.bs.modal', function () { el.remove(); resolve(result); });
+            m.show();
+        });
     }
 
     // ----- COLA (modal) -------------------------------------------------------

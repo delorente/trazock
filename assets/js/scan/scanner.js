@@ -1,10 +1,10 @@
 // =============================================================================
 // scanner.js — escáner basado en zxing-cpp (WASM) con pipeline de cámara propio.
 //
-// Motivo del cambio (vs html5-qrcode/ZXing-js): los códigos de las etiquetas son
-// Code 128 largos (36 dígitos, con corridas de ceros) sobre superficie curva, que
-// el motor anterior leía mal (truncaba a 14/18 o agregaba ceros) sobre todo en iOS.
-// zxing-cpp (C++ compilado a WASM) decodifica mucho mejor estos casos.
+// Las etiquetas nuevas (módulo de órdenes) llevan un QR con el payload
+// nro_orden|sec/total|provincia|ciudad|apellido (ver lib/EtiquetaQr). Antes eran
+// códigos ITF de 36 dígitos; el pipeline de cámara es el mismo, solo cambia el
+// formato a decodificar y la validación de lo leído.
 //
 // zxing-cpp SOLO decodifica; la cámara la manejamos acá: getUserMedia → <video> →
 // <canvas> (un cuadro cada ~1/FPS) → readBarcodes(ImageData).
@@ -22,14 +22,14 @@
     const ANTIRREBOTE_MS = 2000;
     const FPS = 8; // cuadros por segundo a decodificar
 
-    // Las etiquetas son ITF (Interleaved 2 of 5) de 36 dígitos. Fijamos SOLO ITF para
-    // que ningún otro lector intervenga (motor zxing-cpp, usado en iOS).
-    const FORMATOS = ['ITF'];
+    // Las etiquetas son QR. Fijamos SOLO QR para que ningún otro formato intervenga
+    // (motor zxing-cpp, usado en iOS).
+    const FORMATOS = ['QRCode'];
 
-    // Formato esperado del código de la etiqueta: ITF de EXACTAMENTE 36 dígitos.
-    // ITF no tiene longitud fija ni checksum → el lector entrega parciales (14) o
-    // sobre-lecturas (40). Solo se acepta lo que cumple este patrón.
-    const CODIGO_VALIDO = /^\d{36}$/;
+    // Un QR de Trazock siempre empieza con  nro_orden|sec/total|…  (ver lib/EtiquetaQr).
+    // Solo se aceptan lecturas que cumplen ese patrón; cualquier otro QR (URL, etc.)
+    // se descarta en silencio. El parseo del payload se hace en ui.js.
+    const CODIGO_VALIDO = /^[^|]+\|\d+\/\d+\|/;
 
     let stream = null;
     let video = null;
@@ -85,10 +85,8 @@
     function onSuccess(decodedText) {
         const code = (decodedText || '').trim();
         if (!code) return;
-        // Validación de formato: solo se aceptan códigos que cumplen el patrón esperado
-        // (ITF de 36 dígitos). Las lecturas parciales/sobre-leídas se descartan en
-        // silencio: nunca se guarda un código mal leído; el operador sostiene la lectura
-        // hasta que entra una válida (las correctas son siempre de 36).
+        // Validación de formato: solo se aceptan QR con el patrón de Trazock
+        // (nro_orden|sec/total|…). Cualquier otro QR se descarta en silencio.
         if (!CODIGO_VALIDO.test(code)) return;
         const now = Date.now();
         // Antirrebote: mismo código dentro de la ventana → ignorar.
@@ -107,9 +105,9 @@
         try {
             if ('BarcodeDetector' in window) {
                 const sop = await window.BarcodeDetector.getSupportedFormats();
-                // Las etiquetas son ITF; fijamos solo ese formato en el detector nativo
+                // Las etiquetas son QR; fijamos solo ese formato en el detector nativo
                 // (Android/MLKit) para que nada más intervenga.
-                const fmts = ['itf'].filter(f => sop.indexOf(f) !== -1);
+                const fmts = ['qr_code'].filter(f => sop.indexOf(f) !== -1);
                 if (fmts.length) {
                     detector = new window.BarcodeDetector({ formats: fmts });
                     usarNativo = true;

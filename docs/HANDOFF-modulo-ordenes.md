@@ -87,12 +87,26 @@ y en `design/project/Seguimiento Trazock.html`. **Recrear con assets locales**, 
      La hoja de etiquetas lleva `class="label-sheet print-area"`.
    - PENDIENTE menor de detalle: "Editar orden" y timeline de historial (el diseño S6
      los muestra; se omitieron por alcance). Los ítems muestran estado real.
-3. **Escáner ITF → QR**: en `assets/js/scan/scanner.js` cambiar el formato del detector
-   nativo y zxing a **qr_code** (era ITF de 36 díg., ya no existe), y la validación
-   `CODIGO_VALIDO` al patrón del QR. Sumar controles en `assets/js/scan/ui.js`:
-   destino obligatorio en salida a reparto + error contundente si el QR no es de ese
-   destino; aviso al cerrar el lote si una orden quedó con ítems sin escanear; en entrega,
-   exigir todos los ítems de la orden. (El pipeline de cámara nativo+zxing ya está.)
+3. ~~**Escáner ITF → QR**~~ ✅ HECHO (falta probar con cámara en celular — ver caveat).
+   - `scanner.js`: formato a QR (`FORMATOS=['QRCode']` zxing, `['qr_code']` nativo);
+     `CODIGO_VALIDO=/^[^|]+\|\d+\/\d+\|/` (patrón del payload). Pipeline de cámara igual.
+   - `ui.js`: `onScan` parsea el QR (`parseQR` espeja `EtiquetaQr::parse`) y guarda el
+     `codigo` (nro_orden-NN); los ítems llevan nro_orden/sec/total/prov/ciudad.
+   - **Zonas de reparto** (decisión del cliente, reemplaza "destino" simple): subsistema
+     nuevo — tablas `zonas`+`zona_localidades` (migración 007), `Models\Zona`, ABM
+     `admin/zonas.php` (menú Administración), expuestas en `Catalogos::para`. Una zona
+     agrupa localidades (provincia + ciudad **opcional** = toda la provincia). En
+     SALIDA_REPARTO el operador elige transportista **+ zona**; cada QR se valida contra
+     la zona (`enZona`, normaliza acentos/may.) → **error contundente** si está fuera.
+     El lote guarda un snapshot de las localidades para validar offline.
+   - Cierre de lote: `ordenesIncompletas` (por sec/total). SALIDA_REPARTO → **aviso con
+     confirmación explícita** (checkbox "recibí el aviso" + "Cerrar igual"). ENTREGA →
+     **bloquea** (exige todos los ítems de la orden). `modalIncompletas` (modal dinámico).
+   - SW: `CACHE_VERSION` bumpeado a `trazock-v3` (forzar update del JS en dispositivos).
+   - **CAVEAT**: validado por lógica (parse/zona/incompletas con node) + render/catálogos
+     por HTTP. El escaneo real con cámara y la UX del modal NO se pudieron probar acá
+     (necesitan celular). Probar en dispositivo antes de redeploy. Los catálogos cacheados
+     viejos no traen `zonas` hasta refrescar online (re-login o reconexión).
 4. **Seguimiento por Nº de orden**: refactor de `seguimiento/index.php` → formulario de
    ingreso de Nº de orden (sin token) → `Orden::findByNroOrden` → estado público
    (reusa `estados_publicos`). Pseudo-estado "en tránsito al centro de distribución" si la
