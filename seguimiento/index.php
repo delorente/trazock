@@ -134,6 +134,13 @@ function seg_card(string $estadoActual, array $fechas, ?string $ultima, ?string 
         <?php if ($pasos !== []): ?>
         <hr class="m-0">
         <ul class="seg-steps">
+            <li class="seg-step done">
+                <div class="seg-dot"><i class="bi bi-check-lg"></i></div>
+                <div class="body">
+                    <div class="t">En camino a nuestro centro de distribución</div>
+                    <div class="d">Tu pedido fue despachado hacia nuestro depósito.</div>
+                </div>
+            </li>
             <?php foreach ($pasos as $paso):
                 $e     = (string)$paso['estado'];
                 $orden = (int)$paso['orden'];
