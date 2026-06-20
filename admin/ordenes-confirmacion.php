@@ -91,7 +91,7 @@ panel_header('Carga confirmada', $user, 'captura', '', $volver);
         $loc    = (string)($muestra['dest_localidad'] ?? '');
         $ape    = (string)($muestra['cliente_apellido'] ?? $muestra['cliente'] ?? '');
         $destino = trim($loc . ($loc && $prov ? ' · ' : '') . $prov) ?: '—';
-        $payload = EtiquetaQr::payload((string)$muestra['nro_orden'], $sec, $tot, $prov, $ape);
+        $payload = EtiquetaQr::payload((string)$muestra['nro_orden'], $sec, $tot, $prov, $loc, $ape);
     ?>
     <div class="label-card">
       <div class="lq" data-qr="<?= h($payload) ?>"></div>

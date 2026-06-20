@@ -6,12 +6,12 @@ namespace Trazock;
 /**
  * EtiquetaQr — payload autocontenido del QR de cada ítem.
  *
- * Formato:  nro_orden|sec/total|provincia|apellido
- *   ej.     ON-0775-1A2B3C4D|2/3|Córdoba|García
+ * Formato:  nro_orden|sec/total|provincia|ciudad|apellido
+ *   ej.     ON-0775-1A2B3C4D|2/3|Córdoba|Río Cuarto|García
  *
  * Es autocontenido a propósito: el escáner del repartidor puede validar el
- * destino aun sin conexión (provincia/apellido legibles en el QR), mientras que
- * la clave real del ítem en la BD es el `codigo` = `nro_orden-NN`, reconstruible
+ * destino aun sin conexión (provincia/ciudad/apellido legibles en el QR), mientras
+ * que la clave real del ítem en la BD es el `codigo` = `nro_orden-NN`, reconstruible
  * desde `nro_orden` + `sec` (NN = sec con 2 dígitos). Ver ProcesadorCarga::codigo.
  */
 final class EtiquetaQr
@@ -24,12 +24,14 @@ final class EtiquetaQr
         int $secuencia,
         int $total,
         ?string $provincia,
+        ?string $ciudad,
         ?string $apellido
     ): string {
         return implode(self::SEP, [
             self::limpiar($nroOrden),
             $secuencia . '/' . $total,
             self::limpiar($provincia ?? ''),
+            self::limpiar($ciudad ?? ''),
             self::limpiar($apellido ?? ''),
         ]);
     }
@@ -38,7 +40,7 @@ final class EtiquetaQr
      * Parsea un payload escaneado. Devuelve null si no tiene la forma esperada.
      * (Lo usará el escáner para validar destino contra la salida a reparto.)
      *
-     * @return array{nro_orden:string, secuencia:int, total:int, codigo:string, provincia:string, apellido:string}|null
+     * @return array{nro_orden:string, secuencia:int, total:int, codigo:string, provincia:string, ciudad:string, apellido:string}|null
      */
     public static function parse(string $raw): ?array
     {
@@ -58,7 +60,8 @@ final class EtiquetaQr
             'total'      => (int)$m[2],
             'codigo'     => self::codigo($nro, $sec),
             'provincia'  => isset($p[2]) ? trim($p[2]) : '',
-            'apellido'   => isset($p[3]) ? trim($p[3]) : '',
+            'ciudad'     => isset($p[3]) ? trim($p[3]) : '',
+            'apellido'   => isset($p[4]) ? trim($p[4]) : '',
         ];
     }
 

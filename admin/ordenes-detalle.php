@@ -114,7 +114,7 @@ $campo = static function (string $label, string $valor): void {
     <?php if ($items !== []):
         $m = $items[0];
         $ape = (string)($m['cliente_apellido'] ?? '');
-        $payload = EtiquetaQr::payload((string)$m['nro_orden'], (int)$m['secuencia'], (int)$m['total_items'], (string)($m['dest_provincia'] ?? ''), $ape);
+        $payload = EtiquetaQr::payload((string)$m['nro_orden'], (int)$m['secuencia'], (int)$m['total_items'], (string)($m['dest_provincia'] ?? ''), (string)($m['dest_localidad'] ?? ''), $ape);
     ?>
     <div class="label-card" style="width:100%">
       <div class="lq" data-qr="<?= h($payload) ?>"></div>

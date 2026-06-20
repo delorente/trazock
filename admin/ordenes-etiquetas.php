@@ -110,8 +110,9 @@ function eti_destino(array $it): string
         // llevando solo el apellido (payload compacto para validar destino offline).
         $cli     = trim((string)($it['cliente'] ?? ''));
         $nombre  = $cli !== '' ? $cli : ($ape !== '' ? $ape : '—');
+        $loc     = (string)($it['dest_localidad'] ?? '');
         $desc    = trim((string)($it['descripcion'] ?? ''));
-        $payload = EtiquetaQr::payload($nro, $sec, $tot, $prov, $ape);
+        $payload = EtiquetaQr::payload($nro, $sec, $tot, $prov, $loc, $ape);
     ?>
     <div class="label-cell">
       <div class="lq" data-qr="<?= h($payload) ?>"></div>
