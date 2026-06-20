@@ -377,7 +377,7 @@
         $('scanResumen').textContent = resumenLote(l);
         $('scanContador').textContent = l.items.length + ' items';
         $('scanLista').innerHTML = '';
-        if (resume) { l.items.slice(-5).reverse().forEach(i => agregarALista(i.codigo)); }
+        if (resume) { l.items.slice(-5).reverse().forEach(i => agregarALista(i.codigo, i.fuera_zona)); }
         $('btnBeep').classList.toggle('active', estado.beep);
         const pausa = $('scanPausa'); if (pausa) pausa.classList.add('d-none');
         mostrarVista('view-scan');
@@ -396,8 +396,10 @@
         }
         return '';
     }
+    let confirmandoZona = false; // evita procesar escaneos mientras se confirma fuera-de-zona
     async function onScan(raw) {
         const l = estado.lote; if (!l) return;
+        if (confirmandoZona) return; // hay un aviso de zona abierto: ignorar lecturas
         reiniciarInactividad();
 
         // El scanner ya garantiza el patrón básico; acá parseamos el payload completo.
@@ -411,24 +413,62 @@
             return;
         }
 
-        // Salida a reparto: el ítem debe pertenecer a la zona del lote. Error contundente.
+        // Salida a reparto: si el ítem es de OTRA zona, avisar fuerte pero NO bloquear:
+        // el operador puede decidir llevarlo igual. Nunca se detiene la operación.
+        let fueraZona = false;
         if (l.tipo === 'SALIDA_REPARTO' && !enZona(p.provincia, p.ciudad, l.zona_localidades)) {
             const dest = (p.ciudad || '') + (p.ciudad && p.provincia ? ' · ' : '') + (p.provincia || '—');
-            feedback('error', '⛔ Fuera de zona ' + (l.zona_nombre || '') + ': ' + dest, 3500);
             flashCam('flash-dup'); vibrar([300, 90, 300]); beep(330);
-            return;
+            confirmandoZona = true;
+            const agregar = await modalFueraZona(dest, l.zona_nombre);
+            confirmandoZona = false;
+            if (!agregar) { feedback('dup', 'Ítem de otra zona — no agregado'); return; }
+            fueraZona = true;
         }
 
-        l.items.push({
+        const item = {
             codigo: codigo, timestamp_cliente: nowISO(),
             nro_orden: p.nro_orden, secuencia: p.secuencia, total: p.total,
             provincia: p.provincia, ciudad: p.ciudad
-        });
-        feedback('ok', '✓ ' + codigo);
-        flashCam('flash-ok'); vibrar(60); beep();
+        };
+        if (fueraZona) { item.fuera_zona = true; }
+        l.items.push(item);
+        feedback(fueraZona ? 'dup' : 'ok', (fueraZona ? '⚠ Fuera de zona: ' : '✓ ') + codigo, fueraZona ? 2000 : undefined);
+        flashCam(fueraZona ? 'flash-dup' : 'flash-ok'); vibrar(60); beep();
         $('scanContador').textContent = l.items.length + ' items';
-        agregarALista(codigo);
+        agregarALista(codigo, fueraZona);
         try { await TZDB.guardarLoteActual(l); } catch (e) {}
+    }
+
+    // Aviso vehemente (no bloqueante) de ítem fuera de la zona del lote. Devuelve
+    // promesa que resuelve true si el operador decide llevarlo igual.
+    function modalFueraZona(destino, zonaNombre) {
+        return new Promise(function (resolve) {
+            const el = document.createElement('div');
+            el.className = 'modal fade'; el.tabIndex = -1;
+            el.setAttribute('data-bs-backdrop', 'static'); el.setAttribute('data-bs-keyboard', 'false');
+            el.innerHTML =
+                '<div class="modal-dialog modal-dialog-centered"><div class="modal-content">' +
+                '<div class="modal-header bg-danger text-white"><h5 class="modal-title">' +
+                '<i class="bi bi-exclamation-octagon-fill me-2"></i>¡Ítem de otra zona!</h5></div>' +
+                '<div class="modal-body"><p class="mb-2">Este ítem va a <strong>' + esc(destino) + '</strong>, ' +
+                'que <strong>no pertenece</strong> a la zona <strong>' + esc(zonaNombre || '') + '</strong> de este reparto.</p>' +
+                '<p class="mb-0 text-danger">Si lo cargás igual, asegurate de que realmente sale en este viaje.</p></div>' +
+                '<div class="modal-footer">' +
+                '<button type="button" class="btn btn-secondary" data-act="no">No cargar</button>' +
+                '<button type="button" class="btn btn-danger" data-act="si">Llevar igual</button>' +
+                '</div></div></div>';
+            document.body.appendChild(el);
+            const m = bootstrap.Modal.getOrCreateInstance(el);
+            let result = false;
+            el.addEventListener('click', function (e) {
+                const b = e.target.closest('[data-act]'); if (!b) return;
+                result = b.getAttribute('data-act') === 'si';
+                m.hide();
+            });
+            el.addEventListener('hidden.bs.modal', function () { el.remove(); resolve(result); });
+            m.show();
+        });
     }
 
     // ----- Inactividad: pausar la cámara y ofrecer reanudar --------------------
@@ -455,13 +495,17 @@
         clearTimeout(feedbackTimer);
         feedbackTimer = setTimeout(() => { el.className = 'tz-scan-feedback'; el.textContent = ''; }, ms || 1200);
     }
-    function agregarALista(codigo) {
+    function agregarALista(codigo, fueraZona) {
         const ul = $('scanLista');
         const el = document.createElement('div');
         el.className = 'si new';
-        el.innerHTML = '<i class="bi bi-check-circle-fill" style="color:var(--green);flex-shrink:0"></i>'
+        const ic = fueraZona
+            ? '<i class="bi bi-exclamation-triangle-fill" style="color:var(--yellow);flex-shrink:0"></i>'
+            : '<i class="bi bi-check-circle-fill" style="color:var(--green);flex-shrink:0"></i>';
+        const tag = fueraZona ? '<span style="font-size:10px;color:var(--yellow);font-weight:700">FUERA DE ZONA</span> ' : '';
+        el.innerHTML = ic
             + '<span class="mono" style="font-size:13px;flex:1">' + esc(codigo) + '</span>'
-            + '<span style="font-size:11px;color:var(--muted)">' + esc(new Date().toLocaleTimeString()) + '</span>';
+            + tag + '<span style="font-size:11px;color:var(--muted)">' + esc(new Date().toLocaleTimeString()) + '</span>';
         ul.insertBefore(el, ul.firstChild);
         while (ul.children.length > 6) ul.removeChild(ul.lastChild);
     }

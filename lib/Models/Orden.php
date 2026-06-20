@@ -51,6 +51,13 @@ final class Orden
         return (int)$db->lastInsertId();
     }
 
+    /** Campos editables de una orden desde el detalle (subconjunto de CAMPOS). */
+    private const EDITABLES = [
+        'nro_remito', 'fecha_remito', 'tipo_venta', 'cliente', 'cliente_apellido',
+        'telefonos', 'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
+        'valor_declarado',
+    ];
+
     /**
      * @return array<string, mixed>|null
      */
@@ -60,6 +67,79 @@ final class Orden
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch();
         return $row === false ? null : $row;
+    }
+
+    /**
+     * Actualiza los datos editables de una orden (desde el detalle). Solo toca las
+     * claves presentes en $d que estén en EDITABLES; '' se guarda como NULL.
+     *
+     * @param array<string, mixed> $d
+     */
+    public static function actualizarDatos(int $id, array $d): void
+    {
+        $sets = [];
+        $vals = [':id' => $id];
+        foreach (self::EDITABLES as $c) {
+            if (array_key_exists($c, $d)) {
+                $sets[]        = "`{$c}` = :{$c}";
+                $vals[":{$c}"] = ($d[$c] === '' || $d[$c] === null) ? null : $d[$c];
+            }
+        }
+        if ($sets === []) {
+            return;
+        }
+        $stmt = DB::getInstance()->prepare('UPDATE ordenes SET ' . implode(', ', $sets) . ' WHERE id = :id');
+        $stmt->execute($vals);
+    }
+
+    /**
+     * Historial de eventos de la orden (para el detalle): ingreso, etiquetas y
+     * los cambios de estado de sus ítems. Más reciente primero.
+     *
+     * @return array<int, array{titulo:string, fecha:string, detalle:string}>
+     */
+    public static function historial(int $ordenId): array
+    {
+        $o = self::find($ordenId);
+        if ($o === null) {
+            return [];
+        }
+        $db = DB::getInstance();
+        $eventos = [];
+
+        // Ingreso (creación de la orden) y etiquetas impresas.
+        $eventos[] = ['titulo' => 'Ingresada en depósito', 'fecha' => (string)$o['created_at'], 'detalle' => 'Por OCR'];
+
+        $etq = $db->prepare('SELECT MIN(etiquetada_at) FROM productos WHERE orden_id = :id AND etiquetada_at IS NOT NULL');
+        $etq->execute([':id' => $ordenId]);
+        $fEtq = $etq->fetchColumn();
+        if ($fEtq) {
+            $eventos[] = ['titulo' => 'Etiquetas impresas', 'fecha' => (string)$fEtq, 'detalle' => ''];
+        }
+
+        // Cambios de estado de los ítems (primer ítem que alcanzó cada estado).
+        $labels = ['EN_REPARTO' => 'Salió a reparto', 'ENTREGADO' => 'Entregada',
+                   'REINGRESADO' => 'Reingresada', 'DEVUELTO' => 'Devuelta', 'BAJA' => 'Baja'];
+        $stmt = $db->prepare(
+            "SELECT t.estado_hasta, MIN(t.timestamp_server) AS fecha, COUNT(DISTINCT t.producto_id) AS n
+             FROM transiciones t JOIN productos p ON p.id = t.producto_id
+             WHERE p.orden_id = :id AND t.estado_hasta <> 'INGRESADO'
+             GROUP BY t.estado_hasta"
+        );
+        $stmt->execute([':id' => $ordenId]);
+        $totalItems = (int)$db->query('SELECT COUNT(*) FROM productos WHERE orden_id = ' . (int)$ordenId)->fetchColumn();
+        foreach ($stmt->fetchAll() as $r) {
+            $est = (string)$r['estado_hasta'];
+            $eventos[] = [
+                'titulo'  => $labels[$est] ?? $est,
+                'fecha'   => (string)$r['fecha'],
+                'detalle' => (int)$r['n'] . ' de ' . $totalItems . ' ítem(s)',
+            ];
+        }
+
+        // Orden cronológico inverso (más reciente primero).
+        usort($eventos, static fn($a, $b) => strcmp((string)$b['fecha'], (string)$a['fecha']));
+        return $eventos;
     }
 
     /**

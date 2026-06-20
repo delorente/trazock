@@ -85,8 +85,9 @@ y en `design/project/Seguimiento Trazock.html`. **Recrear con assets locales**, 
    - Impresión refactorizada a `.print-area` genérico en app.css (antes ocultaba todo
      salvo `.label-sheet`): `#main > :not(.print-area){display:none}` + `.no-print`.
      La hoja de etiquetas lleva `class="label-sheet print-area"`.
-   - PENDIENTE menor de detalle: "Editar orden" y timeline de historial (el diseño S6
-     los muestra; se omitieron por alcance). Los ítems muestran estado real.
+   - Detalle: "Editar orden" (modal + PRG, `Orden::actualizarDatos`) y timeline de
+     **Historial** (`Orden::historial`: ingreso + etiquetas + cambios de estado de los
+     ítems desde `transiciones`). Los ítems muestran su estado real.
 3. ~~**Escáner ITF → QR**~~ ✅ HECHO (falta probar con cámara en celular — ver caveat).
    - `scanner.js`: formato a QR (`FORMATOS=['QRCode']` zxing, `['qr_code']` nativo);
      `CODIGO_VALIDO=/^[^|]+\|\d+\/\d+\|/` (patrón del payload). Pipeline de cámara igual.
@@ -97,8 +98,10 @@ y en `design/project/Seguimiento Trazock.html`. **Recrear con assets locales**, 
      `admin/zonas.php` (menú Administración), expuestas en `Catalogos::para`. Una zona
      agrupa localidades (provincia + ciudad **opcional** = toda la provincia). En
      SALIDA_REPARTO el operador elige transportista **+ zona**; cada QR se valida contra
-     la zona (`enZona`, normaliza acentos/may.) → **error contundente** si está fuera.
-     El lote guarda un snapshot de las localidades para validar offline.
+     la zona (`enZona`, normaliza acentos/may.). Si está fuera → **aviso vehemente NO
+     bloqueante** (`modalFueraZona`): se puede llevar igual (el ítem queda marcado
+     `fuera_zona`); nunca se detiene la operación. El lote guarda un snapshot de las
+     localidades para validar offline.
    - Cierre de lote: `ordenesIncompletas` (por sec/total). SALIDA_REPARTO → **aviso con
      confirmación explícita** (checkbox "recibí el aviso" + "Cerrar igual"). ENTREGA →
      **bloquea** (exige todos los ítems de la orden). `modalIncompletas` (modal dinámico).
