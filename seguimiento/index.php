@@ -24,6 +24,7 @@ use Trazock\Models\Transicion;
 
 // Íconos (Bootstrap Icons) por estado para la línea de tiempo. Decorativos.
 $ICONOS = [
+    'EN_TRANSITO' => 'truck',
     'INGRESADO'   => 'box-seam',
     'EN_REPARTO'  => 'truck',
     'ENTREGADO'   => 'house-check',
@@ -134,13 +135,6 @@ function seg_card(string $estadoActual, array $fechas, ?string $ultima, ?string 
         <?php if ($pasos !== []): ?>
         <hr class="m-0">
         <ul class="seg-steps">
-            <li class="seg-step done">
-                <div class="seg-dot"><i class="bi bi-check-lg"></i></div>
-                <div class="body">
-                    <div class="t">En camino a nuestro centro de distribución</div>
-                    <div class="d">Tu pedido fue despachado hacia nuestro depósito.</div>
-                </div>
-            </li>
             <?php foreach ($pasos as $paso):
                 $e     = (string)$paso['estado'];
                 $orden = (int)$paso['orden'];
@@ -253,14 +247,15 @@ if ($orden !== null) {
 }
 
 // No encontrada (o aún no ingresada) → pseudo-estado "en tránsito al centro".
+// Reusa el texto editable de EN_TRANSITO (admin/seguimiento.php).
+$tr = EstadoPublico::mapa()['EN_TRANSITO'] ?? null;
 seg_head('Seguimiento ' . $num);
 ?>
     <div class="seg-card">
         <div class="seg-hero">
             <div class="ic" style="background:#fff7e6;color:#d97706"><i class="bi bi-truck"></i></div>
-            <h1>En tránsito al centro de distribución</h1>
-            <p>Tu pedido todavía no llegó a nuestro depósito. Cuando lo recibamos vas a
-               poder ver acá el detalle del seguimiento.</p>
+            <h1><?= h($tr['titulo'] ?? 'En tránsito al centro de distribución') ?></h1>
+            <p><?= h($tr['descripcion'] ?? 'Tu pedido todavía no llegó a nuestro depósito. Cuando lo recibamos vas a poder ver acá el detalle del seguimiento.') ?></p>
             <div class="seg-nro">Orden <?= h($num) ?></div>
         </div>
     </div>
