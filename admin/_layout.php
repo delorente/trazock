@@ -31,6 +31,12 @@ function panel_menu(): array
             ],
         ],
         [
+            'seccion' => 'Órdenes',
+            'items'   => [
+                ['key' => 'captura',  'label' => 'Nueva carga', 'href' => 'ordenes-captura.php', 'icon' => 'cloud-upload-fill', 'roles' => ['admin', 'gestor']],
+            ],
+        ],
+        [
             'seccion' => 'Administración',
             'items'   => [
                 ['key' => 'usuarios',     'label' => 'Usuarios',     'href' => 'usuarios.php',     'icon' => 'people-fill',  'roles' => ['admin']],

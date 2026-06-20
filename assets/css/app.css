@@ -228,3 +228,48 @@ a { color: var(--blue); }
     #sidebar-overlay.show { display: block; }
     #main { margin-left: 0; padding: 1rem; }
 }
+
+/* ============================================================================
+   Módulo Órdenes (ingreso por OCR) — portado del diseño de Claude Design
+   ============================================================================ */
+
+/* Badges de estado de carga / orden / tipo de venta */
+.b-PENDIENTE{background:rgba(100,116,139,.2);color:#94a3b8}
+.b-PROCESANDO{background:rgba(234,179,8,.2);color:#fbbf24}
+.b-REVISANDO{background:rgba(59,130,246,.2);color:#60a5fa}
+.b-CONFIRMADA{background:rgba(34,197,94,.2);color:#4ade80}
+.b-RECIBIDO{background:rgba(59,130,246,.2);color:#60a5fa}
+.b-ETIQUETADA{background:rgba(139,92,246,.2);color:#a78bfa}
+.b-ERROR{background:rgba(239,68,68,.2);color:#f87171}
+.b-LISTA{background:rgba(34,197,94,.2);color:#4ade80}
+.b-LOCAL{background:rgba(59,130,246,.15);color:#60a5fa}
+.b-ONLINE{background:rgba(139,92,246,.15);color:#a78bfa}
+
+/* Captura */
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:2rem 1.25rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:rgba(0,0,0,.08)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--blue);background:rgba(59,130,246,.06)}
+.upload-zone .uz-icon{font-size:2.6rem;color:var(--muted);display:block;margin-bottom:.5rem}
+.sheet-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border)}
+.sheet-item:last-child{border-bottom:none}
+.sheet-thumb{width:34px;height:44px;border-radius:3px;background:var(--card2);border:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted)}
+.sheet-info{flex:1;min-width:0}
+.sheet-name{font-size:12px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:180px}
+.sheet-meta{font-size:11px;color:var(--muted)}
+.s-prog{height:3px;border-radius:2px;background:var(--border);margin-top:5px;overflow:hidden;width:100%}
+.s-prog-fill{height:100%;border-radius:2px;background:var(--blue);transition:width .3s}
+
+/* Revisión OCR */
+.sumbar{display:flex;align-items:center;gap:.85rem;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.65rem 1.1rem;margin-bottom:.85rem}
+.sumbar-n{font-size:1.1rem;font-weight:700;line-height:1}
+.sumbar-l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.sumbar-div{width:1px;height:22px;background:var(--border);flex-shrink:0}
+.cell-edit{background:var(--bg)!important;border:1px solid var(--border)!important;border-radius:4px;padding:2px 6px!important;outline:none;color:var(--text)!important;font-size:13px;font-family:inherit;min-width:56px;width:100%}
+.cell-edit:focus{border-color:var(--blue)!important;box-shadow:0 0 0 .15rem rgba(59,130,246,.2)}
+.cell-warn input,input.cell-warn{background:rgba(234,179,8,.14)!important;border-color:rgba(234,179,8,.45)!important;color:#fbbf24!important}
+.cell-err input,input.cell-err{background:rgba(239,68,68,.12)!important;border-color:rgba(239,68,68,.5)!important;color:#f87171!important}
+.row-err > td{background:rgba(239,68,68,.05)!important}
+.row-err > td:first-child{border-left:3px solid rgba(239,68,68,.6)!important}
+.sub-th{background:rgba(0,0,0,.3)!important;padding:4px 10px!important;font-size:10px!important;color:var(--muted)!important;text-transform:uppercase;letter-spacing:.04em}
+.sub-td{background:rgba(0,0,0,.22)!important;padding:6px 10px!important;font-size:12px!important}
+.xbtn{border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:1px 3px;line-height:1;transition:color .1s}
+.xbtn:hover,.xbtn.open{color:var(--blue)}
