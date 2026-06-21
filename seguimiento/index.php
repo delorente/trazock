@@ -182,7 +182,7 @@ function seg_form(?string $valor = null): void
         <div class="seg-hero" style="padding-bottom:.4rem">
             <div class="ic"><i class="bi bi-search"></i></div>
             <h1>Seguí tu pedido</h1>
-            <p>Ingresá el número de orden que recibiste por correo o WhatsApp.</p>
+            <p>Ingresá el número de orden que recibiste.</p>
         </div>
         <form class="seg-form" method="get" action="">
             <input class="seg-input" type="text" name="orden" placeholder="0775-XXXXXXXX"
@@ -232,12 +232,23 @@ if ($num === '') {
     exit;
 }
 
-$orden = Orden::findByNroOrden($num);
-// Tolerancia: si pegaron el código de la etiqueta (nro_orden + "-NN"), probamos
-// sin ese sufijo de ítem de 2 dígitos.
-if ($orden === null && preg_match('/^(.+)-\d{2}$/', $num, $mm)) {
-    $orden = Orden::findByNroOrden($mm[1]);
-    if ($orden !== null) { $num = $mm[1]; }
+// Búsqueda tolerante: probamos varias formas de lo que tipeó el comprador.
+//  - tal cual,
+//  - sin el prefijo "ON-"/"ON " (las órdenes se guardan sin él),
+//  - sin el sufijo de ítem "-NN" (por si pegaron el código de la etiqueta).
+$candidatos = [];
+$sinOn = preg_replace('/^\s*ON[\s-]+/i', '', $num);
+foreach ([$num, $sinOn] as $cand) {
+    $cand = trim((string)$cand);
+    if ($cand === '') { continue; }
+    $candidatos[] = $cand;
+    if (preg_match('/^(.+)-\d{2}$/', $cand, $mm)) { $candidatos[] = $mm[1]; }
+}
+
+$orden = null;
+foreach (array_values(array_unique($candidatos)) as $cand) {
+    $orden = Orden::findByNroOrden($cand);
+    if ($orden !== null) { $num = $cand; break; }
 }
 
 if ($orden !== null) {
