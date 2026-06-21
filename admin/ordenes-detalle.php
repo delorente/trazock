@@ -222,7 +222,7 @@ $campo = static function (string $label, string $valor): void {
         <div class="ld"><?= h($destino) ?></div>
         <div class="ln"><?= h(trim((string)$orden['cliente']) !== '' ? (string)$orden['cliente'] : $ape) ?></div>
         <div class="li"><?= h((string)($m['descripcion'] ?? 'Ítem')) ?></div>
-        <div class="lc"><span><?= h((string)$m['codigo']) ?> · <?= h($num) ?></span><span class="lqty">Ítem <?= (int)$m['secuencia'] ?> de <?= (int)$m['total_items'] ?></span></div>
+        <div class="lc"><span><?= h((string)$m['codigo']) ?> · <?= h($num) ?></span><span class="lqty"><?= (int)$m['secuencia'] ?> de <?= (int)$m['total_items'] ?></span></div>
       </div>
     </div>
     <?php if ($esAdmin): ?><a class="btn btn-outline-secondary btn-sm w-100 mt-2" href="<?= h($urlEti) ?>"><i class="bi bi-printer me-1"></i>Re-imprimir etiquetas</a><?php endif; ?>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trazock — Seguimiento público (variantes)</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* light brand — coherente con Trazock (azul #3b82f6, Inter) */
+    --tz-paper:#f4f2ee;       /* fondo cálido de página   */
+    --tz-card:#ffffff;
+    --tz-ink:#1d2127;         /* tinta (familia del #1a1d23 del panel) */
+    --tz-ink-soft:#5a626d;
+    --tz-muted:#949aa4;
+    --tz-line:#e8e4dd;        /* borde cálido */
+    --tz-line-soft:#f0ece5;
+
+    --tz-blue:#3b82f6;  --tz-blue-ink:#2563eb;  --tz-blue-tint:rgba(59,130,246,.12);
+    --tz-amber:#f59e0b; --tz-amber-ink:#b45309; --tz-amber-tint:rgba(245,158,11,.15);
+    --tz-green:#22c55e; --tz-green-ink:#15803d; --tz-green-tint:rgba(34,197,94,.15); --tz-green-solid:#16a34a;
+    --tz-slate:#64748b; --tz-slate-ink:#475569; --tz-slate-tint:rgba(100,116,139,.12);
+  }
+  html,body{margin:0;height:100%}
+  body{background:#f0eee9}
+
+  .tz-st-blue {--c:var(--tz-blue); --ci:var(--tz-blue-ink); --ct:var(--tz-blue-tint)}
+  .tz-st-amber{--c:var(--tz-amber);--ci:var(--tz-amber-ink);--ct:var(--tz-amber-tint)}
+  .tz-st-green{--c:var(--tz-green);--ci:var(--tz-green-ink);--ct:var(--tz-green-tint)}
+  .tz-st-slate{--c:var(--tz-slate);--ci:var(--tz-slate-ink);--ct:var(--tz-slate-tint)}
+
+  /* ── SCREEN SHELL ── */
+  .tz-screen{
+    font-family:'Inter',system-ui,sans-serif;
+    background:var(--tz-paper);color:var(--tz-ink);
+    width:100%;height:100%;box-sizing:border-box;
+    display:flex;flex-direction:column;align-items:center;
+    padding:30px 20px 26px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .tz-col{width:100%;max-width:520px;display:flex;flex-direction:column;flex:1}
+
+  /* ── BRAND HEADER ── */
+  .tz-brand{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:22px}
+  .tz-logo{width:32px;height:32px;background:var(--tz-blue);border-radius:8px;display:grid;place-items:center;color:#fff;font-size:16px;box-shadow:0 2px 6px rgba(59,130,246,.35)}
+  .tz-name{font-size:20px;font-weight:700;letter-spacing:-.03em}
+
+  /* ── CARD ── */
+  .tz-card{
+    background:var(--tz-card);border:1px solid var(--tz-line);
+    border-radius:20px;
+    box-shadow:0 1px 2px rgba(20,24,40,.04),0 18px 40px -22px rgba(20,30,60,.22);
+    padding:30px 26px;position:relative;overflow:hidden;
+  }
+  .tz-card--celebrate::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:5px;
+    background:linear-gradient(90deg,var(--tz-blue),var(--tz-amber),var(--tz-green));
+  }
+
+  /* ── HERO ── */
+  .tz-hero{text-align:center;position:relative}
+  .tz-hero-ic{
+    width:88px;height:88px;border-radius:50%;display:grid;place-items:center;
+    font-size:40px;margin:6px auto 18px;background:var(--ct);color:var(--ci);
+    position:relative;z-index:1;
+  }
+  .tz-hero-title{font-size:25px;font-weight:700;letter-spacing:-.025em;margin:0 0 9px;line-height:1.15;text-wrap:balance}
+  .tz-hero-desc{font-size:15px;line-height:1.55;color:var(--tz-ink-soft);margin:0 auto 16px;max-width:36ch;text-wrap:pretty}
+  .tz-update{font-size:12.5px;color:var(--tz-muted);display:inline-flex;gap:6px;align-items:center}
+  .tz-update i{font-size:13px}
+
+  /* confetti (sutil, estático) */
+  .tz-confetti span{position:absolute;width:8px;height:8px;border-radius:2px;opacity:.9}
+
+  .tz-div{height:1px;background:var(--tz-line);margin:24px 0 22px}
+
+  /* ── TIMELINE ── */
+  .tz-tl{display:flex;flex-direction:column;padding:2px 2px 0}
+  .tz-step{display:grid;grid-template-columns:38px 1fr;gap:15px}
+  .tz-rail{display:flex;flex-direction:column;align-items:center}
+  .tz-node{
+    width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+    font-size:17px;flex-shrink:0;z-index:1;border:2px solid var(--tz-line);
+    background:var(--tz-line-soft);color:var(--tz-muted);box-sizing:border-box;
+  }
+  .tz-node.done{background:var(--tz-green-solid);border-color:var(--tz-green-solid);color:#fff}
+  .tz-node.current{background:var(--ct);border-color:var(--c);color:var(--ci);box-shadow:0 0 0 5px var(--ct)}
+  .tz-conn{width:2px;flex:1;min-height:30px;background:var(--tz-line);margin:5px 0}
+  .tz-conn.filled{background:var(--tz-green-solid);opacity:.45}
+  .tz-step:last-child .tz-conn{display:none}
+  .tz-body{padding-bottom:26px;padding-top:6px}
+  .tz-step:last-child .tz-body{padding-bottom:2px}
+  .tz-step.pending .tz-step-title{color:var(--tz-muted)}
+  .tz-step.pending .tz-step-desc{display:none}
+  .tz-step-titlerow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tz-step-title{font-size:15.5px;font-weight:600;line-height:1.25}
+  .tz-step.current .tz-step-title{color:var(--ci)}
+  .tz-chip{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:20px;background:var(--ct);color:var(--ci)}
+  .tz-step-desc{font-size:13px;color:var(--tz-ink-soft);margin-top:3px;line-height:1.45}
+  .tz-step-date{font-size:12px;color:var(--tz-muted);margin-top:6px;display:inline-flex;gap:5px;align-items:center}
+  .tz-step-date i{font-size:12px}
+
+  /* ── FOOTER ── */
+  .tz-foot{text-align:center;font-size:13px;color:var(--tz-muted);margin-top:auto;padding-top:24px;line-height:1.55}
+  .tz-foot a{color:var(--tz-blue-ink);text-decoration:none;font-weight:600}
+  .tz-foot a:hover{text-decoration:underline}
+  .tz-foot-brand{margin-top:7px;font-size:11px;color:var(--tz-muted);opacity:.8;letter-spacing:.02em}
+
+  /* empty / message specific spacing */
+  .tz-card--center{display:flex;flex-direction:column;align-items:center;text-align:center;padding:42px 26px}
+
+  /* ── SPECS PANEL ── */
+  .tz-spec{font-family:'Inter',system-ui,sans-serif;background:#fff;width:100%;height:100%;padding:30px 30px;color:var(--tz-ink);box-sizing:border-box;overflow:hidden}
+  .tz-spec h3{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--tz-muted);margin:0 0 14px;font-weight:600}
+  .tz-spec h3:not(:first-child){margin-top:26px}
+  .tz-swatches{display:flex;gap:14px;flex-wrap:wrap}
+  .tz-sw{display:flex;flex-direction:column;gap:7px;font-size:11.5px}
+  .tz-sw .chip{width:62px;height:48px;border-radius:10px;border:1px solid rgba(0,0,0,.06)}
+  .tz-sw b{font-weight:600}
+  .tz-sw .hex{color:var(--tz-muted);font-family:'Courier New',monospace;font-size:11px}
+  .tz-iconrow{display:flex;gap:22px;flex-wrap:wrap}
+  .tz-ic{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:var(--tz-ink-soft)}
+  .tz-ic i{font-size:24px;color:var(--tz-ink)}
+  .tz-ic code{font-family:'Courier New',monospace;font-size:10.5px;color:var(--tz-muted)}
+  .tz-type-row{display:flex;align-items:baseline;gap:14px;margin-bottom:10px}
+  .tz-type-row .lab{font-size:11px;color:var(--tz-muted);width:96px;flex-shrink:0;font-family:'Courier New',monospace}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="tracking-screens.js"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="canvas-app.jsx"></script>
+</body>
+</html>

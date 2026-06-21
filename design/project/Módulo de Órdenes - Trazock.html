@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Trazock — Módulo de Órdenes</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS (mismo dark theme que Trazock.html) ── */
+:root{
+  --bg:#1a1d23;--card:#252930;--card2:#2e333d;--border:#353b47;
+  --blue:#3b82f6;--green:#22c55e;--yellow:#eab308;--red:#ef4444;
+  --purple:#8b5cf6;--orange:#f97316;
+  --text:#f1f5f9;--muted:#94a3b8;--sw:240px;
+  --tz-paper:#f4f2ee;--tz-card:#fff;--tz-ink:#1d2127;--tz-ink-soft:#5a626d;
+  --tz-muted:#949aa4;--tz-line:#e8e4dd;--tz-line-soft:#f0ece5;
+  --tz-blue:#3b82f6;--tz-blue-ink:#2563eb;--tz-blue-tint:rgba(59,130,246,.12);
+  --tz-amber:#f59e0b;--tz-amber-ink:#b45309;--tz-amber-tint:rgba(245,158,11,.15);
+  --tz-green:#22c55e;--tz-green-ink:#15803d;--tz-green-tint:rgba(34,197,94,.15);
+  --tz-slate:#64748b;--tz-slate-ink:#475569;--tz-slate-tint:rgba(100,116,139,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+
+/* sidebar */
+#sidebar{width:var(--sw);background:var(--card);height:100vh;position:fixed;top:0;left:0;z-index:200;border-right:1px solid var(--border);display:flex;flex-direction:column;transition:transform .25s}
+#main{margin-left:var(--sw);padding:1.5rem 1.75rem;min-height:100vh}
+.ni{display:flex;align-items:center;gap:9px;padding:7px 12px;color:var(--muted);text-decoration:none;border-radius:6px;margin:1px 8px;font-size:13px;transition:background .15s,color .15s;cursor:pointer}
+.ni:hover{background:rgba(59,130,246,.1);color:var(--text)}
+.ni.active{background:rgba(59,130,246,.15);color:var(--blue)}
+.ni i{font-size:15px;flex-shrink:0}
+.nd{padding:.6rem 1rem .2rem;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+
+/* cards & tables */
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px}
+.table{color:var(--text);font-size:13px;margin:0}
+.table th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-color:var(--border);font-weight:600;padding:8px 12px;background:rgba(0,0,0,.18)}
+.table td{border-color:var(--border);padding:8px 12px;vertical-align:middle}
+.table-hover tbody tr:hover td{background:var(--card2)!important}
+
+/* badges */
+.badge{font-size:11px;font-weight:500;padding:3px 8px;border-radius:4px}
+.b-INGRESADO{background:rgba(59,130,246,.2);color:#60a5fa}
+.b-EN_REPARTO{background:rgba(234,179,8,.2);color:#fbbf24}
+.b-ENTREGADO{background:rgba(34,197,94,.2);color:#4ade80}
+.b-BAJA{background:rgba(239,68,68,.2);color:#f87171}
+.b-PENDIENTE{background:rgba(100,116,139,.2);color:#94a3b8}
+.b-PROCESANDO{background:rgba(234,179,8,.2);color:#fbbf24}
+.b-REVISANDO{background:rgba(59,130,246,.2);color:#60a5fa}
+.b-CONFIRMADA{background:rgba(34,197,94,.2);color:#4ade80}
+.b-ETIQUETADA{background:rgba(139,92,246,.2);color:#a78bfa}
+.b-ERROR{background:rgba(239,68,68,.2);color:#f87171}
+.b-LISTA{background:rgba(34,197,94,.2);color:#4ade80}
+.b-LOCAL{background:rgba(59,130,246,.15);color:#60a5fa}
+.b-ONLINE{background:rgba(139,92,246,.15);color:#a78bfa}
+.b-conflict{background:rgba(239,68,68,.2);color:#f87171}
+.b-gestor{background:rgba(139,92,246,.2);color:#a78bfa}
+
+/* forms */
+.form-control,.form-select{background:var(--bg)!important;border-color:var(--border)!important;color:var(--text)!important;font-size:13px}
+.form-control::placeholder{color:var(--muted)}
+.form-control:focus,.form-select:focus{box-shadow:0 0 0 .2rem rgba(59,130,246,.2)!important;border-color:var(--blue)!important}
+.form-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;display:block}
+.input-group-text{background:var(--bg);border-color:var(--border);color:var(--muted)}
+.modal-content{background:var(--card);border:1px solid var(--border)}
+.modal-header{border-bottom:1px solid var(--border);padding:.85rem 1rem}
+.modal-footer{border-top:1px solid var(--border)}
+
+/* buttons */
+.btn-outline-secondary{border-color:var(--border)!important;color:var(--muted)!important}
+.btn-outline-secondary:hover{background:var(--card2)!important;color:var(--text)!important}
+.btn-outline-danger{border-color:rgba(239,68,68,.4)!important;color:#f87171!important}
+.btn-outline-danger:hover{background:rgba(239,68,68,.1)!important}
+.btn-outline-success{border-color:rgba(34,197,94,.4)!important;color:#4ade80!important}
+.btn-outline-warning{border-color:rgba(234,179,8,.4)!important;color:#fbbf24!important}
+
+/* alerts */
+.alert-danger{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#f87171}
+.alert-warning{background:rgba(234,179,8,.1);border-color:rgba(234,179,8,.3);color:#fbbf24}
+.alert-success{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.25);color:#4ade80}
+.alert-info{background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.25);color:#60a5fa}
+
+/* pagination */
+.page-link{background:var(--card)!important;border-color:var(--border)!important;color:var(--text)!important;font-size:12px}
+.page-item.active .page-link{background:var(--blue)!important;border-color:var(--blue)!important}
+.page-item.disabled .page-link{color:var(--muted)!important}
+
+/* misc */
+.mono{font-family:'Courier New',monospace;letter-spacing:.04em}
+.sec-title{font-size:18px;font-weight:700}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+#sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:199}
+.as{display:none}
+.as.active{display:block}
+
+@media(max-width:768px){
+  #sidebar{transform:translateX(-100%)}
+  #sidebar.open{transform:none}
+  #sidebar-overlay.show{display:block}
+  #main{margin-left:0;padding:1rem}
+}
+
+/* ═══════════════════════════════
+   MÓDULO: CAPTURA
+═══════════════════════════════ */
+.upload-zone{border:2px dashed var(--border);border-radius:12px;padding:2rem 1.25rem;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;background:rgba(0,0,0,.08)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--blue);background:rgba(59,130,246,.06)}
+.upload-zone .uz-icon{font-size:2.6rem;color:var(--muted);display:block;margin-bottom:.5rem}
+.sheet-item{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border)}
+.sheet-item:last-child{border-bottom:none}
+.sheet-thumb{width:34px;height:44px;border-radius:3px;background:var(--card2);border:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--muted);position:relative}
+.sheet-info{flex:1;min-width:0}
+.sheet-name{font-size:12px;font-weight:500;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:180px}
+.sheet-meta{font-size:11px;color:var(--muted)}
+.s-prog{height:3px;border-radius:2px;background:var(--border);margin-top:5px;overflow:hidden;width:100%}
+.s-prog-fill{height:100%;border-radius:2px;background:var(--blue);transition:width .3s}
+
+/* ═══════════════════════════════
+   MÓDULO: REVISIÓN OCR
+═══════════════════════════════ */
+.sumbar{display:flex;align-items:center;gap:.85rem;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.65rem 1.1rem;margin-bottom:.85rem}
+.sumbar-n{font-size:1.1rem;font-weight:700;line-height:1}
+.sumbar-l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.sumbar-div{width:1px;height:22px;background:var(--border);flex-shrink:0}
+.cell-warn{background:rgba(234,179,8,.14)!important;border:1px solid rgba(234,179,8,.45)!important;border-radius:3px;color:#fbbf24!important;padding:2px 7px!important;white-space:nowrap}
+.cell-err{background:rgba(239,68,68,.12)!important;border:1px solid rgba(239,68,68,.45)!important;border-radius:3px;color:#f87171!important;padding:2px 7px!important;white-space:nowrap}
+.cell-edit{background:var(--bg)!important;border:1.5px solid var(--blue)!important;border-radius:4px;padding:1px 6px!important;outline:none;color:var(--text)!important;font-size:13px;font-family:inherit;min-width:52px;display:inline-block}
+.row-err td{background:rgba(239,68,68,.05)!important}
+.row-err td:first-child{border-left:3px solid rgba(239,68,68,.6)!important;padding-left:9px!important}
+.sub-th{background:rgba(0,0,0,.3)!important;padding:4px 10px 4px 30px!important;font-size:10px!important;color:var(--muted)!important;border-color:var(--border)!important;text-transform:uppercase;letter-spacing:.04em}
+.sub-td{background:rgba(0,0,0,.22)!important;padding:6px 10px 6px 30px!important;font-size:12px!important}
+.xbtn{border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:1px 3px;line-height:1;transition:color .1s}
+.xbtn:hover,.xbtn.open{color:var(--blue)}
+
+/* ═══════════════════════════════
+   MÓDULO: ETIQUETA
+═══════════════════════════════ */
+.label-card{background:#fff;color:#000;border:1px solid #d0d0d0;border-radius:4px;overflow:hidden;width:268px;font-family:'Courier New',monospace}
+.label-card .lq{padding:12px 12px 6px;display:flex;justify-content:center}
+.label-card .lb{padding:8px 12px 13px;border-top:1px dashed #d8d8d8}
+.label-card .ld{font-size:15px;font-weight:700;font-family:'Inter',sans-serif;text-transform:uppercase;line-height:1.15;color:#000;letter-spacing:.01em}
+.label-card .ln{font-size:12.5px;font-weight:600;font-family:'Inter',sans-serif;margin-top:5px;color:#111}
+.label-card .li{font-size:11px;color:#555;font-family:'Inter',sans-serif;margin-top:2px}
+.label-card .lc{font-size:10px;color:#888;margin-top:8px;border-top:1px dashed #ddd;padding-top:7px;letter-spacing:.04em}
+
+/* label sheet preview */
+.sheet-a4{background:#fff;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px;width:794px;border:1px solid var(--border)}
+.label-sm{background:#fff;color:#000;border:1px solid #ccc;border-radius:3px;overflow:hidden;font-family:'Courier New',monospace}
+.label-sm .lq{padding:8px 8px 3px;display:flex;justify-content:center}
+.label-sm .lb{padding:5px 9px 9px;border-top:1px dashed #ddd}
+.label-sm .ld{font-size:12px;font-weight:700;font-family:'Inter',sans-serif;text-transform:uppercase;line-height:1.15;color:#000}
+.label-sm .ln{font-size:10px;font-weight:600;font-family:'Inter',sans-serif;margin-top:3px}
+.label-sm .li{font-size:9px;color:#555;font-family:'Inter',sans-serif}
+.label-sm .lc{font-size:8px;color:#888;margin-top:5px;border-top:1px dashed #ddd;padding-top:4px}
+
+/* ═══════════════════════════════
+   MÓDULO: HISTORIAL (orden detalle)
+═══════════════════════════════ */
+.tl3{padding-left:22px;position:relative}
+.tl3::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:2px;background:var(--border)}
+.tl3-it{position:relative;margin-bottom:13px}
+.tl3-it::before{content:'';position:absolute;left:-22px;top:5px;width:10px;height:10px;border-radius:50%;border:2px solid var(--blue);background:var(--card)}
+
+/* ═══════════════════════════════
+   SEGUIMIENTO PÚBLICO (light)
+═══════════════════════════════ */
+#page-public{position:fixed;inset:0;z-index:500;background:var(--tz-paper);display:none;overflow-y:auto}
+.tz-screen{font-family:'Inter',system-ui,sans-serif;color:var(--tz-ink);display:flex;flex-direction:column;align-items:center;padding:28px 20px 24px;min-height:calc(100vh - 86px)}
+.tz-col{width:100%;max-width:520px;display:flex;flex-direction:column;flex:1}
+.tz-brand{display:flex;align-items:center;justify-content:center;gap:9px;margin-bottom:22px}
+.tz-logo{width:32px;height:32px;background:var(--tz-blue);border-radius:8px;display:grid;place-items:center;color:#fff;font-size:16px;box-shadow:0 2px 6px rgba(59,130,246,.35)}
+.tz-name{font-size:20px;font-weight:700;letter-spacing:-.03em;color:var(--tz-ink)}
+.tz-card{background:var(--tz-card);border:1px solid var(--tz-line);border-radius:20px;padding:30px 26px;box-shadow:0 2px 28px -12px rgba(20,30,60,.18)}
+.tz-card-ctr{display:flex;flex-direction:column;align-items:center;text-align:center;padding:44px 26px}
+.tz-card-celebrate{position:relative;overflow:hidden}
+.tz-card-celebrate::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,var(--tz-blue),var(--tz-amber),var(--tz-green))}
+.tz-st-blue{--c:var(--tz-blue);--ci:var(--tz-blue-ink);--ct:var(--tz-blue-tint)}
+.tz-st-amber{--c:var(--tz-amber);--ci:var(--tz-amber-ink);--ct:var(--tz-amber-tint)}
+.tz-st-green{--c:var(--tz-green);--ci:var(--tz-green-ink);--ct:var(--tz-green-tint)}
+.tz-st-slate{--c:var(--tz-slate);--ci:var(--tz-slate-ink);--ct:var(--tz-slate-tint)}
+.tz-hero-ic{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;font-size:34px;margin:2px auto 14px;background:var(--ct);color:var(--ci)}
+.tz-hero-title{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:0 0 8px;line-height:1.2;color:var(--tz-ink);text-wrap:balance}
+.tz-hero-desc{font-size:14px;line-height:1.6;color:var(--tz-ink-soft);margin:0 auto 12px;max-width:34ch;text-wrap:pretty}
+.tz-update{font-size:12px;color:var(--tz-muted);display:inline-flex;gap:5px;align-items:center}
+.tz-div{height:1px;background:var(--tz-line);margin:20px 0}
+.tz-tl{display:flex;flex-direction:column}
+.tz-step{display:grid;grid-template-columns:38px 1fr;gap:14px}
+.tz-rail{display:flex;flex-direction:column;align-items:center}
+.tz-node{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:17px;border:2px solid var(--tz-line);background:var(--tz-line-soft);color:var(--tz-muted)}
+.tz-node.done{background:#16a34a;border-color:#16a34a;color:#fff}
+.tz-node.current{background:var(--ct);border-color:var(--c);color:var(--ci);box-shadow:0 0 0 5px var(--ct)}
+.tz-conn{width:2px;flex:1;min-height:26px;background:var(--tz-line);margin:4px 0}
+.tz-conn.filled{background:#16a34a;opacity:.4}
+.tz-step:last-child .tz-conn{display:none}
+.tz-body{padding:4px 0 22px}
+.tz-step:last-child .tz-body{padding-bottom:2px}
+.tz-step.pending .tz-step-title{color:var(--tz-muted)}
+.tz-step.pending .tz-step-desc,.tz-step.pending .tz-step-date{display:none}
+.tz-step-titlerow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tz-step-title{font-size:15px;font-weight:600;line-height:1.25}
+.tz-step.current .tz-step-title{color:var(--ci)}
+.tz-chip{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:20px;background:var(--ct);color:var(--ci)}
+.tz-step-desc{font-size:13px;color:var(--tz-ink-soft);margin-top:3px;line-height:1.45}
+.tz-step-date{font-size:11.5px;color:var(--tz-muted);margin-top:5px;display:inline-flex;gap:5px;align-items:center}
+.tz-foot{text-align:center;font-size:13px;color:var(--tz-muted);margin-top:auto;padding-top:22px;line-height:1.6}
+.tz-foot a{color:var(--tz-blue-ink);text-decoration:none;font-weight:600}
+.tz-foot-brand{margin-top:5px;font-size:11px;opacity:.75}
+.pub-input{background:#fff;border:1.5px solid var(--tz-line);border-radius:12px;padding:13px 16px;font-size:18px;font-weight:600;color:var(--tz-ink);width:100%;outline:none;font-family:'Inter',sans-serif;letter-spacing:.02em;transition:border-color .15s,box-shadow .15s}
+.pub-input::placeholder{font-size:14px;font-weight:400;color:var(--tz-muted);letter-spacing:normal}
+.pub-input:focus{border-color:var(--tz-blue);box-shadow:0 0 0 4px var(--tz-blue-tint)}
+.pub-btn{background:var(--tz-blue);color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:600;cursor:pointer;width:100%;margin-top:12px;font-family:'Inter',sans-serif;transition:background .15s}
+.pub-btn:hover{background:var(--tz-blue-ink)}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     ADMIN PANEL
+══════════════════════════════════════════ -->
+<div id="admin-layout" style="display:flex;min-height:100vh">
+<div id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<nav id="sidebar">
+  <div style="display:flex;align-items:center;gap:10px;padding:.8rem 1rem;border-bottom:1px solid var(--border)">
+    <div style="width:30px;height:30px;background:var(--blue);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="bi bi-upc-scan text-white" style="font-size:13px"></i></div>
+    <span style="font-weight:700;font-size:1.05rem;letter-spacing:-.02em">Trazock</span>
+    <a href="Trazock.html" style="margin-left:auto;color:var(--muted);font-size:13px;text-decoration:none" title="Panel principal"><i class="bi bi-arrow-left-circle"></i></a>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;padding:.6rem 1rem;border-bottom:1px solid var(--border)">
+    <div style="width:30px;height:30px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">JP</div>
+    <div>
+      <div style="font-size:12px;font-weight:600;line-height:1.3">Juan Pérez</div>
+      <span class="badge b-gestor" style="font-size:10px">Gestor</span>
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:.5rem 0">
+    <div class="nd">Módulo · Órdenes</div>
+    <a class="ni active" data-p="captura" onclick="go('captura')"><i class="bi bi-cloud-upload-fill"></i>Nueva carga</a>
+    <a class="ni" data-p="revision" onclick="go('revision')"><i class="bi bi-table"></i>Revisión OCR</a>
+    <a class="ni" data-p="confirmacion" onclick="go('confirmacion')"><i class="bi bi-check-circle-fill"></i>Confirmación</a>
+    <a class="ni" data-p="etiqueta" onclick="go('etiqueta')"><i class="bi bi-printer-fill"></i>Etiquetas</a>
+    <a class="ni" data-p="reportes" onclick="go('reportes')"><i class="bi bi-bar-chart-fill"></i>Reportes</a>
+    <div class="nd" style="margin-top:.5rem">Orden</div>
+    <a class="ni" data-p="orden-detalle" onclick="go('orden-detalle')"><i class="bi bi-card-list"></i>Detalle de orden</a>
+  </div>
+  <div style="border-top:1px solid var(--border);padding:.5rem">
+    <a class="ni" onclick="showPublic('input')"><i class="bi bi-globe2"></i>Seguimiento público</a>
+  </div>
+</nav>
+
+<main id="main">
+  <div class="d-flex d-md-none align-items-center gap-3 mb-3">
+    <button class="btn btn-outline-secondary btn-sm px-2" onclick="openSidebar()"><i class="bi bi-list" style="font-size:1.1rem"></i></button>
+    <span style="font-weight:700">Trazock · Órdenes</span>
+  </div>
+
+  <!-- ══ S1: CAPTURA ══ -->
+  <section id="s-captura" class="as">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+      <div>
+        <div class="sec-title">Nueva carga</div>
+        <div style="color:var(--muted);font-size:12px">Fotografiá o subí las hojas resumen del camión — el sistema extrae las órdenes con OCR</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--muted)">Demo:</span>
+        <button class="btn btn-sm btn-primary" style="font-size:11px" onclick="setCap('sheets')">Con hojas</button>
+        <button class="btn btn-sm btn-outline-secondary" style="font-size:11px" onclick="setCap('empty')">Vacío</button>
+        <button class="btn btn-sm btn-outline-secondary" style="font-size:11px" onclick="setCap('processing')">Procesando</button>
+        <button class="btn btn-sm btn-outline-secondary" style="font-size:11px" onclick="setCap('ready')">Listo</button>
+        <button class="btn btn-sm btn-outline-secondary" style="font-size:11px" onclick="setCap('error')">Error</button>
+      </div>
+    </div>
+    <!-- Mobile-first: max-width 440px centered -->
+    <div style="max-width:440px">
+      <div class="card p-3 mb-3">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.85rem">
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">ID Carga</div>
+            <div class="mono" style="font-weight:600">C-2026-043</div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Gestor</div>
+            <div style="font-size:13px">Juan Pérez</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Tipo de venta</div>
+          <div class="btn-group btn-group-sm" id="tipo-venta">
+            <button class="btn btn-primary btn-sm" onclick="setTipoVenta('online',this)">Online</button>
+            <button class="btn btn-outline-secondary btn-sm" onclick="setTipoVenta('local',this)">Local</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" id="cap-card">
+        <div id="cap-empty-view" style="padding:1.25rem">
+          <div class="upload-zone" onclick="setCap('sheets')">
+            <i class="bi bi-camera-fill uz-icon"></i>
+            <div style="font-size:14px;font-weight:600;margin-bottom:.25rem">Tomar foto o subir hoja</div>
+            <p style="color:var(--muted);font-size:12px;margin:0">JPG · PNG · PDF &nbsp;·&nbsp; máx. 10 MB por hoja</p>
+          </div>
+          <p style="color:var(--muted);font-size:12px;text-align:center;margin-top:.75rem">Un camión lleva ≈ 8–10 páginas. Podés subirlas todas antes de procesar.</p>
+        </div>
+        <div id="cap-sheets-view" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;border-bottom:1px solid var(--border)">
+            <span style="font-size:13px;font-weight:600" id="cap-count-lbl">8 hojas</span>
+            <button class="btn btn-sm" style="background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.2);font-size:12px" onclick="addSheet()"><i class="bi bi-plus-lg me-1"></i>Agregar hoja</button>
+          </div>
+          <div id="sheet-list"></div>
+          <div id="cap-progress-bar" style="display:none;padding:.5rem 1rem;border-top:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px">
+              <span>Procesando hojas con OCR…</span><span id="prog-pct">0%</span>
+            </div>
+            <div class="s-prog"><div id="prog-fill" class="s-prog-fill" style="width:0%"></div></div>
+          </div>
+          <div style="padding:.75rem;border-top:1px solid var(--border)">
+            <button class="btn btn-success w-100 fw-bold" id="procesar-btn" style="padding:.7rem;font-size:.95rem" onclick="go('revision')">
+              <i class="bi bi-cpu me-2"></i><span id="procesar-lbl">Procesar hojas</span>
+            </button>
+            <div id="procesar-hint" style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ S2: REVISIÓN OCR ══ -->
+  <section id="s-revision" class="as">
+    <div style="margin-bottom:.5rem"><a style="color:var(--muted);font-size:12px;cursor:pointer" onclick="go('captura')"><i class="bi bi-arrow-left me-1"></i>Carga C-2026-043</a></div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem">
+      <div>
+        <div class="sec-title">Revisión OCR</div>
+        <div style="color:var(--muted);font-size:12px">Verificá los datos extraídos · los campos en <span style="color:#fbbf24">amarillo</span> son de baja confianza · los <span style="color:#f87171">rojos</span> tienen errores bloqueantes</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--muted)">Demo:</span>
+        <div class="btn-group btn-group-sm" id="rev-toggle">
+          <button class="btn btn-sm btn-primary" onclick="setRev('alertas',this)">Con alertas</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="setRev('ok',this)">Todo OK</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="setRev('confirmada',this)">Confirmada</button>
+        </div>
+      </div>
+    </div>
+    <div class="sumbar">
+      <div><div class="sumbar-n">12</div><div class="sumbar-l">Órdenes</div></div>
+      <div class="sumbar-div"></div>
+      <div><div class="sumbar-n">47</div><div class="sumbar-l">Ítems</div></div>
+      <div class="sumbar-div"></div>
+      <div><div class="sumbar-n">84,2</div><div class="sumbar-l">m³ total</div></div>
+      <div class="sumbar-div"></div>
+      <div><div class="sumbar-n">$628.000</div><div class="sumbar-l">Valor declarado</div></div>
+      <div id="rev-alert-chip" style="margin-left:auto;display:flex;align-items:center;gap:.4rem;font-size:12px;color:#fbbf24"></div>
+    </div>
+    <div id="rev-alert-bar"></div>
+    <div class="card mb-3" style="overflow:hidden">
+      <div style="overflow-x:auto">
+        <table class="table table-hover" id="t-revision">
+          <thead><tr>
+            <th style="width:26px"></th>
+            <th>Nº orden</th><th>Nº remito</th><th>Cliente</th>
+            <th>Destino</th><th>Tipo</th><th>m³</th><th>Ítems</th><th>Valor</th><th></th>
+          </tr></thead>
+          <tbody id="rev-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div id="rev-cta" style="display:flex;justify-content:flex-end;gap:.5rem"></div>
+  </section>
+
+  <!-- ══ S3: CONFIRMACIÓN ══ -->
+  <section id="s-confirmacion" class="as">
+    <div class="card p-4 mb-3" style="border-color:rgba(34,197,94,.3);background:rgba(34,197,94,.05)">
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+        <div style="width:48px;height:48px;border-radius:50%;background:rgba(34,197,94,.15);display:grid;place-items:center;flex-shrink:0">
+          <i class="bi bi-check-circle-fill" style="font-size:1.5rem;color:#4ade80"></i>
+        </div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#4ade80">Carga C-2026-043 confirmada</div>
+          <div style="font-size:12px;color:var(--muted)">19/06/2026 · 12 órdenes · 47 ítems · 84,2 m³ · Online</div>
+        </div>
+        <div style="margin-left:auto"><span class="badge b-CONFIRMADA" style="font-size:12px;padding:4px 12px">CONFIRMADA</span></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:minmax(280px,320px) 1fr;gap:1rem;align-items:start">
+      <div class="card p-3">
+        <div style="font-size:13px;font-weight:600;margin-bottom:.85rem"><i class="bi bi-tag-fill me-2" style="color:var(--muted)"></i>Generar etiquetas</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:1rem">1 etiqueta por ítem. Total: <strong style="color:var(--text)">47 etiquetas</strong></p>
+        <div style="margin-bottom:.75rem">
+          <label class="form-label">Formato de hoja</label>
+          <select class="form-select form-select-sm"><option>A4 · 8 etiquetas por hoja</option><option>Carta · 8 etiquetas por hoja</option></select>
+        </div>
+        <div style="margin-bottom:1rem">
+          <label class="form-label">Tamaño</label>
+          <select class="form-select form-select-sm"><option>100 × 70 mm (estándar)</option><option>100 × 50 mm (pequeña)</option></select>
+        </div>
+        <div style="display:grid;gap:.5rem">
+          <button class="btn btn-success fw-bold" onclick="go('etiqueta')"><i class="bi bi-file-earmark-pdf me-2"></i>Generar PDF (47 etiquetas)</button>
+          <button class="btn btn-outline-secondary btn-sm" onclick="go('etiqueta')"><i class="bi bi-eye me-1"></i>Vista previa</button>
+        </div>
+      </div>
+      <div class="card p-3">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:1rem">Vista previa de etiqueta</div>
+        <div class="label-card">
+          <div class="lq"><div id="qr-conf" style="width:148px;height:148px"></div></div>
+          <div class="lb">
+            <div class="ld">Río Cuarto · Córdoba</div>
+            <div class="ln">García, Marta</div>
+            <div class="li">Ítem 1 de 3 &nbsp;·&nbsp; Colchón 2 plazas</div>
+            <div class="lc">ORD-2026-0841 &nbsp;·&nbsp; C-2026-043</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:.75rem">100 × 70 mm &nbsp;·&nbsp; Impresión B&N &nbsp;·&nbsp; Alto contraste</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ S4: ETIQUETAS (hoja de impresión) ══ -->
+  <section id="s-etiqueta" class="as">
+    <div style="margin-bottom:.75rem"><a style="color:var(--muted);font-size:12px;cursor:pointer" onclick="go('confirmacion')"><i class="bi bi-arrow-left me-1"></i>Confirmación</a></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+      <div>
+        <div class="sec-title">Etiquetas</div>
+        <div style="color:var(--muted);font-size:12px">A4 &nbsp;·&nbsp; 8 etiquetas por hoja &nbsp;·&nbsp; Hoja 1 de 6 &nbsp;·&nbsp; 47 etiquetas totales</div>
+      </div>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-outline-secondary btn-sm"><i class="bi bi-chevron-left me-1"></i>Anterior</button>
+        <button class="btn btn-outline-secondary btn-sm">Siguiente<i class="bi bi-chevron-right ms-1"></i></button>
+        <button class="btn btn-primary btn-sm fw-bold" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto;padding-bottom:1rem">
+      <div id="label-sheet" class="sheet-a4"></div>
+    </div>
+    <div style="font-size:12px;color:var(--muted);margin-top:.5rem">
+      <i class="bi bi-info-circle me-1"></i>Optimizado para papel autoadhesivo A4 (Avery L7165 o similar) &nbsp;·&nbsp; Impresión en blanco y negro
+    </div>
+  </section>
+
+  <!-- ══ S5: REPORTES ══ -->
+  <section id="s-reportes" class="as">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">
+      <div>
+        <div class="sec-title">Reportes</div>
+        <div style="color:var(--muted);font-size:12px">Facturación por m³/destino &nbsp;·&nbsp; Armado de rutas</div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Excel</button>
+        <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</button>
+        <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-printer me-1"></i>Imprimir</button>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;cursor:pointer" onclick="toggleEl('rep-f')">
+        <span style="font-size:13px;font-weight:500"><i class="bi bi-funnel me-2"></i>Filtros</span>
+        <i class="bi bi-chevron-down" id="rep-f-ic" style="color:var(--muted);transition:transform .2s"></i>
+      </div>
+      <div id="rep-f" style="display:none;padding:.25rem 1rem 1rem">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:.5rem;margin-bottom:.5rem">
+          <div><label class="form-label">Destino / prov.</label><select class="form-select form-select-sm"><option>Todas</option><option>Córdoba</option><option>Buenos Aires</option><option>Santa Fe</option><option>Mendoza</option><option>Tucumán</option><option>Entre Ríos</option></select></div>
+          <div><label class="form-label">Estado</label><select class="form-select form-select-sm"><option>Todos</option><option>CONFIRMADA</option><option>ETIQUETADA</option><option>INGRESADO</option><option>EN_REPARTO</option><option>ENTREGADO</option></select></div>
+          <div><label class="form-label">Tipo de venta</label><select class="form-select form-select-sm"><option>Todos</option><option>Online</option><option>Local</option></select></div>
+          <div><label class="form-label">F. remito desde</label><input type="date" class="form-control form-control-sm" value="2026-06-01"></div>
+          <div><label class="form-label">F. remito hasta</label><input type="date" class="form-control form-control-sm" value="2026-06-19"></div>
+        </div>
+        <div style="display:flex;gap:.5rem;max-width:400px">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" placeholder="Orden, remito, cliente…">
+          </div>
+          <button class="btn btn-primary btn-sm px-3">Buscar</button>
+        </div>
+      </div>
+    </div>
+    <div class="sumbar mb-3">
+      <div><div class="sumbar-n" style="color:#60a5fa">32</div><div class="sumbar-l">Órdenes filtradas</div></div>
+      <div class="sumbar-div"></div>
+      <div><div class="sumbar-n">142,8</div><div class="sumbar-l">m³ total</div></div>
+      <div class="sumbar-div"></div>
+      <div><div class="sumbar-n">134</div><div class="sumbar-l">Ítems</div></div>
+      <div style="margin-left:auto;font-size:12px;color:var(--muted)">Actualizado 19/06/2026 · 11:30</div>
+    </div>
+    <div class="card">
+      <div style="overflow-x:auto"><table class="table table-hover" id="t-reportes"></table></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem;border-top:1px solid var(--border)">
+        <span style="color:var(--muted);font-size:12px">Mostrando 1–10 de 32</span>
+        <nav><ul class="pagination pagination-sm mb-0">
+          <li class="page-item disabled"><a class="page-link">‹</a></li>
+          <li class="page-item active"><a class="page-link">1</a></li>
+          <li class="page-item"><a class="page-link">2</a></li>
+          <li class="page-item"><a class="page-link">3</a></li>
+          <li class="page-item"><a class="page-link">›</a></li>
+        </ul></nav>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ S6: DETALLE DE ORDEN ══ -->
+  <section id="s-orden-detalle" class="as">
+    <div style="margin-bottom:.75rem"><a style="color:var(--muted);font-size:12px;cursor:pointer" onclick="go('reportes')"><i class="bi bi-arrow-left me-1"></i>Reportes</a></div>
+    <div class="card p-3 mb-3">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.85rem">
+        <div>
+          <div class="mono" style="font-size:1.15rem;font-weight:700;margin-bottom:6px">ORD-2026-0841</div>
+          <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+            <span class="badge b-ETIQUETADA">ETIQUETADA</span>
+            <span class="badge b-ONLINE">Online</span>
+            <span style="font-size:12px;color:var(--muted);align-self:center">C-2026-043</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+          <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Editar</button>
+          <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-tag me-1"></i>Re-imprimir</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:.65rem;font-size:13px">
+        <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block">Nº Remito</span><span class="mono">REM-2026-1103</span></div>
+        <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block">Cliente</span>García, Marta</div>
+        <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block">Destino</span>Río Cuarto · Córdoba</div>
+        <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block">Fecha remito</span>17/06/2026</div>
+        <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block">Ingreso depósito</span>19/06/2026 · 10:15</div>
+        <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block">Valor declarado</span>$45.000</div>
+        <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block">m³ total</span>8,4 m³</div>
+        <div><span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block">Ítems</span>3 unidades</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 295px;gap:1rem;align-items:start">
+      <div>
+        <div class="card mb-3">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;border-bottom:1px solid var(--border)">
+            <span style="font-weight:600;font-size:13px">Ítems (3)</span>
+            <button class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:12px" onclick="openModal('m-add-item')"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+          </div>
+          <table class="table table-hover">
+            <thead><tr><th>Código</th><th>Descripción</th><th>Dimensiones</th><th>Cant.</th><th>m³</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="mono" style="font-size:12px">COL-2P-089</td><td>Colchón 2 plazas</td><td style="font-size:12px;color:var(--muted)">1,90 × 1,40 × 0,22</td><td>1</td><td>0,585</td><td><span class="badge b-ETIQUETADA">ETIQUETADA</span></td><td><a style="color:#60a5fa;font-size:12px;cursor:pointer">Ver QR</a></td></tr>
+              <tr><td class="mono" style="font-size:12px">SOM-2P-044</td><td>Sommier 2 plazas</td><td style="font-size:12px;color:var(--muted)">1,90 × 1,40 × 0,30</td><td>1</td><td>0,798</td><td><span class="badge b-ETIQUETADA">ETIQUETADA</span></td><td><a style="color:#60a5fa;font-size:12px;cursor:pointer">Ver QR</a></td></tr>
+              <tr><td class="mono" style="font-size:12px">COL-1P-034</td><td>Colchón 1 plaza</td><td style="font-size:12px;color:var(--muted)">1,80 × 0,90 × 0,22</td><td>1</td><td>0,357</td><td><span class="badge b-INGRESADO">INGRESADO</span></td><td><a style="color:#60a5fa;font-size:12px;cursor:pointer">Ver QR</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card p-3">
+          <div style="font-weight:600;font-size:13px;margin-bottom:.85rem">Historial</div>
+          <div class="tl3">
+            <div class="tl3-it"><div style="font-size:13px;font-weight:500">Etiquetas generadas y descargadas</div><div style="font-size:12px;color:var(--muted)">19/06/2026 12:15 &nbsp;·&nbsp; Juan Pérez</div></div>
+            <div class="tl3-it"><div style="font-size:13px;font-weight:500">Carga confirmada</div><div style="font-size:12px;color:var(--muted)">19/06/2026 12:05 &nbsp;·&nbsp; Juan Pérez &nbsp;·&nbsp; Carga C-2026-043</div></div>
+            <div class="tl3-it"><div style="font-size:13px;font-weight:500">Revisión OCR completada</div><div style="font-size:12px;color:var(--muted)">19/06/2026 11:52 &nbsp;·&nbsp; Juan Pérez &nbsp;·&nbsp; Sin alertas</div></div>
+            <div class="tl3-it" style="margin-bottom:0"><div style="font-size:13px;font-weight:500">Ingresada por OCR</div><div style="font-size:12px;color:var(--muted)">19/06/2026 11:22 &nbsp;·&nbsp; Sistema OCR &nbsp;·&nbsp; Hoja 3 de C-2026-043</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card p-3">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:.75rem">Etiqueta &nbsp;·&nbsp; Ítem 1 de 3</div>
+        <div class="label-card" style="width:100%">
+          <div class="lq"><div id="qr-det" style="width:136px;height:136px"></div></div>
+          <div class="lb">
+            <div class="ld">Río Cuarto · Cba</div>
+            <div class="ln">García, Marta</div>
+            <div class="li">Ítem 1 de 3 &nbsp;·&nbsp; Colchón 2 plazas</div>
+            <div class="lc">ORD-2026-0841 &nbsp;·&nbsp; COL-2P-089</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:.4rem;margin-top:.75rem">
+          <button class="btn btn-outline-secondary btn-sm" style="flex-shrink:0"><i class="bi bi-chevron-left"></i></button>
+          <button class="btn btn-outline-secondary btn-sm flex-fill" style="font-size:12px"><i class="bi bi-printer me-1"></i>Imprimir</button>
+          <button class="btn btn-outline-secondary btn-sm" style="flex-shrink:0"><i class="bi bi-chevron-right"></i></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div><!-- /admin-layout -->
+
+<!-- ══════════════════════════════════════════
+     SEGUIMIENTO PÚBLICO (light theme)
+══════════════════════════════════════════ -->
+<div id="page-public">
+  <!-- Preview bar -->
+  <div style="background:rgba(0,0,0,.09);border-bottom:1px solid rgba(0,0,0,.09);padding:7px 18px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--tz-ink-soft);flex-shrink:0">
+    <span><i class="bi bi-eye me-1"></i>Vista previa — pantalla pública de seguimiento</span>
+    <button onclick="hidePublic()" style="background:none;border:none;color:var(--tz-ink);cursor:pointer;font-size:14px;padding:2px 8px;border-radius:4px"><i class="bi bi-x-lg"></i> Cerrar</button>
+  </div>
+  <!-- State demo bar -->
+  <div style="background:rgba(0,0,0,.06);border-bottom:1px solid rgba(0,0,0,.07);padding:6px 18px;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:12px;color:var(--tz-ink-soft)">
+    <span style="font-size:11px">Estado demo:</span>
+    <div id="pub-state-btns" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+  </div>
+
+  <div id="pv-input" class="tz-screen" style="display:none">
+    <div class="tz-col">
+      <div class="tz-brand"><div class="tz-logo"><i class="bi bi-upc-scan"></i></div><span class="tz-name">Trazock</span></div>
+      <div class="tz-card" style="max-width:420px;margin:0 auto;width:100%">
+        <div style="text-align:center;margin-bottom:1.5rem">
+          <div style="width:58px;height:58px;background:var(--tz-blue-tint);border-radius:50%;display:grid;place-items:center;margin:0 auto 12px;font-size:26px;color:var(--tz-blue)"><i class="bi bi-search"></i></div>
+          <h1 style="font-size:22px;font-weight:700;letter-spacing:-.02em;margin:0 0 8px;color:var(--tz-ink)">Seguí tu pedido</h1>
+          <p style="font-size:14px;color:var(--tz-ink-soft);margin:0;line-height:1.55">Ingresá el número de orden que recibiste por correo o WhatsApp.</p>
+        </div>
+        <input type="text" class="pub-input" placeholder="ORD-2026-0000">
+        <button class="pub-btn" onclick="setPubState('recibido')"><i class="bi bi-search me-2"></i>Seguir mi pedido</button>
+        <p style="font-size:12px;color:var(--tz-muted);text-align:center;margin-top:1rem">¿No tenés el número? <a href="#" style="color:var(--tz-blue-ink);font-weight:600;text-decoration:none">Escribinos</a></p>
+      </div>
+      <div class="tz-foot" style="max-width:420px;margin:12px auto 0;width:100%;border-top:none">
+        <div class="tz-foot-brand">Seguimiento provisto por Trazock</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pv-status" class="tz-screen" style="display:none">
+    <div class="tz-col">
+      <div class="tz-brand"><div class="tz-logo"><i class="bi bi-upc-scan"></i></div><span class="tz-name">Trazock</span></div>
+      <div id="pub-card"></div>
+      <div class="tz-foot">¿Algún problema con tu pedido? <a href="#">Escribinos</a><div class="tz-foot-brand">Seguimiento provisto por Trazock</div></div>
+    </div>
+  </div>
+
+  <div id="pv-notfound" class="tz-screen" style="display:none">
+    <div class="tz-col" style="max-width:480px;width:100%;margin:0 auto">
+      <div class="tz-brand"><div class="tz-logo"><i class="bi bi-upc-scan"></i></div><span class="tz-name">Trazock</span></div>
+      <div class="tz-card tz-card-ctr tz-st-slate">
+        <div class="tz-hero-ic"><i class="bi bi-search"></i></div>
+        <h1 class="tz-hero-title">Orden no encontrada</h1>
+        <p class="tz-hero-desc">No encontramos ningún pedido con ese número. Verificá que lo hayas copiado correctamente.</p>
+        <button onclick="setPubState('input')" style="background:var(--tz-blue);color:#fff;border:none;border-radius:10px;padding:10px 22px;font-weight:600;cursor:pointer;margin-top:.75rem;font-family:'Inter',sans-serif">Intentar de nuevo</button>
+      </div>
+      <div class="tz-foot">¿Tenés el número correcto y no funciona? <a href="#">Escribinos</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════ -->
+<div class="modal fade" id="m-confirm-carga" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header"><h6 class="modal-title fw-bold"><i class="bi bi-check-circle-fill me-2" style="color:var(--green)"></i>Confirmar carga</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <div style="background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.2);border-radius:6px;padding:.75rem 1rem;margin-bottom:.75rem">
+      <div style="font-size:13px;font-weight:600;margin-bottom:3px">Carga C-2026-043</div>
+      <div style="font-size:12px;color:var(--muted)">12 órdenes &nbsp;·&nbsp; 47 ítems &nbsp;·&nbsp; 84,2 m³ &nbsp;·&nbsp; Online</div>
+    </div>
+    <p style="font-size:13px;color:var(--muted)">Al confirmar se fijarán los datos de todas las órdenes y se habilitará la generación de etiquetas. Esta acción no puede deshacerse.</p>
+  </div>
+  <div class="modal-footer">
+    <button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+    <button class="btn btn-success btn-sm fw-bold" data-bs-dismiss="modal" onclick="go('confirmacion')"><i class="bi bi-check-lg me-1"></i>Confirmar carga</button>
+  </div>
+</div></div></div>
+
+<div class="modal fade" id="m-add-item" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header"><h6 class="modal-title fw-bold">Agregar ítem</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.65rem">
+      <div style="grid-column:1/-1"><label class="form-label">Código tabulado *</label><input type="text" class="form-control mono" placeholder="COL-2P-XXX"></div>
+      <div style="grid-column:1/-1"><label class="form-label">Descripción *</label><input type="text" class="form-control" placeholder="Ej: Colchón 2 plazas"></div>
+      <div><label class="form-label">Largo (m) *</label><input type="number" class="form-control" placeholder="1.90" step="0.01"></div>
+      <div><label class="form-label">Ancho (m) *</label><input type="number" class="form-control" placeholder="1.40" step="0.01"></div>
+      <div><label class="form-label">Alto (m) *</label><input type="number" class="form-control" placeholder="0.22" step="0.01"></div>
+      <div><label class="form-label">Cantidad *</label><input type="number" class="form-control" placeholder="1" min="1"></div>
+    </div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button><button class="btn btn-primary btn-sm fw-bold">Agregar ítem</button></div>
+</div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="ordenes.js"></script>
+</body>
+</html>

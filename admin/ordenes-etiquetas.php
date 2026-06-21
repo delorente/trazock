@@ -120,7 +120,7 @@ function eti_destino(array $it): string
         <div class="ld"><?= h(eti_destino($it)) ?></div>
         <div class="ln"><?= h($nombre) ?></div>
         <?php if ($desc !== ''): ?><div class="li"><?= h($desc) ?></div><?php endif; ?>
-        <div class="lc"><span><?= h((string)$it['codigo']) ?> · <?= h($num) ?></span><span class="lqty">Ítem <?= $sec ?> de <?= $tot ?></span></div>
+        <div class="lc"><span><?= h((string)$it['codigo']) ?> · <?= h($num) ?></span><span class="lqty"><?= $sec ?> de <?= $tot ?></span></div>
       </div>
     </div>
     <?php endforeach; ?>
