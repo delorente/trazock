@@ -7,3 +7,6 @@ Trazock-handoff.zip
 
 codigo.jpg
 *.jpg
+
+# Fuentes de Claude Design (no se versionan)
+design/
