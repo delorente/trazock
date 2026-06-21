@@ -375,6 +375,20 @@ final class Producto
     }
 
     /**
+     * Ítems de un lote (reimpresión de toda una carga agrupada por su lote de
+     * ingreso). Un ítem pertenece al lote si tiene una transición a ese lote.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function paraEtiquetasPorLote(int $loteId): array
+    {
+        return self::paraEtiquetas(
+            'p.id IN (SELECT t.producto_id FROM transiciones t WHERE t.lote_id = :id)',
+            $loteId
+        );
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     private static function paraEtiquetas(string $cond, int $id): array
@@ -407,6 +421,19 @@ final class Producto
               WHERE o.carga_id = :id AND p.etiquetada_at IS NULL'
         );
         $stmt->execute([':id' => $cargaId]);
+        return $stmt->rowCount();
+    }
+
+    /** Marca como etiquetados los ítems de un lote aún sin etiquetar. Idempotente. */
+    public static function marcarEtiquetadasPorLote(int $loteId): int
+    {
+        $stmt = DB::getInstance()->prepare(
+            'UPDATE productos p
+                SET p.etiquetada_at = NOW()
+              WHERE p.etiquetada_at IS NULL
+                AND p.id IN (SELECT t.producto_id FROM transiciones t WHERE t.lote_id = :id)'
+        );
+        $stmt->execute([':id' => $loteId]);
         return $stmt->rowCount();
     }
 

@@ -16,6 +16,7 @@ require __DIR__ . '/_layout.php';
 use Trazock\Auth;
 use Trazock\EtiquetaQr;
 use Trazock\Models\Carga;
+use Trazock\Models\Lote;
 use Trazock\Models\Orden;
 use Trazock\Models\Producto;
 
@@ -23,6 +24,22 @@ $user = Auth::requierePanel(); // admin o gestor
 
 $cargaId = (int)($_GET['carga'] ?? 0);
 $ordenId = (int)($_GET['orden'] ?? 0);
+$loteId  = (int)($_GET['lote'] ?? 0);
+
+// Tamaño de etiqueta = cuántas entran por hoja A4. El cliente lo elige sin tocar
+// código. cols×rows define la grilla; qr/fs escalan el rótulo a ese tamaño.
+$LAYOUTS = [
+    2  => ['cols' => 1, 'rows' => 2, 'qr' => '46mm', 'fs' => '16px'],
+    4  => ['cols' => 2, 'rows' => 2, 'qr' => '42mm', 'fs' => '15px'],
+    6  => ['cols' => 2, 'rows' => 3, 'qr' => '34mm', 'fs' => '13px'],
+    8  => ['cols' => 2, 'rows' => 4, 'qr' => '32mm', 'fs' => '11px'],
+    12 => ['cols' => 3, 'rows' => 4, 'qr' => '25mm', 'fs' => '9.5px'],
+    24 => ['cols' => 4, 'rows' => 6, 'qr' => '18mm', 'fs' => '8px'],
+];
+$por = (int)($_GET['por'] ?? 8);
+if (!isset($LAYOUTS[$por])) { $por = 8; }
+$L       = $LAYOUTS[$por];
+$PERPAGE = $L['cols'] * $L['rows'];
 
 $volverCaptura = '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-captura.php')) . '"><i class="bi bi-plus-lg me-1"></i>Nueva carga</a>';
 
@@ -35,11 +52,34 @@ if ($ordenId > 0) {
         panel_footer();
         exit;
     }
-    $num   = carga_num((int)($orden['carga_id'] ?? 0), (string)($orden['created_at'] ?? ''));
-    $items = Producto::paraEtiquetasPorOrden($ordenId);
-    if ($items !== []) {
-        Producto::marcarEtiquetadasPorOrden($ordenId);
+    $num        = carga_num((int)($orden['carga_id'] ?? 0), (string)($orden['created_at'] ?? ''));
+    $items      = Producto::paraEtiquetasPorOrden($ordenId);
+    if ($items !== []) { Producto::marcarEtiquetadasPorOrden($ordenId); }
+    $qsBase     = 'orden=' . $ordenId;
+    $volverHref = url('admin/ordenes-detalle.php') . '?id=' . $ordenId;
+    $volverTxt  = 'Detalle de la orden';
+    $activo     = 'reportes';
+    $ctxTxt     = 'Orden ' . (string)($orden['nro_orden'] ?? '');
+} elseif ($loteId > 0) {
+    // Reimpresión de todas las etiquetas de un lote (la carga agrupada).
+    $lote = Lote::findById($loteId);
+    if ($lote === null) {
+        panel_header('Etiquetas', $user, 'lotes', '', $volverCaptura);
+        echo '<div class="alert alert-warning">No se encontró el lote a etiquetar.</div>';
+        panel_footer();
+        exit;
     }
+    $items = Producto::paraEtiquetasPorLote($loteId);
+    if ($items !== []) { Producto::marcarEtiquetadasPorLote($loteId); }
+    // El número del rótulo es el de la carga (un lote de ingreso = una carga).
+    $cId        = $items !== [] ? (int)$items[0]['carga_id'] : 0;
+    $cRow       = $cId > 0 ? Carga::find($cId) : null;
+    $num        = $cRow !== null ? carga_num($cId, (string)($cRow['created_at'] ?? '')) : lote_num($loteId, (string)$lote['created_at']);
+    $qsBase     = 'lote=' . $loteId;
+    $volverHref = url('admin/lote-detalle.php') . '?id=' . $loteId;
+    $volverTxt  = 'Detalle del lote';
+    $activo     = 'lotes';
+    $ctxTxt     = 'Lote ' . lote_num($loteId, (string)$lote['created_at']);
 } else {
     // Toda la carga.
     $carga = $cargaId > 0 ? Carga::find($cargaId) : null;
@@ -49,28 +89,19 @@ if ($ordenId > 0) {
         panel_footer();
         exit;
     }
-    $num   = carga_num($cargaId, (string)($carga['created_at'] ?? ''));
-    $items = Producto::paraEtiquetasPorCarga($cargaId);
-    if ($items !== []) {
-        Producto::marcarEtiquetadasPorCarga($cargaId);
-    }
-}
-
-$PERPAGE = 8;
-$paginas = array_chunk($items, $PERPAGE);
-$totalEt = count($items);
-
-if ($ordenId > 0) {
-    $volverHref = url('admin/ordenes-detalle.php') . '?id=' . $ordenId;
-    $volverTxt  = 'Detalle de la orden';
-    $activo     = 'reportes';
-    $subtitulo  = 'Orden ' . (string)($orden['nro_orden'] ?? '') . ' · ' . $totalEt . ' etiqueta(s)';
-} else {
+    $num        = carga_num($cargaId, (string)($carga['created_at'] ?? ''));
+    $items      = Producto::paraEtiquetasPorCarga($cargaId);
+    if ($items !== []) { Producto::marcarEtiquetadasPorCarga($cargaId); }
+    $qsBase     = 'carga=' . $cargaId;
     $volverHref = url('admin/ordenes-confirmacion.php') . '?carga=' . $cargaId;
     $volverTxt  = 'Confirmación';
     $activo     = 'captura';
-    $subtitulo  = 'Carga ' . $num . ' · A4 · 8 por hoja · ' . count($paginas) . ' hoja(s) · ' . $totalEt . ' etiquetas';
+    $ctxTxt     = 'Carga ' . $num;
 }
+
+$paginas = array_chunk($items, $PERPAGE);
+$totalEt = count($items);
+$subtitulo = $ctxTxt . ' · ' . $totalEt . ' etiqueta(s) · ' . $por . ' por hoja · ' . count($paginas) . ' hoja(s)';
 
 $volver = '<a class="btn btn-sm btn-outline-secondary" href="' . h($volverHref) . '"><i class="bi bi-arrow-left me-1"></i>' . h($volverTxt) . '</a>'
         . '<button class="btn btn-sm btn-primary fw-bold" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>';
@@ -92,14 +123,25 @@ function eti_destino(array $it): string
     return $d !== '' ? $d : '—';
 }
 ?>
+<div class="no-print d-flex flex-wrap align-items-center gap-2 mb-3">
+  <label for="selPor" style="font-size:13px;font-weight:600">Etiquetas por hoja:</label>
+  <select id="selPor" class="form-select form-select-sm" style="width:auto"
+          onchange="location.href='<?= h(url('admin/ordenes-etiquetas.php') . '?' . $qsBase) ?>&por=' + this.value">
+    <?php foreach ($LAYOUTS as $n => $_l): ?>
+      <option value="<?= (int)$n ?>" <?= $n === $por ? 'selected' : '' ?>><?= (int)$n ?> por hoja</option>
+    <?php endforeach; ?>
+  </select>
+  <span class="text-muted" style="font-size:12px">Cuantas menos por hoja, más grande la etiqueta.</span>
+</div>
+
 <div class="alert no-print" style="background:var(--card);border:1px solid var(--border);font-size:12px;color:var(--muted)" >
-  <i class="bi bi-info-circle me-1"></i>Optimizado para papel autoadhesivo A4 (Avery L7165 o similar) · impresión en blanco y negro.
+  <i class="bi bi-info-circle me-1"></i>Hoja A4, papel autoadhesivo · impresión en blanco y negro.
   Usá <strong>Imprimir / PDF</strong> y elegí "Guardar como PDF" o tu impresora.
 </div>
 
 <div class="label-sheet print-area">
 <?php foreach ($paginas as $pagina): ?>
-  <section class="sheet-page">
+  <section class="sheet-page" style="--cols:<?= (int)$L['cols'] ?>;--rows:<?= (int)$L['rows'] ?>;--qr:<?= h($L['qr']) ?>;--fs:<?= h($L['fs']) ?>">
     <?php foreach ($pagina as $it):
         $nro     = (string)$it['nro_orden'];
         $sec     = (int)$it['secuencia'];

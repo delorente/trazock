@@ -289,16 +289,19 @@ a { color: var(--blue); }
 /* Hoja de etiquetas A4 (8 por hoja, estilo Avery L7165). En pantalla se ve como
    páginas blancas; en impresión se reduce a las hojas, una por página. */
 .label-sheet{display:flex;flex-direction:column;align-items:center;gap:20px}
-.sheet-page{background:#fff;width:794px;max-width:100%;padding:8mm 6mm;display:grid;grid-template-columns:1fr 1fr;grid-auto-rows:1fr;gap:6px;box-shadow:0 2px 18px rgba(0,0,0,.45);border-radius:4px}
-.label-cell{background:#fff;color:#000;border:1px dashed #cfcfcf;border-radius:4px;display:flex;flex-direction:column;min-height:152px;overflow:hidden}
-.label-cell .lq{padding:10px 10px 4px;display:flex;justify-content:center;flex-shrink:0}
-.label-cell .lq svg{width:118px;height:118px;display:block}
-.label-cell .lb{padding:6px 11px 11px;border-top:1px dashed #e0e0e0;font-family:'Inter',system-ui,sans-serif}
-.label-cell .ld{font-size:13px;font-weight:700;text-transform:uppercase;line-height:1.15;color:#000}
-.label-cell .ln{font-size:11px;font-weight:600;margin-top:3px;color:#111}
-.label-cell .li{font-size:10px;color:#555;margin-top:2px}
-.label-cell .lc{font-size:9px;color:#888;margin-top:6px;border-top:1px dashed #e6e6e6;padding-top:5px;letter-spacing:.03em;font-family:'Courier New',monospace;display:flex;justify-content:space-between;align-items:flex-end;gap:6px}
-.label-cell .lqty{font-size:11px;font-weight:700;font-family:'Inter',system-ui,sans-serif;letter-spacing:.01em;color:#000;white-space:nowrap}
+/* La grilla, el QR y la tipografía se escalan con variables (--cols/--rows/--qr/
+   --fs) que fija la página según "etiquetas por hoja". aspect-ratio A4 para que
+   en pantalla cada celda ocupe lo mismo que ocupará impresa. */
+.sheet-page{background:#fff;width:794px;max-width:100%;aspect-ratio:210/297;padding:8mm 6mm;display:grid;grid-template-columns:repeat(var(--cols,2),1fr);grid-template-rows:repeat(var(--rows,4),1fr);gap:4px;box-shadow:0 2px 18px rgba(0,0,0,.45);border-radius:4px}
+.label-cell{background:#fff;color:#000;border:1px dashed #cfcfcf;border-radius:4px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.label-cell .lq{padding:6px 8px 2px;display:flex;justify-content:center;flex-shrink:0}
+.label-cell .lq svg{width:var(--qr,32mm);height:var(--qr,32mm);max-width:100%;display:block}
+.label-cell .lb{padding:4px 9px 8px;border-top:1px dashed #e0e0e0;font-family:'Inter',system-ui,sans-serif;font-size:var(--fs,11px)}
+.label-cell .ld{font-size:1.18em;font-weight:700;text-transform:uppercase;line-height:1.15;color:#000}
+.label-cell .ln{font-size:1em;font-weight:600;margin-top:3px;color:#111}
+.label-cell .li{font-size:.9em;color:#555;margin-top:2px}
+.label-cell .lc{font-size:.82em;color:#888;margin-top:6px;border-top:1px dashed #e6e6e6;padding-top:5px;letter-spacing:.03em;font-family:'Courier New',monospace;display:flex;justify-content:space-between;align-items:flex-end;gap:6px}
+.label-cell .lqty{font-size:1em;font-weight:700;font-family:'Inter',system-ui,sans-serif;letter-spacing:.01em;color:#000;white-space:nowrap}
 
 /* Impresión: se imprime solo el contenido marcado .print-area (etiquetas o
    reportes). El resto del chrome del panel se oculta y la tabla se vuelve
@@ -310,12 +313,13 @@ a { color: var(--blue); }
   #main{margin:0!important;padding:0!important;width:auto!important;max-width:none!important}
   #main > :not(.print-area){display:none!important}
   .print-area{color:#000}
-  /* Etiquetas (hoja A4, 8 por hoja) */
+  /* Etiquetas (hoja A4). La grilla la fijan las variables --cols/--rows; la
+     página llena el alto útil para que cada celda crezca según cuántas entren. */
   .label-sheet{display:block;gap:0;margin:0;padding:0}
-  .sheet-page{box-shadow:none;border-radius:0;width:100%;padding:0;gap:0;break-after:page;page-break-after:always}
+  .sheet-page{box-shadow:none;border-radius:0;width:100%;height:278mm;aspect-ratio:auto;padding:0;gap:0;break-after:page;page-break-after:always}
   .sheet-page:last-child{break-after:auto;page-break-after:auto}
-  .label-cell{height:67mm;border:1px dotted #ccc;break-inside:avoid;page-break-inside:avoid}
-  .label-cell .lq svg{width:32mm;height:32mm}
+  .label-cell{height:auto;min-height:0;border:1px dotted #ccc;break-inside:avoid;page-break-inside:avoid}
+  .label-cell .lq svg{width:var(--qr,32mm);height:var(--qr,32mm)}
   /* Reportes (tabla legible en blanco y negro) */
   .print-area h1,.print-area h2,.print-area .rep-print-title{color:#000;font-size:16px;margin:0 0 8px}
   .print-area table{width:100%;border-collapse:collapse;color:#000}

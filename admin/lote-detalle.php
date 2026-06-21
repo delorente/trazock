@@ -28,6 +28,14 @@ if ($lote === null) {
 $items   = Lote::items($id);
 $ordenes = Lote::ordenes($id); // vacío en lotes legacy sin orden
 
+// Los lotes de INGRESO agrupan los productos de una carga: se pueden reimprimir
+// todas sus etiquetas juntas (por si no salieron bien al cargar).
+if ($lote['tipo'] === 'INGRESO') {
+    $volver .= '<a class="btn btn-sm btn-outline-secondary" href="'
+        . h(url('admin/ordenes-etiquetas.php') . '?lote=' . $id)
+        . '"><i class="bi bi-tag me-1"></i>Re-imprimir etiquetas</a>';
+}
+
 /** Celda de campo con label en mayúsculas (estilo prototipo). */
 function tz_campo(string $label, ?string $valor, bool $mono = false): void
 {
