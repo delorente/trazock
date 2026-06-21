@@ -18,19 +18,55 @@ use Trazock\Models\Producto;
 $user    = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo lectura)
 $esAdmin = $user['rol'] === 'admin';
 
-// --- POST: editar datos de la orden (PRG + CSRF) -----------------------------
+// --- POST: editar / agregar ítem / quitar ítem / eliminar (PRG + CSRF) -------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $pid = (int)($_POST['id'] ?? 0);
+    $oid    = (int)($_POST['id'] ?? 0);
+    $accion = (string)($_POST['accion'] ?? 'guardar');
+    $volverA = url('admin/ordenes-detalle.php') . '?id=' . $oid;
+
     if (!$esAdmin) {
-        flash_set('danger', 'No tenés permiso para editar órdenes.');
+        flash_set('danger', 'No tenés permiso para modificar órdenes.');
     } elseif (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
         flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
-    } elseif ($pid <= 0 || Orden::find($pid) === null) {
+    } elseif ($oid <= 0 || Orden::find($oid) === null) {
         flash_set('danger', 'Orden no encontrada.');
-    } else {
+    } elseif ($accion === 'agregar_item') {
+        $desc = trim((string)($_POST['descripcion'] ?? ''));
+        $dim  = trim((string)($_POST['dimensiones'] ?? ''));
+        $cant = max(1, min(99, (int)($_POST['cantidad'] ?? 1)));
+        $m3in = trim(str_replace(',', '.', (string)($_POST['m3'] ?? '')));
+        $m3   = $m3in !== '' && is_numeric($m3in) ? (float)$m3in : null;
+        try {
+            $n = Orden::agregarItems($oid, $desc !== '' ? $desc : null, $dim !== '' ? $dim : null, $m3, $cant);
+            flash_set('success', $n . ' ítem(s) agregado(s). Reimprimí las etiquetas para actualizar el "de N".');
+        } catch (\Throwable $e) {
+            flash_set('danger', 'No se pudo agregar el ítem: ' . $e->getMessage());
+        }
+    } elseif ($accion === 'quitar_item') {
+        $itemId = (int)($_POST['item_id'] ?? 0);
+        $res = $itemId > 0 ? Producto::eliminarItem($itemId) : 'no_existe';
+        if ($res === 'ok') {
+            flash_set('success', 'Ítem quitado de la orden.');
+        } elseif ($res === 'despachado') {
+            flash_set('warning', 'No se puede quitar: el ítem ya salió del depósito.');
+        } else {
+            flash_set('danger', 'No se encontró el ítem.');
+        }
+    } elseif ($accion === 'eliminar_orden') {
+        $res = Orden::eliminar($oid);
+        if ($res === 'ok') {
+            flash_set('success', 'Orden eliminada.');
+            header('Location: ' . url('admin/ordenes-reportes.php'));
+            exit;
+        }
+        flash_set($res === 'despachada' ? 'warning' : 'danger',
+            $res === 'despachada'
+                ? 'No se puede eliminar: la orden ya tiene ítems despachados.'
+                : 'No se encontró la orden.');
+    } else { // guardar
         $tvIn  = (string)($_POST['tipo_venta'] ?? '');
         $valor = trim((string)($_POST['valor_declarado'] ?? ''));
-        Orden::actualizarDatos($pid, [
+        Orden::actualizarDatos($oid, [
             'cliente'          => trim((string)($_POST['cliente'] ?? '')),
             'cliente_apellido' => trim((string)($_POST['cliente_apellido'] ?? '')),
             'telefonos'        => trim((string)($_POST['telefonos'] ?? '')),
@@ -45,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ]);
         flash_set('success', 'Orden actualizada.');
     }
-    header('Location: ' . url('admin/ordenes-detalle.php') . '?id=' . $pid);
+    header('Location: ' . $volverA);
     exit;
 }
 
@@ -83,10 +119,19 @@ function item_estado(array $it): string
     return $est;
 }
 
+/** ¿Todos los ítems siguen en depósito? (condición para quitar ítems / eliminar). */
+$todoIngresado = true;
+foreach ($items as $it) {
+    if ((string)($it['estado_actual'] ?? '') !== 'INGRESADO') { $todoIngresado = false; break; }
+}
+
 $acciones = $volver;
 if ($esAdmin) {
     $acciones .= '<button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEditar"><i class="bi bi-pencil me-1"></i>Editar</button>'
         . '<a class="btn btn-sm btn-outline-secondary" href="' . h($urlEti) . '"><i class="bi bi-tag me-1"></i>Re-imprimir etiquetas</a>';
+    if ($todoIngresado) {
+        $acciones .= '<button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalEliminar"><i class="bi bi-trash me-1"></i>Eliminar orden</button>';
+    }
 }
 
 panel_header('Detalle de orden', $user, 'reportes', '', $acciones);
@@ -128,10 +173,13 @@ $campo = static function (string $label, string $valor): void {
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;border-bottom:1px solid var(--border)">
       <span style="font-weight:600;font-size:13px">Ítems (<?= count($items) ?>)</span>
+      <?php if ($esAdmin): ?>
+        <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalAgregarItem"><i class="bi bi-plus-lg me-1"></i>Agregar ítem</button>
+      <?php endif; ?>
     </div>
     <div style="overflow-x:auto">
       <table class="table table-hover mb-0">
-        <thead><tr><th>Código</th><th>Descripción</th><th>Dimensiones</th><th>m³</th><th>Ítem</th><th>Estado</th></tr></thead>
+        <thead><tr><th>Código</th><th>Descripción</th><th>Dimensiones</th><th>m³</th><th>Ítem</th><th>Estado</th><?php if ($esAdmin): ?><th></th><?php endif; ?></tr></thead>
         <tbody>
         <?php foreach ($items as $it): ?>
           <tr>
@@ -141,6 +189,19 @@ $campo = static function (string $label, string $valor): void {
             <td><?= $it['m3'] !== null ? number_format((float)$it['m3'], 3, ',', '.') : '—' ?></td>
             <td style="color:var(--muted)"><?= (int)$it['secuencia'] ?> de <?= (int)$it['total_items'] ?></td>
             <td><?= estado_badge(item_estado($it)) ?></td>
+            <?php if ($esAdmin): ?>
+            <td style="text-align:right">
+              <?php if ((string)($it['estado_actual'] ?? '') === 'INGRESADO'): ?>
+              <form method="post" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>" style="display:inline" onsubmit="return confirm('¿Quitar este ítem de la orden? Se borra el producto y su etiqueta.')">
+                <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
+                <input type="hidden" name="id" value="<?= $id ?>">
+                <input type="hidden" name="accion" value="quitar_item">
+                <input type="hidden" name="item_id" value="<?= (int)$it['id'] ?>">
+                <button class="btn btn-sm btn-link text-danger p-0" title="Quitar ítem"><i class="bi bi-x-lg"></i></button>
+              </form>
+              <?php endif; ?>
+            </td>
+            <?php endif; ?>
           </tr>
         <?php endforeach; ?>
         </tbody>
@@ -198,6 +259,7 @@ $campo = static function (string $label, string $valor): void {
     <form method="post" class="modal-content" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>">
       <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
       <input type="hidden" name="id" value="<?= $id ?>">
+      <input type="hidden" name="accion" value="guardar">
       <div class="modal-header">
         <h5 class="modal-title">Editar orden <span class="mono"><?= h((string)$orden['nro_orden']) ?></span></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -231,7 +293,59 @@ $campo = static function (string $label, string $valor): void {
     </form>
   </div>
 </div>
-<?php endif; /* modal solo admin */ ?>
+<!-- Modal: agregar ítem a la orden -->
+<div class="modal fade" id="modalAgregarItem" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>">
+      <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
+      <input type="hidden" name="id" value="<?= $id ?>">
+      <input type="hidden" name="accion" value="agregar_item">
+      <div class="modal-header">
+        <h5 class="modal-title">Agregar ítem a <span class="mono"><?= h((string)$orden['nro_orden']) ?></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2">
+          <div class="col-12"><label class="form-label">Descripción</label><input class="form-control form-control-sm" name="descripcion" placeholder="Ej. Colchón 2 plazas" autofocus></div>
+          <div class="col-6"><label class="form-label">Dimensiones</label><input class="form-control form-control-sm" name="dimensiones" placeholder="Ej. 1,40 × 1,90"></div>
+          <div class="col-3"><label class="form-label">Cantidad</label><input type="number" min="1" max="99" class="form-control form-control-sm" name="cantidad" value="1"></div>
+          <div class="col-3"><label class="form-label">m³ (total)</label><input class="form-control form-control-sm" name="m3" placeholder="0,000"></div>
+        </div>
+        <div class="text-muted small mt-2"><i class="bi bi-info-circle me-1"></i>Para una orden que vino cortada en la hoja. Los ítems se ingresan al mismo lote de la orden. Reimprimí las etiquetas: cambia el "de N".</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-success" type="submit"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<?php if ($todoIngresado): ?>
+<!-- Modal: eliminar orden -->
+<div class="modal fade" id="modalEliminar" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>">
+      <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
+      <input type="hidden" name="id" value="<?= $id ?>">
+      <input type="hidden" name="accion" value="eliminar_orden">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger">Eliminar orden</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-1">Vas a eliminar la orden <span class="mono fw-bold"><?= h((string)$orden['nro_orden']) ?></span> y sus <?= count($items) ?> ítem(s).</p>
+        <p class="text-muted small mb-0">Esto borra los productos, sus etiquetas y el ingreso. No se puede deshacer. Solo es posible porque ningún ítem salió aún del depósito.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-danger" type="submit"><i class="bi bi-trash me-1"></i>Eliminar definitivamente</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
+<?php endif; /* modales solo admin */ ?>
 
 <script src="<?= h(asset('assets/vendor/qrcode-generator/qrcode.min.js')) ?>"></script>
 <script src="<?= h(asset('assets/js/etiquetas.js')) ?>"></script>

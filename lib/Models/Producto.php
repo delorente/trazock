@@ -184,6 +184,73 @@ final class Producto
     }
 
     // -------------------------------------------------------------------------
+    // Edición de ítems de una orden (agregar/quitar)
+    // -------------------------------------------------------------------------
+
+    /** Inserta un ítem físico de una orden (codigo = nro_orden-NN). Devuelve su id. */
+    public static function crearItem(
+        string $codigo, int $ordenId, ?int $categoriaId, ?string $descripcion,
+        ?string $dimensiones, ?float $m3, int $secuencia
+    ): int {
+        $db   = DB::getInstance();
+        $stmt = $db->prepare(
+            "INSERT INTO productos
+                (codigo, orden_id, categoria_id, descripcion, dimensiones, m3, secuencia, estado_actual)
+             VALUES (:codigo, :orden, :cat, :desc, :dim, :m3, :sec, 'INGRESADO')"
+        );
+        $stmt->bindValue(':codigo', $codigo);
+        $stmt->bindValue(':orden', $ordenId, PDO::PARAM_INT);
+        $stmt->bindValue(':cat', $categoriaId, $categoriaId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        $stmt->bindValue(':desc', $descripcion, $descripcion === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':dim', $dimensiones, $dimensiones === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':m3', $m3, $m3 === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':sec', $secuencia, PDO::PARAM_INT);
+        $stmt->execute();
+        return (int)$db->lastInsertId();
+    }
+
+    /**
+     * Borra un producto y todo lo que cuelga de él (lote_items, conflictos,
+     * transiciones), respetando las FK. SIN transacción ni validación: lo maneja
+     * quien llama (eliminarItem / Orden::eliminar).
+     */
+    public static function borrarFK(PDO $db, int $id): void
+    {
+        $db->prepare('DELETE li FROM lote_items li JOIN transiciones t ON t.id = li.transicion_id WHERE t.producto_id = :id')->execute([':id' => $id]);
+        $db->prepare('DELETE FROM conflictos_producto WHERE producto_id = :id')->execute([':id' => $id]);
+        $db->prepare('UPDATE productos SET transicion_actual_id = NULL WHERE id = :id')->execute([':id' => $id]);
+        $db->prepare('DELETE FROM transiciones WHERE producto_id = :id')->execute([':id' => $id]);
+        $db->prepare('DELETE FROM productos WHERE id = :id')->execute([':id' => $id]);
+    }
+
+    /**
+     * Quita un ítem de su orden. Solo si sigue INGRESADO (no se borran ítems ya
+     * despachados/entregados). Devuelve 'ok' | 'no_existe' | 'despachado'.
+     */
+    public static function eliminarItem(int $id): string
+    {
+        $db   = DB::getInstance();
+        $stmt = $db->prepare('SELECT estado_actual, orden_id FROM productos WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch();
+        if ($row === false) { return 'no_existe'; }
+        if ($row['estado_actual'] !== 'INGRESADO') { return 'despachado'; }
+
+        $db->beginTransaction();
+        try {
+            self::borrarFK($db, $id);
+            if (($row['orden_id'] ?? null) !== null) {
+                Orden::recalcularM3((int)$row['orden_id']);
+            }
+            $db->commit();
+            return 'ok';
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Reporte "por productos" (una fila por ítem físico de una orden)
     // -------------------------------------------------------------------------
 

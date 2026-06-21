@@ -92,6 +92,108 @@ final class Orden
         $stmt->execute($vals);
     }
 
+    /** Recalcula ordenes.m3_total como la suma de los m³ de sus productos. */
+    public static function recalcularM3(int $ordenId): void
+    {
+        $stmt = DB::getInstance()->prepare(
+            'UPDATE ordenes SET m3_total = (SELECT COALESCE(SUM(m3), 0) FROM productos WHERE orden_id = :a)
+             WHERE id = :b'
+        );
+        $stmt->execute([':a' => $ordenId, ':b' => $ordenId]);
+    }
+
+    /**
+     * Agrega $cantidad ítems a una orden (caso típico: una orden que vino cortada
+     * en la hoja y le faltan productos). Cada ítem nuevo se crea INGRESADO, con la
+     * categoría de la carga, su transición de ingreso y, si la orden ya tenía un
+     * lote de INGRESO, se suma a ese lote. Recalcula el m³ total. Devuelve cuántos.
+     */
+    public static function agregarItems(int $ordenId, ?string $descripcion, ?string $dimensiones, ?float $m3Total, int $cantidad): int
+    {
+        $orden = self::find($ordenId);
+        if ($orden === null) {
+            throw new \RuntimeException('Orden no encontrada.');
+        }
+        $cantidad = max(1, min(99, $cantidad));
+        $db = DB::getInstance();
+
+        // Categoría heredada de la carga.
+        $categoriaId = null;
+        if (($orden['carga_id'] ?? null) !== null) {
+            $st = $db->prepare('SELECT categoria_id FROM cargas WHERE id = :c LIMIT 1');
+            $st->execute([':c' => (int)$orden['carga_id']]);
+            $cat = $st->fetchColumn();
+            $categoriaId = ($cat !== false && $cat !== null) ? (int)$cat : null;
+        }
+
+        // Lote de INGRESO de la orden (para sumar los ítems al mismo lote, si existe).
+        $st = $db->prepare(
+            "SELECT t.lote_id FROM transiciones t JOIN productos p ON p.id = t.producto_id
+             WHERE p.orden_id = :o AND t.estado_hasta = 'INGRESADO' AND t.lote_id IS NOT NULL LIMIT 1"
+        );
+        $st->execute([':o' => $ordenId]);
+        $lid    = $st->fetchColumn();
+        $loteId = ($lid !== false && $lid !== null) ? (int)$lid : null;
+
+        $maxSec = (int)$db->query('SELECT COALESCE(MAX(secuencia), 0) FROM productos WHERE orden_id = ' . $ordenId)->fetchColumn();
+        $now    = gmdate('Y-m-d H:i:s');
+        $nro    = (string)$orden['nro_orden'];
+        $m3Unit = ($m3Total !== null && $cantidad > 0) ? round($m3Total / $cantidad, 3) : null;
+
+        $db->beginTransaction();
+        try {
+            for ($i = 1; $i <= $cantidad; $i++) {
+                $sec = $maxSec + $i;
+                $cod = $nro . '-' . str_pad((string)$sec, 2, '0', STR_PAD_LEFT);
+                $pid = Producto::crearItem($cod, $ordenId, $categoriaId, $descripcion, $dimensiones, $m3Unit, $sec);
+                $tid = Transicion::insertar($pid, $loteId, null, 'INGRESADO', $now, false, null);
+                Producto::fijarEstadoActual($pid, 'INGRESADO', $tid);
+                if ($loteId !== null) {
+                    Lote::insertarItem($loteId, $cod, $now, $tid, 'aplicado');
+                }
+            }
+            self::recalcularM3($ordenId);
+            $db->commit();
+            return $cantidad;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Elimina una orden y todos sus ítems. Solo si ningún ítem fue despachado
+     * (todos siguen INGRESADO) — para corregir cargas mal ingresadas. Devuelve
+     * 'ok' | 'no_existe' | 'despachada'.
+     */
+    public static function eliminar(int $ordenId): string
+    {
+        $db = DB::getInstance();
+        if (self::find($ordenId) === null) {
+            return 'no_existe';
+        }
+        $despachados = (int)$db->query(
+            "SELECT COUNT(*) FROM productos WHERE orden_id = {$ordenId} AND estado_actual <> 'INGRESADO'"
+        )->fetchColumn();
+        if ($despachados > 0) {
+            return 'despachada';
+        }
+        $pids = $db->query('SELECT id FROM productos WHERE orden_id = ' . $ordenId)->fetchAll(\PDO::FETCH_COLUMN);
+
+        $db->beginTransaction();
+        try {
+            foreach ($pids as $pid) {
+                Producto::borrarFK($db, (int)$pid);
+            }
+            $db->prepare('DELETE FROM ordenes WHERE id = :id')->execute([':id' => $ordenId]);
+            $db->commit();
+            return 'ok';
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
     /**
      * Historial de eventos de la orden (para el detalle): ingreso, etiquetas y
      * los cambios de estado de sus ítems. Más reciente primero.
