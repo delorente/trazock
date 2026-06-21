@@ -74,10 +74,10 @@ panel_header('Lotes', $user, 'lotes', count($lotes) . ' registrados');
 <div class="card">
     <div style="overflow-x:auto">
         <table class="table table-hover mb-0">
-            <thead><tr><th>Lote</th><th>Cierre</th><th>Tipo</th><th>Responsable</th><th>Items</th><th>Conflictos</th><th></th></tr></thead>
+            <thead><tr><th>Lote</th><th>Cierre</th><th>Tipo</th><th>Responsable</th><th>Órdenes</th><th>Items</th><th>Conflictos</th><th></th></tr></thead>
             <tbody>
             <?php if ($lotes === []): ?>
-                <tr><td colspan="7" class="text-center text-muted py-4">Sin lotes.</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-4">Sin lotes.</td></tr>
             <?php endif; ?>
             <?php foreach ($lotes as $l): ?>
                 <tr>
@@ -85,6 +85,7 @@ panel_header('Lotes', $user, 'lotes', count($lotes) . ' registrados');
                     <td class="text-muted" style="font-size:12px"><?= h(fmt_fecha($l['timestamp_cierre'] ?? $l['created_at'])) ?></td>
                     <td><?= tipo_lote_badge($l['tipo']) ?></td>
                     <td><?= h($l['responsable'] ?? '—') ?></td>
+                    <td><?= (int)($l['ordenes'] ?? 0) > 0 ? (int)$l['ordenes'] : '<span class="text-muted">—</span>' ?></td>
                     <td><?= (int)$l['items'] ?></td>
                     <td><?= (int)$l['conflictos'] > 0 ? '<span class="badge b-conflict">⚠ ' . (int)$l['conflictos'] . '</span>' : '<span class="text-muted">—</span>' ?></td>
                     <td><a class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px" href="<?= h(url('admin/lote-detalle.php?id=' . (int)$l['id'])) ?>">Detalle</a></td>

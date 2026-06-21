@@ -25,7 +25,8 @@ if ($lote === null) {
     exit;
 }
 
-$items = Lote::items($id);
+$items   = Lote::items($id);
+$ordenes = Lote::ordenes($id); // vacío en lotes legacy sin orden
 
 /** Celda de campo con label en mayúsculas (estilo prototipo). */
 function tz_campo(string $label, ?string $valor, bool $mono = false): void
@@ -44,6 +45,7 @@ panel_header(lote_num((int)$lote['id'], $lote['created_at']), $user, 'lotes', ti
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;font-size:13px">
         <?php
         tz_campo('Responsable', $lote['responsable_nombre']);
+        if ($ordenes !== []) { tz_campo('Órdenes', (string)count($ordenes)); }
         tz_campo('Categoría', $lote['categoria_nombre']);
         tz_campo('Proveedor', $lote['proveedor_nombre']);
         tz_campo('Transportista', $lote['transportista_nombre']);
@@ -61,8 +63,34 @@ panel_header(lote_num((int)$lote['id'], $lote['created_at']), $user, 'lotes', ti
     </div>
 </div>
 
+<?php if ($ordenes !== []): ?>
+<div class="card mb-3">
+    <div class="card-header" style="padding:.6rem 1rem">Incluye <?= count($ordenes) ?> orden(es)</div>
+    <div style="overflow-x:auto">
+        <table class="table table-hover mb-0">
+            <thead><tr><th>Nº orden</th><th>Cliente</th><th>Destino</th><th>Ítems</th><th>Estado</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($ordenes as $o):
+                $loc = trim((string)($o['dest_localidad'] ?? '')); $prov = trim((string)($o['dest_provincia'] ?? ''));
+                $dest = trim($loc . ($loc !== '' && $prov !== '' ? ' · ' : '') . $prov) ?: '—';
+            ?>
+                <tr>
+                    <td class="mono" style="font-size:12px"><?= h((string)$o['nro_orden']) ?></td>
+                    <td><?= h((string)($o['cliente'] ?? '—')) ?></td>
+                    <td style="font-size:13px"><?= h($dest) ?></td>
+                    <td style="text-align:center"><?= (int)$o['items'] ?></td>
+                    <td><?= estado_badge((string)($o['estado'] ?? '')) ?></td>
+                    <td><a class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px" href="<?= h(url('admin/ordenes-detalle.php?id=' . (int)$o['id'])) ?>">Ver</a></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="card">
-    <div class="card-header" style="padding:.6rem 1rem"><?= count($items) ?> item(s) escaneados</div>
+    <div class="card-header" style="padding:.6rem 1rem"><?= count($items) ?> ítem(s)<?= $ordenes !== [] ? ' (uno por unidad física)' : ' escaneados' ?></div>
     <div style="overflow-x:auto">
         <table class="table table-hover mb-0">
             <thead><tr><th>Código escaneado</th><th>Hora (cliente)</th><th>Resultado</th><th>Transición</th><th></th></tr></thead>

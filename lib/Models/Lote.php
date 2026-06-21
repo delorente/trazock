@@ -222,6 +222,9 @@ final class Lote
         $sql = 'SELECT l.id, l.tipo, l.created_at, l.timestamp_cierre,
                        u.nombre_completo AS responsable,
                        (SELECT COUNT(*) FROM lote_items li WHERE li.lote_id = l.id) AS items,
+                       (SELECT COUNT(DISTINCT p.orden_id) FROM transiciones t2
+                          JOIN productos p ON p.id = t2.producto_id
+                         WHERE t2.lote_id = l.id AND p.orden_id IS NOT NULL) AS ordenes,
                        (SELECT COUNT(*) FROM transiciones t WHERE t.lote_id = l.id AND t.es_conflicto = 1) AS conflictos
                 FROM lotes l
                 LEFT JOIN usuarios u ON u.id = l.responsable_id';
@@ -250,6 +253,28 @@ final class Lote
              LEFT JOIN productos pr ON pr.id = t.producto_id
              WHERE li.lote_id = :lote
              ORDER BY li.id ASC'
+        );
+        $stmt->execute([':lote' => $loteId]);
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Órdenes incluidas en el lote (una fila por orden, con su nº de ítems). Vacío
+     * para lotes legacy sin orden (escaneo de la 1ra etapa). Para el detalle del lote.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function ordenes(int $loteId): array
+    {
+        $stmt = DB::getInstance()->prepare(
+            'SELECT o.id, o.nro_orden, o.cliente, o.dest_provincia, o.dest_localidad, o.estado,
+                    COUNT(DISTINCT p.id) AS items
+             FROM transiciones t
+             JOIN productos p ON p.id = t.producto_id
+             JOIN ordenes o   ON o.id = p.orden_id
+             WHERE t.lote_id = :lote AND p.orden_id IS NOT NULL
+             GROUP BY o.id, o.nro_orden, o.cliente, o.dest_provincia, o.dest_localidad, o.estado
+             ORDER BY o.nro_orden ASC'
         );
         $stmt->execute([':lote' => $loteId]);
         return $stmt->fetchAll();
