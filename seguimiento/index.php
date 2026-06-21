@@ -185,7 +185,7 @@ function seg_form(?string $valor = null): void
             <p>Ingresá el número de orden que recibiste por correo o WhatsApp.</p>
         </div>
         <form class="seg-form" method="get" action="">
-            <input class="seg-input" type="text" name="orden" placeholder="ON-0775-XXXXXXXX"
+            <input class="seg-input" type="text" name="orden" placeholder="0775-XXXXXXXX"
                    value="<?= h($valor ?? '') ?>" autocomplete="off" autofocus required>
             <button class="seg-btn" type="submit"><i class="bi bi-search me-2"></i>Seguir mi pedido</button>
         </form>
