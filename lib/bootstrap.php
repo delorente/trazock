@@ -55,11 +55,21 @@ if (PHP_SAPI !== 'cli' && !headers_sent()) {
 /**
  * URL (relativa al host) de un asset estático bajo la base de la app.
  * Uso: asset('assets/vendor/bootstrap/bootstrap.min.css')
+ *
+ * Agrega ?v=<mtime> para cache-busting: cuando el archivo cambia (deploy), la
+ * URL cambia y el navegador baja la versión nueva sin tener que hacer F5. El SW
+ * del escáner es cache-first por URL completa, así que esto también le sirve.
  */
 if (!function_exists('asset')) {
     function asset(string $path): string
     {
-        return APP_BASE . '/' . ltrim($path, '/');
+        $rel = ltrim($path, '/');
+        $url = APP_BASE . '/' . $rel;
+        $fs  = dirname(__DIR__) . '/' . $rel;
+        if (is_file($fs)) {
+            $url .= (strpos($url, '?') === false ? '?' : '&') . 'v=' . filemtime($fs);
+        }
+        return $url;
     }
 }
 
