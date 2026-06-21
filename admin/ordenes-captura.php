@@ -11,15 +11,27 @@ require __DIR__ . '/../lib/bootstrap.php';
 require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
+use Trazock\Models\Categoria;
 
 $user = Auth::requierePanel(); // admin o gestor
 $csrf = Auth::tokenCSRF();
+$categorias = Categoria::activas();
 
 panel_header('Nueva carga', $user, 'captura',
     'Fotografiá o subí las hojas resumen del camión — el sistema extrae las órdenes con OCR');
 ?>
 <div style="max-width:460px">
   <div class="card p-3 mb-3">
+    <div class="mb-3">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Categoría / línea de producto</div>
+      <select class="form-select form-select-sm" id="cfgCategoria">
+        <option value="">— Sin categoría —</option>
+        <?php foreach ($categorias as $c): ?>
+          <option value="<?= (int)$c['id'] ?>"><?= h($c['nombre']) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <div class="text-muted" style="font-size:11px;margin-top:6px">Ej. "Colchones Simmons" o "Café La Morenita". Se aplica a los productos de esta carga (se fija al procesar la 1ª hoja).</div>
+    </div>
     <div>
       <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Tipo de venta</div>
       <div class="btn-group btn-group-sm" id="tipoVenta">
@@ -143,6 +155,7 @@ async function procesarHoja(item) {
   fd.append('csrf_token', TZ.csrf);
   fd.append('hoja', item.file);
   fd.append('tipo_venta', TZ.tipoVenta);
+  fd.append('categoria_id', document.getElementById('cfgCategoria').value || '');
   if (TZ.cargaId) fd.append('carga_id', TZ.cargaId);
 
   try {
@@ -151,6 +164,8 @@ async function procesarHoja(item) {
     if (!r.ok || !d.ok) throw new Error(d.error || 'Error al procesar la hoja.');
     TZ.cargaId = d.carga_id;
     TZ.totalOrdenes = d.total;
+    // La categoría se fijó al crear la carga; ya no se puede cambiar.
+    document.getElementById('cfgCategoria').disabled = true;
     item.estado = 'ok';
     thumb.innerHTML = '<i class="bi bi-check-lg" style="color:var(--green)"></i>';
     meta.innerHTML = `<span style="color:var(--green)">${d.ordenes_hoja} órdenes</span>`;

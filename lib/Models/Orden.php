@@ -273,6 +273,11 @@ final class Orden
             $where[] = 'o.carga_id = :carga';
             $params[':carga'] = (int)$f['carga'];
         }
+        if (!empty($f['categoria'])) {
+            // La categoría es de la carga; la orden la hereda por su carga_id.
+            $where[] = 'o.carga_id IN (SELECT cc.id FROM cargas cc WHERE cc.categoria_id = :cat)';
+            $params[':cat'] = (int)$f['categoria'];
+        }
         if (!empty($f['zona'])) {
             // La orden pertenece a la zona si su (provincia, localidad) está en sus
             // localidades. La collation unicode_ci compara sin distinguir mayúsculas
@@ -320,7 +325,9 @@ final class Orden
         $sql = 'SELECT o.id, o.carga_id, o.nro_orden, o.nro_remito, o.fecha_remito, o.tipo_venta,
                        o.cliente, o.dest_provincia, o.dest_localidad, o.m3_total,
                        o.valor_declarado, o.estado, o.created_at AS fecha_ingreso,
-                       (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items
+                       (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items,
+                       (SELECT cat.nombre FROM cargas cg JOIN categorias cat ON cat.id = cg.categoria_id
+                          WHERE cg.id = o.carga_id) AS categoria
                 FROM ordenes o'
              . $where
              . " ORDER BY o.created_at DESC, o.id DESC LIMIT {$limit} OFFSET {$offset}";

@@ -14,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Trazock\Auth;
 use Trazock\Models\Carga;
+use Trazock\Models\Categoria;
 use Trazock\Models\Producto;
 use Trazock\Models\Zona;
 
@@ -21,6 +22,7 @@ $user = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo r
 
 $filtros = [
     'q'           => trim((string)($_GET['q'] ?? '')),
+    'categoria'   => trim((string)($_GET['categoria'] ?? '')),
     'zona'        => trim((string)($_GET['zona'] ?? '')),
     'carga'       => trim((string)($_GET['carga'] ?? '')),
     'estado'      => trim((string)($_GET['estado'] ?? '')),
@@ -59,28 +61,29 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Productos');
 
-    $encabezados = ['Lote', 'Nº orden', 'Código', 'Descripción', 'Dimensiones', 'm³',
+    $encabezados = ['Lote', 'Nº orden', 'Categoría', 'Código', 'Descripción', 'Dimensiones', 'm³',
                     'Ítem', 'Estado', 'Destino', 'Cliente', 'Tipo', 'F. ingreso'];
     $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:L1')->getFont()->setBold(true);
+    $sheet->getStyle('A1:M1')->getFont()->setBold(true);
 
     $fila = 2;
     foreach ($rows as $p) {
         $sheet->setCellValue('A' . $fila, prod_lote($p));
         $sheet->setCellValue('B' . $fila, (string)$p['nro_orden']);
-        $sheet->setCellValue('C' . $fila, (string)$p['codigo']);
-        $sheet->setCellValue('D' . $fila, (string)($p['descripcion'] ?? ''));
-        $sheet->setCellValue('E' . $fila, (string)($p['dimensiones'] ?? ''));
-        $sheet->setCellValue('F' . $fila, $p['m3'] !== null ? (float)$p['m3'] : null);
-        $sheet->setCellValue('G' . $fila, (int)$p['secuencia']);
-        $sheet->setCellValue('H' . $fila, prod_estado($p));
-        $sheet->setCellValue('I' . $fila, prod_destino($p));
-        $sheet->setCellValue('J' . $fila, (string)($p['cliente'] ?? ''));
-        $sheet->setCellValue('K' . $fila, (string)($p['tipo_venta'] ?? ''));
-        $sheet->setCellValue('L' . $fila, fmt_fecha((string)($p['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
+        $sheet->setCellValue('C' . $fila, (string)($p['categoria'] ?? ''));
+        $sheet->setCellValue('D' . $fila, (string)$p['codigo']);
+        $sheet->setCellValue('E' . $fila, (string)($p['descripcion'] ?? ''));
+        $sheet->setCellValue('F' . $fila, (string)($p['dimensiones'] ?? ''));
+        $sheet->setCellValue('G' . $fila, $p['m3'] !== null ? (float)$p['m3'] : null);
+        $sheet->setCellValue('H' . $fila, (int)$p['secuencia']);
+        $sheet->setCellValue('I' . $fila, prod_estado($p));
+        $sheet->setCellValue('J' . $fila, prod_destino($p));
+        $sheet->setCellValue('K' . $fila, (string)($p['cliente'] ?? ''));
+        $sheet->setCellValue('L' . $fila, (string)($p['tipo_venta'] ?? ''));
+        $sheet->setCellValue('M' . $fila, fmt_fecha((string)($p['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
         $fila++;
     }
-    foreach (range('A', 'L') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+    foreach (range('A', 'M') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -99,9 +102,10 @@ $offset    = ($pagina - 1) * $porPagina;
 
 $total     = Producto::reporteContar($filtros);
 $rows      = Producto::reporte($filtros, $porPagina, $offset);
-$zonas     = Zona::todas();
-$cargas    = Carga::recientes(100);
-$paginas   = (int)max(1, ceil($total / $porPagina));
+$zonas      = Zona::todas();
+$cargas     = Carga::recientes(100);
+$categorias = Categoria::activas();
+$paginas    = (int)max(1, ceil($total / $porPagina));
 
 $qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== ''));
 
@@ -114,6 +118,15 @@ panel_header('Reporte por productos', $user, 'reportes', 'Un ítem físico por f
 ?>
 <form method="get" action="<?= h(url('admin/ordenes-productos.php')) ?>" class="card mb-3 no-print" style="padding:.85rem 1rem">
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-bottom:.6rem">
+    <div>
+      <label class="form-label">Categoría</label>
+      <select class="form-select form-select-sm" name="categoria">
+        <option value="">Todas</option>
+        <?php foreach ($categorias as $c): ?>
+          <option value="<?= (int)$c['id'] ?>" <?= (string)$c['id'] === $filtros['categoria'] ? 'selected' : '' ?>><?= h($c['nombre']) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
     <div>
       <label class="form-label">Zona de reparto</label>
       <select class="form-select form-select-sm" name="zona">
@@ -174,16 +187,17 @@ panel_header('Reporte por productos', $user, 'reportes', 'Un ítem físico por f
     <div style="overflow-x:auto">
       <table class="table table-hover mb-0">
         <thead><tr>
-          <th>Lote</th><th>Nº orden</th><th>Código</th><th>Descripción</th><th>Dimensiones</th>
+          <th>Lote</th><th>Nº orden</th><th>Categoría</th><th>Código</th><th>Descripción</th><th>Dimensiones</th>
           <th>m³</th><th>Ítem</th><th>Estado</th><th>Destino</th><th>F. ingreso</th>
         </tr></thead>
         <tbody>
         <?php if ($rows === []): ?>
-          <tr><td colspan="10" class="text-muted" style="text-align:center;padding:1.5rem">No hay productos para los filtros seleccionados.</td></tr>
+          <tr><td colspan="11" class="text-muted" style="text-align:center;padding:1.5rem">No hay productos para los filtros seleccionados.</td></tr>
         <?php else: foreach ($rows as $p): ?>
           <tr>
             <td class="mono" style="font-size:12px;color:var(--muted)"><?= h(prod_lote($p)) ?></td>
             <td class="mono" style="font-size:12px"><a style="color:#60a5fa;text-decoration:none" href="<?= h(url('admin/ordenes-detalle.php') . '?id=' . (int)$p['orden_id']) ?>"><?= h((string)$p['nro_orden']) ?></a></td>
+            <td style="font-size:13px"><?= h((string)($p['categoria'] ?? '—')) ?></td>
             <td class="mono" style="font-size:12px"><?= h((string)$p['codigo']) ?></td>
             <td><?= h((string)($p['descripcion'] ?? '—')) ?></td>
             <td style="font-size:12px;color:var(--muted)"><?= h((string)($p['dimensiones'] ?? '—')) ?></td>

@@ -14,6 +14,7 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Trazock\Auth;
 use Trazock\Models\Carga;
+use Trazock\Models\Categoria;
 use Trazock\Models\Orden;
 use Trazock\Models\Zona;
 
@@ -21,6 +22,7 @@ $user = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo r
 
 $filtros = [
     'q'           => trim((string)($_GET['q'] ?? '')),
+    'categoria'   => trim((string)($_GET['categoria'] ?? '')),
     'zona'        => trim((string)($_GET['zona'] ?? '')),
     'carga'       => trim((string)($_GET['carga'] ?? '')),
     'estado'      => trim((string)($_GET['estado'] ?? '')),
@@ -52,28 +54,29 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Órdenes');
 
-    $encabezados = ['Lote', 'Nº orden', 'Nº remito', 'F. remito', 'Tipo', 'Cliente', 'Destino',
+    $encabezados = ['Lote', 'Nº orden', 'Categoría', 'Nº remito', 'F. remito', 'Tipo', 'Cliente', 'Destino',
                     'm³', 'Valor declarado', 'Ítems', 'Estado', 'F. ingreso'];
     $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:L1')->getFont()->setBold(true);
+    $sheet->getStyle('A1:M1')->getFont()->setBold(true);
 
     $fila = 2;
     foreach ($rows as $o) {
         $sheet->setCellValue('A' . $fila, rep_lote($o));
         $sheet->setCellValue('B' . $fila, (string)$o['nro_orden']);
-        $sheet->setCellValue('C' . $fila, (string)($o['nro_remito'] ?? ''));
-        $sheet->setCellValue('D' . $fila, (string)($o['fecha_remito'] ?? ''));
-        $sheet->setCellValue('E' . $fila, (string)($o['tipo_venta'] ?? ''));
-        $sheet->setCellValue('F' . $fila, (string)($o['cliente'] ?? ''));
-        $sheet->setCellValue('G' . $fila, rep_destino($o));
-        $sheet->setCellValue('H' . $fila, (float)($o['m3_total'] ?? 0));
-        $sheet->setCellValue('I' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
-        $sheet->setCellValue('J' . $fila, (int)($o['cant_items'] ?? 0));
-        $sheet->setCellValue('K' . $fila, (string)($o['estado'] ?? ''));
-        $sheet->setCellValue('L' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
+        $sheet->setCellValue('C' . $fila, (string)($o['categoria'] ?? ''));
+        $sheet->setCellValue('D' . $fila, (string)($o['nro_remito'] ?? ''));
+        $sheet->setCellValue('E' . $fila, (string)($o['fecha_remito'] ?? ''));
+        $sheet->setCellValue('F' . $fila, (string)($o['tipo_venta'] ?? ''));
+        $sheet->setCellValue('G' . $fila, (string)($o['cliente'] ?? ''));
+        $sheet->setCellValue('H' . $fila, rep_destino($o));
+        $sheet->setCellValue('I' . $fila, (float)($o['m3_total'] ?? 0));
+        $sheet->setCellValue('J' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
+        $sheet->setCellValue('K' . $fila, (int)($o['cant_items'] ?? 0));
+        $sheet->setCellValue('L' . $fila, (string)($o['estado'] ?? ''));
+        $sheet->setCellValue('M' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
         $fila++;
     }
-    foreach (range('A', 'L') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+    foreach (range('A', 'M') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -93,9 +96,10 @@ $offset    = ($pagina - 1) * $porPagina;
 $total     = Orden::contar($filtros);
 $totales   = Orden::totales($filtros);
 $ordenes   = Orden::buscar($filtros, $porPagina, $offset);
-$zonas     = Zona::todas();
-$cargas    = Carga::recientes(100);
-$paginas   = (int)max(1, ceil($total / $porPagina));
+$zonas      = Zona::todas();
+$cargas     = Carga::recientes(100);
+$categorias = Categoria::activas();
+$paginas    = (int)max(1, ceil($total / $porPagina));
 
 // Query string de los filtros (para paginación y export, sin 'pagina').
 $qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== ''));
@@ -109,6 +113,15 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
 ?>
 <form method="get" action="<?= h(url('admin/ordenes-reportes.php')) ?>" class="card mb-3 no-print" style="padding:.85rem 1rem">
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-bottom:.6rem">
+    <div>
+      <label class="form-label">Categoría</label>
+      <select class="form-select form-select-sm" name="categoria">
+        <option value="">Todas</option>
+        <?php foreach ($categorias as $c): ?>
+          <option value="<?= (int)$c['id'] ?>" <?= (string)$c['id'] === $filtros['categoria'] ? 'selected' : '' ?>><?= h($c['nombre']) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
     <div>
       <label class="form-label">Zona de reparto</label>
       <select class="form-select form-select-sm" name="zona">
@@ -173,19 +186,20 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
     <div style="overflow-x:auto">
       <table class="table table-hover mb-0">
         <thead><tr>
-          <th>Lote</th><th>Nº orden</th><th style="text-align:center">Ítems</th><th>Destino</th><th>m³</th>
+          <th>Lote</th><th>Nº orden</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Destino</th><th>m³</th>
           <th>Tipo</th><th>F. remito</th><th>Nº remito</th><th>F. ingreso</th>
           <th>Estado</th><th class="no-print"></th>
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-          <tr><td colspan="11" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
+          <tr><td colspan="12" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
         <?php else: foreach ($ordenes as $o):
             $tv = (string)($o['tipo_venta'] ?? '');
         ?>
           <tr>
             <td class="mono" style="font-size:12px;color:var(--muted)"><?= h(rep_lote($o)) ?></td>
             <td class="mono" style="font-size:12px"><?= h((string)$o['nro_orden']) ?></td>
+            <td style="font-size:13px"><?= h((string)($o['categoria'] ?? '—')) ?></td>
             <td style="text-align:center"><?= (int)($o['cant_items'] ?? 0) ?></td>
             <td style="font-size:13px"><?= h(rep_destino($o)) ?></td>
             <td><?= number_format((float)($o['m3_total'] ?? 0), 2, ',', '.') ?></td>

@@ -326,6 +326,7 @@ INSERT INTO `estados_publicos` (`estado`, `titulo`, `descripcion`, `visible`, `o
 CREATE TABLE IF NOT EXISTS `cargas` (
     `id`               INT UNSIGNED    NOT NULL AUTO_INCREMENT,
     `usuario_id`       INT UNSIGNED    NOT NULL,
+    `categoria_id`     INT UNSIGNED    DEFAULT NULL,
     `fecha`            DATE            DEFAULT NULL,
     `estado`           ENUM('borrador','confirmada') NOT NULL DEFAULT 'borrador',
     `datos_extraidos`  LONGTEXT        DEFAULT NULL,
@@ -335,8 +336,11 @@ CREATE TABLE IF NOT EXISTS `cargas` (
     PRIMARY KEY (`id`),
     INDEX `idx_estado` (`estado`),
     INDEX `idx_usuario` (`usuario_id`),
+    INDEX `idx_carga_categoria` (`categoria_id`),
     CONSTRAINT `fk_cargas_usuario`
-        FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
+        FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
+    CONSTRAINT `fk_cargas_categoria`
+        FOREIGN KEY (`categoria_id`) REFERENCES `categorias` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `ordenes` (

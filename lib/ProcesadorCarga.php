@@ -54,6 +54,7 @@ final class ProcesadorCarga
             // (si todas las órdenes eran duplicados, no se crea un lote vacío).
             $now    = gmdate('Y-m-d H:i:s');
             $loteId = null;
+            $categoriaCarga = $carga['categoria_id'] !== null ? (int)$carga['categoria_id'] : null;
 
             foreach ($datos['ordenes'] as $o) {
                 $nro = trim((string)($o['nro_orden'] ?? ''));
@@ -104,6 +105,7 @@ final class ProcesadorCarga
                             $db,
                             $cod,
                             $ordenId,
+                            $categoriaCarga,
                             self::s($l['codigo'] ?? null),
                             self::s($l['dimensiones'] ?? null),
                             $m3Unit,
@@ -115,7 +117,7 @@ final class ProcesadorCarga
                             $loteId = Lote::crear([
                                 'uuid'               => self::uuid(),
                                 'tipo'               => 'INGRESO',
-                                'categoria_id'       => null,
+                                'categoria_id'       => $categoriaCarga,
                                 'proveedor_id'       => null,
                                 'transportista_id'   => null,
                                 'motivo_id'          => null,
@@ -154,16 +156,17 @@ final class ProcesadorCarga
      * Devuelve el id del producto (para registrar su transición de ingreso).
      */
     private static function crearProducto(
-        PDO $db, string $codigo, int $ordenId, ?string $descripcion,
+        PDO $db, string $codigo, int $ordenId, ?int $categoriaId, ?string $descripcion,
         ?string $dimensiones, ?float $m3, int $secuencia
     ): int {
         $stmt = $db->prepare(
             "INSERT INTO productos
-                (codigo, orden_id, descripcion, dimensiones, m3, secuencia, estado_actual)
-             VALUES (:codigo, :orden, :desc, :dim, :m3, :sec, 'INGRESADO')"
+                (codigo, orden_id, categoria_id, descripcion, dimensiones, m3, secuencia, estado_actual)
+             VALUES (:codigo, :orden, :cat, :desc, :dim, :m3, :sec, 'INGRESADO')"
         );
         $stmt->bindValue(':codigo', $codigo);
         $stmt->bindValue(':orden', $ordenId, PDO::PARAM_INT);
+        $stmt->bindValue(':cat', $categoriaId, $categoriaId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
         $stmt->bindValue(':desc', $descripcion, $descripcion === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
         $stmt->bindValue(':dim', $dimensiones, $dimensiones === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
         $stmt->bindValue(':m3', $m3, $m3 === null ? PDO::PARAM_NULL : PDO::PARAM_STR);

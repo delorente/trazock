@@ -219,6 +219,10 @@ final class Producto
             $where[] = 'p.estado_actual = :estado';
             $params[':estado'] = $f['estado'];
         }
+        if (!empty($f['categoria'])) {
+            $where[] = 'p.categoria_id = :cat';
+            $params[':cat'] = (int)$f['categoria'];
+        }
         if (!empty($f['tipo_venta'])) {
             $where[] = 'o.tipo_venta = :tv';
             $params[':tv'] = $f['tipo_venta'];
@@ -252,9 +256,11 @@ final class Producto
         $sql = 'SELECT p.id, p.codigo, p.descripcion, p.dimensiones, p.m3, p.secuencia,
                        p.estado_actual, p.etiquetada_at,
                        o.id AS orden_id, o.carga_id, o.nro_orden, o.cliente, o.tipo_venta,
-                       o.dest_provincia, o.dest_localidad, o.created_at AS fecha_ingreso
+                       o.dest_provincia, o.dest_localidad, o.created_at AS fecha_ingreso,
+                       cat.nombre AS categoria
                 FROM productos p
-                JOIN ordenes o ON o.id = p.orden_id'
+                JOIN ordenes o ON o.id = p.orden_id
+                LEFT JOIN categorias cat ON cat.id = p.categoria_id'
              . $where
              . " ORDER BY o.created_at DESC, o.id DESC, p.secuencia LIMIT {$limit} OFFSET {$offset}";
 

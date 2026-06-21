@@ -15,6 +15,7 @@ use Trazock\Api;
 use Trazock\Auth;
 use Trazock\ExtractorOcr;
 use Trazock\Models\Carga;
+use Trazock\Models\Categoria;
 
 Api::exigirMetodo('POST');
 $user = Api::usuarioConRol(['admin', 'gestor']);
@@ -37,9 +38,15 @@ if ($bytes === false || $bytes === '') {
 $tipoVenta = in_array(($_POST['tipo_venta'] ?? ''), ['local', 'online'], true) ? (string)$_POST['tipo_venta'] : null;
 $cargaId   = (int)($_POST['carga_id'] ?? 0);
 
+// Categoría (línea de producto) de la carga: solo se fija al crearla.
+$categoriaId = (int)($_POST['categoria_id'] ?? 0);
+if ($categoriaId > 0 && !Categoria::existeActiva($categoriaId)) {
+    $categoriaId = 0;
+}
+
 // Carga: crear si no viene; validar que exista y no esté confirmada.
 if ($cargaId <= 0) {
-    $cargaId = Carga::crear((int)$user['id']);
+    $cargaId = Carga::crear((int)$user['id'], $categoriaId > 0 ? $categoriaId : null);
 } else {
     $c = Carga::find($cargaId);
     if ($c === null || $c['estado'] === 'confirmada') {

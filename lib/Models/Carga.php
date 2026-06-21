@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Trazock\Models;
 
+use PDO;
 use Trazock\DB;
 
 /**
@@ -14,15 +15,17 @@ use Trazock\DB;
  */
 final class Carga
 {
-    /** Crea una carga en borrador y devuelve su id. */
-    public static function crear(int $usuarioId): int
+    /** Crea una carga en borrador (con su categoría/línea de producto) y devuelve su id. */
+    public static function crear(int $usuarioId, ?int $categoriaId = null): int
     {
         $db = DB::getInstance();
         $stmt = $db->prepare(
-            "INSERT INTO cargas (usuario_id, fecha, estado)
-             VALUES (:u, CURDATE(), 'borrador')"
+            "INSERT INTO cargas (usuario_id, categoria_id, fecha, estado)
+             VALUES (:u, :cat, CURDATE(), 'borrador')"
         );
-        $stmt->execute([':u' => $usuarioId]);
+        $stmt->bindValue(':u', $usuarioId, PDO::PARAM_INT);
+        $stmt->bindValue(':cat', $categoriaId, $categoriaId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        $stmt->execute();
         return (int)$db->lastInsertId();
     }
 
