@@ -26,20 +26,31 @@ $cargaId = (int)($_GET['carga'] ?? 0);
 $ordenId = (int)($_GET['orden'] ?? 0);
 $loteId  = (int)($_GET['lote'] ?? 0);
 
-// Tamaño de etiqueta = cuántas entran por hoja A4. El cliente lo elige sin tocar
-// código. cols×rows define la grilla; qr/fs escalan el rótulo a ese tamaño.
-$LAYOUTS = [
-    2  => ['cols' => 1, 'rows' => 2, 'qr' => '46mm', 'fs' => '16px'],
-    4  => ['cols' => 2, 'rows' => 2, 'qr' => '42mm', 'fs' => '15px'],
-    6  => ['cols' => 2, 'rows' => 3, 'qr' => '34mm', 'fs' => '13px'],
-    8  => ['cols' => 2, 'rows' => 4, 'qr' => '32mm', 'fs' => '11px'],
-    12 => ['cols' => 3, 'rows' => 4, 'qr' => '25mm', 'fs' => '9.5px'],
-    24 => ['cols' => 4, 'rows' => 6, 'qr' => '18mm', 'fs' => '8px'],
+// Tamaño FÍSICO de la etiqueta (ancho × alto en mm). El cliente elige el tamaño
+// y la hoja A4 acomoda sola las que entran; el resto pasa a la hoja siguiente.
+// qr/fs escalan el rótulo a ese tamaño. (Área útil A4 con márgenes 8/6mm.)
+$GAP_MM    = 2;
+$USABLE_W  = 198; // 210 - 2×6
+$USABLE_H  = 281; // 297 - 2×8
+$TAMANOS = [
+    'grande'  => ['w' => 98, 'h' => 137, 'qr' => '44mm', 'fs' => '16px', 'nom' => 'Grande'],
+    'mediana' => ['w' => 98, 'h' => 67,  'qr' => '32mm', 'fs' => '11px', 'nom' => 'Mediana'],
+    'chica'   => ['w' => 64, 'h' => 49,  'qr' => '24mm', 'fs' => '9px',  'nom' => 'Chica'],
+    'mini'    => ['w' => 48, 'h' => 33,  'qr' => '17mm', 'fs' => '7.5px','nom' => 'Mini'],
 ];
-$por = (int)($_GET['por'] ?? 8);
-if (!isset($LAYOUTS[$por])) { $por = 8; }
-$L       = $LAYOUTS[$por];
-$PERPAGE = $L['cols'] * $L['rows'];
+
+/** Cuántas columnas/filas/etiquetas de un tamaño entran en la hoja A4. */
+$fitGrid = static function (array $t) use ($GAP_MM, $USABLE_W, $USABLE_H): array {
+    $cols = max(1, (int)floor(($USABLE_W + $GAP_MM) / ($t['w'] + $GAP_MM)));
+    $rows = max(1, (int)floor(($USABLE_H + $GAP_MM) / ($t['h'] + $GAP_MM)));
+    return ['cols' => $cols, 'rows' => $rows, 'perpage' => $cols * $rows];
+};
+
+$tam = (string)($_GET['tam'] ?? 'mediana');
+if (!isset($TAMANOS[$tam])) { $tam = 'mediana'; }
+$T       = $TAMANOS[$tam];
+$grid    = $fitGrid($T);
+$PERPAGE = $grid['perpage'];
 
 $volverCaptura = '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-captura.php')) . '"><i class="bi bi-plus-lg me-1"></i>Nueva carga</a>';
 
@@ -101,7 +112,8 @@ if ($ordenId > 0) {
 
 $paginas = array_chunk($items, $PERPAGE);
 $totalEt = count($items);
-$subtitulo = $ctxTxt . ' · ' . $totalEt . ' etiqueta(s) · ' . $por . ' por hoja · ' . count($paginas) . ' hoja(s)';
+$cmTxt   = number_format($T['w'] / 10, 1, ',', '') . ' × ' . number_format($T['h'] / 10, 1, ',', '') . ' cm';
+$subtitulo = $ctxTxt . ' · ' . $totalEt . ' etiqueta(s) · ' . $T['nom'] . ' (' . $cmTxt . ', ' . $PERPAGE . '/hoja) · ' . count($paginas) . ' hoja(s)';
 
 $volver = '<a class="btn btn-sm btn-outline-secondary" href="' . h($volverHref) . '"><i class="bi bi-arrow-left me-1"></i>' . h($volverTxt) . '</a>'
         . '<button class="btn btn-sm btn-primary fw-bold" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>';
@@ -124,14 +136,17 @@ function eti_destino(array $it): string
 }
 ?>
 <div class="no-print d-flex flex-wrap align-items-center gap-2 mb-3">
-  <label for="selPor" style="font-size:13px;font-weight:600">Etiquetas por hoja:</label>
-  <select id="selPor" class="form-select form-select-sm" style="width:auto"
-          onchange="location.href='<?= h(url('admin/ordenes-etiquetas.php') . '?' . $qsBase) ?>&por=' + this.value">
-    <?php foreach ($LAYOUTS as $n => $_l): ?>
-      <option value="<?= (int)$n ?>" <?= $n === $por ? 'selected' : '' ?>><?= (int)$n ?> por hoja</option>
+  <label for="selTam" style="font-size:13px;font-weight:600">Tamaño de etiqueta:</label>
+  <select id="selTam" class="form-select form-select-sm" style="width:auto"
+          onchange="location.href='<?= h(url('admin/ordenes-etiquetas.php') . '?' . $qsBase) ?>&tam=' + this.value">
+    <?php foreach ($TAMANOS as $k => $t):
+        $g  = $fitGrid($t);
+        $cm = number_format($t['w'] / 10, 1, ',', '') . ' × ' . number_format($t['h'] / 10, 1, ',', '') . ' cm';
+    ?>
+      <option value="<?= h($k) ?>" <?= $k === $tam ? 'selected' : '' ?>><?= h($t['nom']) ?> — <?= h($cm) ?> (<?= (int)$g['perpage'] ?>/hoja)</option>
     <?php endforeach; ?>
   </select>
-  <span class="text-muted" style="font-size:12px">Cuantas menos por hoja, más grande la etiqueta.</span>
+  <span class="text-muted" style="font-size:12px">La hoja A4 acomoda las que entran; el resto pasa a la hoja siguiente.</span>
 </div>
 
 <div class="alert no-print" style="background:var(--card);border:1px solid var(--border);font-size:12px;color:var(--muted)" >
@@ -141,7 +156,7 @@ function eti_destino(array $it): string
 
 <div class="label-sheet print-area">
 <?php foreach ($paginas as $pagina): ?>
-  <section class="sheet-page" style="--cols:<?= (int)$L['cols'] ?>;--rows:<?= (int)$L['rows'] ?>;--qr:<?= h($L['qr']) ?>;--fs:<?= h($L['fs']) ?>">
+  <section class="sheet-page" style="--cols:<?= (int)$grid['cols'] ?>;--cellw:<?= (int)$T['w'] ?>mm;--cellh:<?= (int)$T['h'] ?>mm;--qr:<?= h($T['qr']) ?>;--fs:<?= h($T['fs']) ?>">
     <?php foreach ($pagina as $it):
         $nro     = (string)$it['nro_orden'];
         $sec     = (int)$it['secuencia'];

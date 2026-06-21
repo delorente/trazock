@@ -289,10 +289,10 @@ a { color: var(--blue); }
 /* Hoja de etiquetas A4 (8 por hoja, estilo Avery L7165). En pantalla se ve como
    páginas blancas; en impresión se reduce a las hojas, una por página. */
 .label-sheet{display:flex;flex-direction:column;align-items:center;gap:20px}
-/* La grilla, el QR y la tipografía se escalan con variables (--cols/--rows/--qr/
-   --fs) que fija la página según "etiquetas por hoja". aspect-ratio A4 para que
-   en pantalla cada celda ocupe lo mismo que ocupará impresa. */
-.sheet-page{background:#fff;width:794px;max-width:100%;aspect-ratio:210/297;padding:8mm 6mm;display:grid;grid-template-columns:repeat(var(--cols,2),1fr);grid-template-rows:repeat(var(--rows,4),1fr);gap:4px;box-shadow:0 2px 18px rgba(0,0,0,.45);border-radius:4px}
+/* Las celdas tienen tamaño FÍSICO fijo (--cellw × --cellh en mm). La hoja A4
+   (aspect-ratio) acomoda --cols columnas y cuantas filas entren; el QR y la
+   tipografía (--qr/--fs) escalan con el tamaño. En pantalla se ve a escala real. */
+.sheet-page{background:#fff;width:794px;max-width:100%;aspect-ratio:210/297;padding:8mm 6mm;display:grid;grid-template-columns:repeat(var(--cols,2),var(--cellw,98mm));grid-auto-rows:var(--cellh,67mm);justify-content:center;align-content:start;gap:2mm;box-shadow:0 2px 18px rgba(0,0,0,.45);border-radius:4px}
 .label-cell{background:#fff;color:#000;border:1px dashed #cfcfcf;border-radius:4px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .label-cell .lq{padding:6px 8px 2px;display:flex;justify-content:center;flex-shrink:0}
 .label-cell .lq svg{width:var(--qr,32mm);height:var(--qr,32mm);max-width:100%;display:block}
@@ -313,12 +313,12 @@ a { color: var(--blue); }
   #main{margin:0!important;padding:0!important;width:auto!important;max-width:none!important}
   #main > :not(.print-area){display:none!important}
   .print-area{color:#000}
-  /* Etiquetas (hoja A4). La grilla la fijan las variables --cols/--rows; la
-     página llena el alto útil para que cada celda crezca según cuántas entren. */
+  /* Etiquetas (hoja A4). Celdas de tamaño físico fijo (--cellw × --cellh); la
+     grilla centra --cols columnas y entran las filas que caben por página. */
   .label-sheet{display:block;gap:0;margin:0;padding:0}
-  .sheet-page{box-shadow:none;border-radius:0;width:100%;height:278mm;aspect-ratio:auto;padding:0;gap:0;break-after:page;page-break-after:always}
+  .sheet-page{box-shadow:none;border-radius:0;width:100%;height:auto;aspect-ratio:auto;padding:0;gap:2mm;justify-content:center;align-content:start;break-after:page;page-break-after:always}
   .sheet-page:last-child{break-after:auto;page-break-after:auto}
-  .label-cell{height:auto;min-height:0;border:1px dotted #ccc;break-inside:avoid;page-break-inside:avoid}
+  .label-cell{min-height:0;border:1px dotted #ccc;break-inside:avoid;page-break-inside:avoid}
   .label-cell .lq svg{width:var(--qr,32mm);height:var(--qr,32mm)}
   /* Reportes (tabla legible en blanco y negro) */
   .print-area h1,.print-area h2,.print-area .rep-print-title{color:#000;font-size:16px;margin:0 0 8px}
