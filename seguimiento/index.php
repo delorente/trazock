@@ -233,6 +233,12 @@ if ($num === '') {
 }
 
 $orden = Orden::findByNroOrden($num);
+// Tolerancia: si pegaron el código de la etiqueta (nro_orden + "-NN"), probamos
+// sin ese sufijo de ítem de 2 dígitos.
+if ($orden === null && preg_match('/^(.+)-\d{2}$/', $num, $mm)) {
+    $orden = Orden::findByNroOrden($mm[1]);
+    if ($orden !== null) { $num = $mm[1]; }
+}
 
 if ($orden !== null) {
     // Estado público derivado de los ítems (sin per-step dates; muestra última act.).

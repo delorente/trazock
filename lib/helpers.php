@@ -170,6 +170,19 @@ if (!function_exists('seguimiento_url')) {
     }
 }
 
+if (!function_exists('seguimiento_orden_url')) {
+    /**
+     * URL ABSOLUTA de seguimiento por Nº de orden (flujo principal del comprador).
+     * Es el enlace que se le comparte al cliente: no expone datos, solo el estado
+     * público. Usa APP_URL para que resuelva fuera de la app (WhatsApp/email).
+     */
+    function seguimiento_orden_url(string $nroOrden): string
+    {
+        $base = defined('APP_URL') ? rtrim(APP_URL, '/') : '';
+        return $base . '/seguimiento/?orden=' . rawurlencode($nroOrden);
+    }
+}
+
 if (!function_exists('flash_render')) {
     /** Imprime el flash como alerta Bootstrap si existe. */
     function flash_render(): void

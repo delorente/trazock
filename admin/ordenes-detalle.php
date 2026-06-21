@@ -109,6 +109,13 @@ $loc  = trim((string)($orden['dest_localidad'] ?? ''));
 $prov = trim((string)($orden['dest_provincia'] ?? ''));
 $destino = trim($loc . ($loc !== '' && $prov !== '' ? ' · ' : '') . $prov) ?: '—';
 
+// Seguimiento público: enlace por Nº de orden para compartir con el cliente
+// (solo muestra el estado público, nunca datos internos).
+$segUrl  = seguimiento_orden_url((string)$orden['nro_orden']);
+$segMsg  = 'Hola! Podés seguir el estado de tu pedido en este enlace: ' . $segUrl;
+$waUrl   = 'https://wa.me/?text=' . rawurlencode($segMsg);
+$mailUrl = 'mailto:?subject=' . rawurlencode('Seguimiento de tu pedido') . '&body=' . rawurlencode($segMsg);
+
 /** Badge de estado del ítem: ETIQUETADA si tiene etiqueta y sigue INGRESADO. */
 function item_estado(array $it): string
 {
@@ -167,6 +174,23 @@ $campo = static function (string $label, string $valor): void {
       $campo('Ítems', count($items) . ' unidad(es)');
     ?>
   </div>
+</div>
+
+<div class="card p-3 mb-3">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem">
+    <div style="font-weight:600;font-size:13px"><i class="bi bi-geo-alt-fill me-1" style="color:var(--blue,#3b82f6)"></i>Seguimiento público</div>
+    <span class="text-muted" style="font-size:12px">Enlace para enviarle al cliente</span>
+  </div>
+  <div class="input-group input-group-sm mb-2">
+    <input class="form-control mono" id="segUrl" value="<?= h($segUrl) ?>" readonly>
+    <button class="btn btn-outline-secondary" type="button" id="segCopiar" title="Copiar enlace"><i class="bi bi-clipboard"></i></button>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a class="btn btn-sm btn-outline-success" href="<?= h($waUrl) ?>" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
+    <a class="btn btn-sm btn-outline-secondary" href="<?= h($mailUrl) ?>"><i class="bi bi-envelope me-1"></i>Email</a>
+    <a class="btn btn-sm btn-outline-secondary" href="<?= h($segUrl) ?>" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i>Ver página</a>
+  </div>
+  <p class="text-muted mb-0 mt-2" style="font-size:11px">El cliente ve solo el texto público del estado, nunca el código interno. Esos textos se editan en Administración → Seguimiento.</p>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 300px;gap:1rem;align-items:start" class="tz-detalle-grid">
@@ -349,5 +373,18 @@ $campo = static function (string $label, string $valor): void {
 
 <script src="<?= h(asset('assets/vendor/qrcode-generator/qrcode.min.js')) ?>"></script>
 <script src="<?= h(asset('assets/js/etiquetas.js')) ?>"></script>
+<script>
+(function () {
+  const btn = document.getElementById('segCopiar');
+  const inp = document.getElementById('segUrl');
+  if (!btn || !inp) return;
+  btn.addEventListener('click', function () {
+    const ok = () => { const i = btn.querySelector('i'); if (i) { i.className = 'bi bi-check-lg'; setTimeout(() => { i.className = 'bi bi-clipboard'; }, 1500); } };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(inp.value).then(ok).catch(() => { inp.select(); document.execCommand('copy'); ok(); });
+    } else { inp.select(); document.execCommand('copy'); ok(); }
+  });
+})();
+</script>
 <?php
 panel_footer();
