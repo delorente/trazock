@@ -119,8 +119,8 @@ function eti_destino(array $it): string
       <div class="lb">
         <div class="ld"><?= h(eti_destino($it)) ?></div>
         <div class="ln"><?= h($nombre) ?></div>
-        <div class="li">Ítem <?= $sec ?> de <?= $tot ?><?= $desc !== '' ? ' · ' . h($desc) : '' ?></div>
-        <div class="lc"><?= h((string)$it['codigo']) ?> · <?= h($num) ?></div>
+        <?php if ($desc !== ''): ?><div class="li"><?= h($desc) ?></div><?php endif; ?>
+        <div class="lc"><span><?= h((string)$it['codigo']) ?> · <?= h($num) ?></span><span class="lqty">Ítem <?= $sec ?> de <?= $tot ?></span></div>
       </div>
     </div>
     <?php endforeach; ?>

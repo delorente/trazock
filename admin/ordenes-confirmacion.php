@@ -113,8 +113,8 @@ panel_header('Carga confirmada', $user, 'captura', '', $volver);
       <div class="lb">
         <div class="ld"><?= h($destino) ?></div>
         <div class="ln"><?= h(trim((string)$muestra['cliente']) !== '' ? (string)$muestra['cliente'] : $ape) ?></div>
-        <div class="li">Ítem <?= $sec ?> de <?= $tot ?> &middot; <?= h((string)($muestra['descripcion'] ?? 'Ítem')) ?></div>
-        <div class="lc"><?= h((string)$muestra['codigo']) ?> &middot; <?= h($num) ?></div>
+        <div class="li"><?= h((string)($muestra['descripcion'] ?? 'Ítem')) ?></div>
+        <div class="lc"><span><?= h((string)$muestra['codigo']) ?> &middot; <?= h($num) ?></span><span class="lqty">Ítem <?= $sec ?> de <?= $tot ?></span></div>
       </div>
     </div>
     <div style="font-size:11px;color:var(--muted);margin-top:.75rem">Impresión B&amp;N &middot; alto contraste &middot; QR autocontenido (destino verificable offline)</div>
