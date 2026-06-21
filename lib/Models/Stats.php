@@ -22,28 +22,33 @@ final class Stats
     {
         $db = DB::getInstance();
 
-        $total      = (int)$db->query('SELECT COUNT(*) FROM productos')->fetchColumn();
-        $enDeposito = (int)$db->query(
-            "SELECT COUNT(*) FROM productos WHERE estado_actual IN ('INGRESADO','REINGRESADO')"
+        // Recuadros superiores: ahora la unidad es la ORDEN, no el producto.
+        $ordTotal     = (int)$db->query('SELECT COUNT(*) FROM ordenes')->fetchColumn();
+        $ordDeposito  = (int)$db->query(
+            "SELECT COUNT(*) FROM ordenes WHERE estado IN ('RECIBIDO','REINGRESADO')"
         )->fetchColumn();
-        $enReparto  = (int)$db->query(
-            "SELECT COUNT(*) FROM productos WHERE estado_actual = 'EN_REPARTO'"
+        $ordReparto   = (int)$db->query(
+            "SELECT COUNT(*) FROM ordenes WHERE estado = 'EN_REPARTO'"
         )->fetchColumn();
-        $entregadosMes = (int)$db->query(
-            "SELECT COUNT(DISTINCT producto_id) FROM transiciones
-             WHERE estado_hasta = 'ENTREGADO'
-               AND timestamp_cliente >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+        $ordEntregMes = (int)$db->query(
+            "SELECT COUNT(*) FROM ordenes
+             WHERE estado = 'ENTREGADO'
+               AND updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
         )->fetchColumn();
         $conflictos = (int)$db->query(
             'SELECT COUNT(*) FROM conflictos_producto WHERE revisado_at IS NULL'
         )->fetchColumn();
 
+        // Conteos de productos (los usa la tabla cruzada de stock más abajo).
+        $prodTotal = (int)$db->query('SELECT COUNT(*) FROM productos')->fetchColumn();
+
         return [
-            'total'          => $total,
-            'en_deposito'    => $enDeposito,
-            'en_reparto'     => $enReparto,
-            'entregados_mes' => $entregadosMes,
-            'conflictos'     => $conflictos,
+            'ordenes'           => $ordTotal,
+            'ord_deposito'      => $ordDeposito,
+            'ord_reparto'       => $ordReparto,
+            'ord_entregadas_mes' => $ordEntregMes,
+            'conflictos'        => $conflictos,
+            'total'             => $prodTotal, // productos (compat / stock)
         ];
     }
 

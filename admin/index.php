@@ -49,10 +49,10 @@ foreach ($tabla as $f) {
 ?>
 <!-- KPIs -->
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;margin-bottom:1.25rem" id="tzKpis">
-    <div class="card kpi"><div class="kpi-v" data-kpi="total"><?= (int)$kpis['total'] ?></div><div class="kpi-l"><i class="bi bi-boxes me-1"></i>Total productos</div></div>
-    <div class="card kpi"><div class="kpi-v" data-kpi="en_deposito" style="color:#60a5fa"><?= (int)$kpis['en_deposito'] ?></div><div class="kpi-l"><i class="bi bi-building me-1"></i>En depósito</div></div>
-    <div class="card kpi"><div class="kpi-v" data-kpi="en_reparto" style="color:#fbbf24"><?= (int)$kpis['en_reparto'] ?></div><div class="kpi-l"><i class="bi bi-truck me-1"></i>En reparto</div></div>
-    <div class="card kpi"><div class="kpi-v" data-kpi="entregados_mes" style="color:var(--green)"><?= (int)$kpis['entregados_mes'] ?></div><div class="kpi-l"><i class="bi bi-check-circle-fill me-1"></i>Entregados (30d)</div></div>
+    <div class="card kpi"><div class="kpi-v" data-kpi="ordenes"><?= (int)$kpis['ordenes'] ?></div><div class="kpi-l"><i class="bi bi-receipt me-1"></i>Total órdenes</div></div>
+    <div class="card kpi"><div class="kpi-v" data-kpi="ord_deposito" style="color:#60a5fa"><?= (int)$kpis['ord_deposito'] ?></div><div class="kpi-l"><i class="bi bi-building me-1"></i>En depósito</div></div>
+    <div class="card kpi"><div class="kpi-v" data-kpi="ord_reparto" style="color:#fbbf24"><?= (int)$kpis['ord_reparto'] ?></div><div class="kpi-l"><i class="bi bi-truck me-1"></i>En reparto</div></div>
+    <div class="card kpi"><div class="kpi-v" data-kpi="ord_entregadas_mes" style="color:var(--green)"><?= (int)$kpis['ord_entregadas_mes'] ?></div><div class="kpi-l"><i class="bi bi-check-circle-fill me-1"></i>Entregadas (30d)</div></div>
     <div class="card kpi"><div class="kpi-v" data-kpi="conflictos" style="color:var(--red)"><?= (int)$kpis['conflictos'] ?></div><div class="kpi-l"><i class="bi bi-exclamation-triangle-fill me-1"></i>Conflictos pend.</div></div>
 </div>
 
