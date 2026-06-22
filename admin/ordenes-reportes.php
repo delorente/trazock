@@ -54,10 +54,10 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Órdenes');
 
-    $encabezados = ['Lote', 'Nº orden', 'Categoría', 'Nº remito', 'F. remito', 'Tipo', 'Cliente', 'Destino',
+    $encabezados = ['Lote', 'Nº orden', 'Categoría', 'Nº remito', 'F. remito', 'Tipo', 'Cliente', 'Teléfono', 'Destino',
                     'm³', 'Valor declarado', 'Ítems', 'Estado', 'F. ingreso'];
     $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:M1')->getFont()->setBold(true);
+    $sheet->getStyle('A1:N1')->getFont()->setBold(true);
 
     $fila = 2;
     foreach ($rows as $o) {
@@ -68,15 +68,16 @@ if (($_GET['export'] ?? '') === 'xlsx') {
         $sheet->setCellValue('E' . $fila, (string)($o['fecha_remito'] ?? ''));
         $sheet->setCellValue('F' . $fila, (string)($o['tipo_venta'] ?? ''));
         $sheet->setCellValue('G' . $fila, (string)($o['cliente'] ?? ''));
-        $sheet->setCellValue('H' . $fila, rep_destino($o));
-        $sheet->setCellValue('I' . $fila, (float)($o['m3_total'] ?? 0));
-        $sheet->setCellValue('J' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
-        $sheet->setCellValue('K' . $fila, (int)($o['cant_items'] ?? 0));
-        $sheet->setCellValue('L' . $fila, (string)($o['estado'] ?? ''));
-        $sheet->setCellValue('M' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
+        $sheet->setCellValueExplicit('H' . $fila, (string)($o['telefonos'] ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->setCellValue('I' . $fila, rep_destino($o));
+        $sheet->setCellValue('J' . $fila, (float)($o['m3_total'] ?? 0));
+        $sheet->setCellValue('K' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
+        $sheet->setCellValue('L' . $fila, (int)($o['cant_items'] ?? 0));
+        $sheet->setCellValue('M' . $fila, (string)($o['estado'] ?? ''));
+        $sheet->setCellValue('N' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
         $fila++;
     }
-    foreach (range('A', 'M') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+    foreach (range('A', 'N') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

@@ -425,7 +425,7 @@ final class Orden
         $offset = max(0, $offset);
 
         $sql = 'SELECT o.id, o.carga_id, o.nro_orden, o.nro_remito, o.fecha_remito, o.tipo_venta,
-                       o.cliente, o.dest_provincia, o.dest_localidad, o.m3_total,
+                       o.cliente, o.telefonos, o.dest_provincia, o.dest_localidad, o.m3_total,
                        o.valor_declarado, o.estado, o.created_at AS fecha_ingreso,
                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items,
                        (SELECT cat.nombre FROM cargas cg JOIN categorias cat ON cat.id = cg.categoria_id

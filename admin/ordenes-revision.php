@@ -57,7 +57,7 @@ panel_header('Revisión OCR', $user, 'captura',
     <table class="table mb-0" id="tabla">
       <thead><tr>
         <th style="width:26px"></th>
-        <th>Nº orden</th><th>Nº remito</th><th>Cliente</th><th>Destino</th>
+        <th>Nº orden</th><th>Nº remito</th><th>Cliente</th><th>Teléfono</th><th>Destino</th>
         <th style="width:96px">Tipo</th><th style="width:70px">m³</th><th style="width:54px">Ítems</th><th style="width:110px">Valor</th><th style="width:34px"></th>
       </tr></thead>
       <tbody id="tbody"></tbody>
@@ -104,6 +104,7 @@ function render(){
       <td>${inp(i,'nro_orden',o.nro_orden||'', errOrden?'cell-err':'')}</td>
       <td>${inp(i,'nro_remito',o.nro_remito||'')}</td>
       <td>${inp(i,'cliente',o.cliente||'')}</td>
+      <td>${inp(i,'telefonos',o.telefonos||'')}</td>
       <td><div class="d-flex flex-column gap-1">${inp(i,'dest_localidad',o.dest_localidad||'')}${inp(i,'dest_provincia',o.dest_provincia||'', warnDest?'cell-warn':'')}</div></td>
       <td><select class="cell-edit" data-i="${i}" data-f="tipo_venta">
           <option value="" ${tv===''?'selected':''}>—</option>
