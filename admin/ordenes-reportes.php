@@ -95,12 +95,13 @@ if (($_GET['export'] ?? '') === 'facturacion') {
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Facturación');
 
-    $encabezados = ['Categoría', 'Tipo', 'Provincia', 'm³', 'Valor declarado', 'Ítems'];
+    $encabezados = ['Categoría', 'Tipo', 'Provincia', 'Órdenes', 'm³', 'Valor declarado', 'Ítems'];
     $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+    $sheet->getStyle('A1:G1')->getFont()->setBold(true);
 
     $tvLabel  = ['online' => 'Online', 'local' => 'Local'];
     $fila     = 2;
+    $totOrd   = 0;
     $totM3    = 0.0;
     $totVal   = 0.0;
     $totItems = 0;
@@ -108,21 +109,24 @@ if (($_GET['export'] ?? '') === 'facturacion') {
         $sheet->setCellValue('A' . $fila, (string)($r['categoria'] ?? ''));
         $sheet->setCellValue('B' . $fila, $tvLabel[(string)($r['tipo'] ?? '')] ?? '—');
         $sheet->setCellValue('C' . $fila, (string)($r['provincia'] ?? '') !== '' ? (string)$r['provincia'] : '(sin provincia)');
-        $sheet->setCellValue('D' . $fila, (float)($r['m3'] ?? 0));
-        $sheet->setCellValue('E' . $fila, (float)($r['valor'] ?? 0));
-        $sheet->setCellValue('F' . $fila, (int)($r['items'] ?? 0));
+        $sheet->setCellValue('D' . $fila, (int)($r['ordenes'] ?? 0));
+        $sheet->setCellValue('E' . $fila, (float)($r['m3'] ?? 0));
+        $sheet->setCellValue('F' . $fila, (float)($r['valor'] ?? 0));
+        $sheet->setCellValue('G' . $fila, (int)($r['items'] ?? 0));
+        $totOrd   += (int)($r['ordenes'] ?? 0);
         $totM3    += (float)($r['m3'] ?? 0);
         $totVal   += (float)($r['valor'] ?? 0);
         $totItems += (int)($r['items'] ?? 0);
         $fila++;
     }
     $sheet->setCellValue('A' . $fila, 'TOTAL');
-    $sheet->setCellValue('D' . $fila, $totM3);
-    $sheet->setCellValue('E' . $fila, $totVal);
-    $sheet->setCellValue('F' . $fila, $totItems);
-    $sheet->getStyle('A' . $fila . ':F' . $fila)->getFont()->setBold(true);
+    $sheet->setCellValue('D' . $fila, $totOrd);
+    $sheet->setCellValue('E' . $fila, $totM3);
+    $sheet->setCellValue('F' . $fila, $totVal);
+    $sheet->setCellValue('G' . $fila, $totItems);
+    $sheet->getStyle('A' . $fila . ':G' . $fila)->getFont()->setBold(true);
 
-    foreach (range('A', 'F') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+    foreach (range('A', 'G') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
