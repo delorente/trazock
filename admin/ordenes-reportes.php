@@ -187,13 +187,13 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
     <div style="overflow-x:auto">
       <table class="table table-hover mb-0">
         <thead><tr>
-          <th>Lote</th><th>Nº orden</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Destino</th><th>m³</th>
+          <th>Lote</th><th>Nº orden</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Destino</th><th>Teléfono</th><th>m³</th>
           <th>Tipo</th><th>F. remito</th><th>Nº remito</th><th>F. ingreso</th>
           <th>Estado</th><th class="no-print"></th>
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-          <tr><td colspan="12" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
+          <tr><td colspan="13" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
         <?php else: foreach ($ordenes as $o):
             $tv = (string)($o['tipo_venta'] ?? '');
         ?>
@@ -203,6 +203,7 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
             <td style="font-size:13px"><?= h((string)($o['categoria'] ?? '—')) ?></td>
             <td style="text-align:center"><?= (int)($o['cant_items'] ?? 0) ?></td>
             <td style="font-size:13px"><?= h(rep_destino($o)) ?></td>
+            <td style="font-size:12px;color:var(--muted)"><?= h((string)($o['telefonos'] ?? '') !== '' ? (string)$o['telefonos'] : '—') ?></td>
             <td><?= number_format((float)($o['m3_total'] ?? 0), 2, ',', '.') ?></td>
             <td><?php if ($tv !== ''): ?><span class="badge b-<?= h(strtoupper($tv)) ?>"><?= h(ucfirst($tv)) ?></span><?php else: ?>—<?php endif; ?></td>
             <td style="color:var(--muted)"><?= h(($o['fecha_remito'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_remito'])) : '—') ?></td>
