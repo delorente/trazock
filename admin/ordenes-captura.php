@@ -47,9 +47,9 @@ panel_header('Nueva carga', $user, 'captura',
       <label class="upload-zone d-block mb-0" for="fileInput" id="dropZone">
         <i class="bi bi-camera-fill uz-icon"></i>
         <div style="font-size:14px;font-weight:600;margin-bottom:.25rem">Tomar foto o subir hoja</div>
-        <p class="text-muted" style="font-size:12px;margin:0">JPG · PNG &nbsp;·&nbsp; podés seleccionar varias</p>
+        <p class="text-muted" style="font-size:12px;margin:0">JPG · PNG · PDF &nbsp;·&nbsp; podés seleccionar varias</p>
       </label>
-      <input type="file" id="fileInput" accept="image/*" capture="environment" multiple class="d-none">
+      <input type="file" id="fileInput" accept="image/*,application/pdf" multiple class="d-none">
       <p class="text-muted" style="font-size:12px;text-align:center;margin-top:.75rem;margin-bottom:0">Agregá las hojas (de a una o varias). Cuando estén todas, tocá <strong>Procesar</strong>.</p>
     </div>
 
@@ -108,12 +108,13 @@ let procesando = false;
 function encolar(files) {
   sheetWrap.classList.remove('d-none');
   for (const f of files) {
-    if (!f.type.startsWith('image/')) continue;
+    const esPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+    if (!f.type.startsWith('image/') && !esPdf) continue;
     const id = nextId++;
     const row = document.createElement('div');
     row.className = 'sheet-item';
     row.dataset.id = id;
-    row.innerHTML = `<div class="sheet-thumb"><i class="bi bi-image"></i></div>
+    row.innerHTML = `<div class="sheet-thumb"><i class="bi ${esPdf ? 'bi-file-earmark-pdf' : 'bi-image'}"></i></div>
       <div class="sheet-info"><div class="sheet-name">${esc(f.name)}</div>
         <div class="sheet-meta">En espera</div></div>
       <button type="button" class="btn btn-sm btn-link text-muted p-0 ms-2" data-del="${id}" title="Quitar"><i class="bi bi-x-lg"></i></button>`;

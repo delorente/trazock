@@ -49,20 +49,34 @@ REGLAS CRÍTICAS:
 TXT;
 
     /**
-     * Extrae las órdenes de una imagen de hoja resumen.
+     * Extrae las órdenes de una hoja resumen: imagen (jpeg/png) o PDF (una o
+     * varias páginas). El PDF se manda nativo como bloque `document` (Claude lee
+     * cada página); la imagen se normaliza a JPEG con GD.
      *
-     * @param string $imagen Bytes binarios de la imagen (jpeg/png).
+     * @param string $bytes Bytes binarios del archivo subido.
      * @return array{ordenes: array<int, array<string, mixed>>}
      * @throws RuntimeException
      */
-    public static function extraerHoja(string $imagen): array
+    public static function extraerHoja(string $bytes): array
     {
         if (!defined('ANTHROPIC_API_KEY') || ANTHROPIC_API_KEY === '') {
             throw new RuntimeException('Falta ANTHROPIC_API_KEY en config.php.');
         }
         $modelo = (defined('ANTHROPIC_MODEL') && ANTHROPIC_MODEL !== '') ? ANTHROPIC_MODEL : 'claude-sonnet-4-6';
 
-        $jpeg = self::normalizarImagen($imagen);
+        // %PDF en los primeros bytes → documento PDF (puede ser multipágina).
+        if (strncmp($bytes, '%PDF', 4) === 0) {
+            $fuente = ['type' => 'document', 'source' => [
+                'type' => 'base64', 'media_type' => 'application/pdf', 'data' => base64_encode($bytes),
+            ]];
+            $instruccion = 'Extraé TODAS las órdenes de este documento (puede tener varias páginas u hojas), con sus ítems.';
+        } else {
+            $jpeg = self::normalizarImagen($bytes);
+            $fuente = ['type' => 'image', 'source' => [
+                'type' => 'base64', 'media_type' => 'image/jpeg', 'data' => base64_encode($jpeg),
+            ]];
+            $instruccion = 'Extraé TODAS las órdenes de esta hoja resumen, con sus ítems.';
+        }
 
         $body = [
             'model'      => $modelo,
@@ -71,10 +85,8 @@ TXT;
             'messages'   => [[
                 'role'    => 'user',
                 'content' => [
-                    ['type' => 'image', 'source' => [
-                        'type' => 'base64', 'media_type' => 'image/jpeg', 'data' => base64_encode($jpeg),
-                    ]],
-                    ['type' => 'text', 'text' => 'Extraé TODAS las órdenes de esta hoja resumen, con sus ítems.'],
+                    $fuente,
+                    ['type' => 'text', 'text' => $instruccion],
                 ],
             ]],
             'output_config' => ['format' => ['type' => 'json_schema', 'schema' => self::esquema()]],
