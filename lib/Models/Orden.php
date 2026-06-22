@@ -398,12 +398,13 @@ final class Orden
             $where[] = 'o.tipo_venta = :tv';
             $params[':tv'] = $f['tipo_venta'];
         }
+        // Fecha de CARGA (ingreso de la orden al sistema), no la del remito.
         if (!empty($f['fecha_desde'])) {
-            $where[] = 'o.fecha_remito >= :fd';
+            $where[] = 'DATE(o.created_at) >= :fd';
             $params[':fd'] = $f['fecha_desde'];
         }
         if (!empty($f['fecha_hasta'])) {
-            $where[] = 'o.fecha_remito <= :fh';
+            $where[] = 'DATE(o.created_at) <= :fh';
             $params[':fh'] = $f['fecha_hasta'];
         }
 

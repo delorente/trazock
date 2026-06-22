@@ -205,8 +205,8 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
         <option value="local"  <?= $filtros['tipo_venta'] === 'local'  ? 'selected' : '' ?>>Local</option>
       </select>
     </div>
-    <div><label class="form-label">F. remito desde</label><input type="date" class="form-control form-control-sm" name="fecha_desde" value="<?= h($filtros['fecha_desde']) ?>"></div>
-    <div><label class="form-label">F. remito hasta</label><input type="date" class="form-control form-control-sm" name="fecha_hasta" value="<?= h($filtros['fecha_hasta']) ?>"></div>
+    <div><label class="form-label">F. carga desde</label><input type="date" class="form-control form-control-sm" name="fecha_desde" value="<?= h($filtros['fecha_desde']) ?>"></div>
+    <div><label class="form-label">F. carga hasta</label><input type="date" class="form-control form-control-sm" name="fecha_hasta" value="<?= h($filtros['fecha_hasta']) ?>"></div>
   </div>
   <div class="d-flex gap-2 flex-wrap" style="max-width:520px">
     <div class="input-group input-group-sm" style="flex:1;min-width:200px">
