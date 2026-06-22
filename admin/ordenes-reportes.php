@@ -87,6 +87,51 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     exit;
 }
 
+// --- Modo export Facturación: resumen agregado por provincia -----------------
+if (($_GET['export'] ?? '') === 'facturacion') {
+    $rows = Orden::resumenFacturacion($filtros);
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Facturación');
+
+    $encabezados = ['Categoría', 'Tipo', 'Provincia', 'm³', 'Valor declarado', 'Ítems'];
+    $sheet->fromArray($encabezados, null, 'A1');
+    $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+
+    $tvLabel  = ['online' => 'Online', 'local' => 'Local'];
+    $fila     = 2;
+    $totM3    = 0.0;
+    $totVal   = 0.0;
+    $totItems = 0;
+    foreach ($rows as $r) {
+        $sheet->setCellValue('A' . $fila, (string)($r['categoria'] ?? ''));
+        $sheet->setCellValue('B' . $fila, $tvLabel[(string)($r['tipo'] ?? '')] ?? '—');
+        $sheet->setCellValue('C' . $fila, (string)($r['provincia'] ?? '') !== '' ? (string)$r['provincia'] : '(sin provincia)');
+        $sheet->setCellValue('D' . $fila, (float)($r['m3'] ?? 0));
+        $sheet->setCellValue('E' . $fila, (float)($r['valor'] ?? 0));
+        $sheet->setCellValue('F' . $fila, (int)($r['items'] ?? 0));
+        $totM3    += (float)($r['m3'] ?? 0);
+        $totVal   += (float)($r['valor'] ?? 0);
+        $totItems += (int)($r['items'] ?? 0);
+        $fila++;
+    }
+    $sheet->setCellValue('A' . $fila, 'TOTAL');
+    $sheet->setCellValue('D' . $fila, $totM3);
+    $sheet->setCellValue('E' . $fila, $totVal);
+    $sheet->setCellValue('F' . $fila, $totItems);
+    $sheet->getStyle('A' . $fila . ':F' . $fila)->getFont()->setBold(true);
+
+    foreach (range('A', 'F') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+
+    if (ob_get_length()) { ob_end_clean(); }
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="facturacion_' . date('Ymd_His') . '.xlsx"');
+    header('Cache-Control: max-age=0');
+    (new Xlsx($spreadsheet))->save('php://output');
+    exit;
+}
+
 // --- Modo página -------------------------------------------------------------
 require __DIR__ . '/_layout.php';
 
@@ -108,6 +153,7 @@ $qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== ''));
 $acciones =
     '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-productos.php') . ($qsBase ? '?' . $qsBase : '')) . '"><i class="bi bi-box-seam me-1"></i>Por productos</a>'
     . '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?') . 'export=xlsx') . '"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>'
+    . '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?') . 'export=facturacion') . '"><i class="bi bi-cash-coin me-1"></i>Facturación</a>'
     . '<button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>';
 
 panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · armado de rutas', $acciones);

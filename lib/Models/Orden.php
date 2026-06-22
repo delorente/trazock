@@ -479,6 +479,42 @@ final class Orden
     }
 
     /**
+     * Resumen para facturación: sobre las órdenes filtradas, agrupa por
+     * (categoría, tipo, provincia) y suma m³, valor declarado e ítems. Se usa una
+     * subconsulta para el conteo de ítems por orden y así no multiplicar m³/valor
+     * al sumar. Una fila por combinación; ordenado por provincia.
+     *
+     * @param array<string, mixed> $filtros
+     * @return array<int, array<string, mixed>>
+     */
+    public static function resumenFacturacion(array $filtros): array
+    {
+        [$where, $params] = self::whereFiltros($filtros);
+        $sql = "SELECT categoria, tipo, provincia,
+                       COALESCE(SUM(m3_total), 0)        AS m3,
+                       COALESCE(SUM(valor_declarado), 0) AS valor,
+                       COALESCE(SUM(items), 0)           AS items,
+                       COUNT(*)                          AS ordenes
+                FROM (
+                    SELECT
+                        COALESCE((SELECT cat.nombre FROM cargas cg
+                                    JOIN categorias cat ON cat.id = cg.categoria_id
+                                   WHERE cg.id = o.carga_id), '(sin categoría)') AS categoria,
+                        COALESCE(o.tipo_venta, '')      AS tipo,
+                        COALESCE(o.dest_provincia, '')  AS provincia,
+                        o.m3_total,
+                        o.valor_declarado,
+                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS items
+                    FROM ordenes o" . $where . "
+                ) t
+                GROUP BY categoria, tipo, provincia
+                ORDER BY provincia ASC, categoria ASC, tipo ASC";
+        $stmt = DB::getInstance()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Provincias de destino distintas presentes en las órdenes (para el filtro).
      *
      * @return array<int, string>
