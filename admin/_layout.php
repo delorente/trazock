@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 use Trazock\Auth;
 use Trazock\Models\Conflicto;
+use Trazock\Models\Encuesta;
 
 /**
  * Menú del panel. Cada ítem declara qué roles lo ven y un ícono de Bootstrap Icons.
@@ -35,6 +36,7 @@ function panel_menu(): array
             'items'   => [
                 ['key' => 'captura',  'label' => 'Nueva carga', 'href' => 'ordenes-captura.php', 'icon' => 'cloud-upload-fill', 'roles' => ['admin']],
                 ['key' => 'reportes', 'label' => 'Reportes',    'href' => 'ordenes-reportes.php', 'icon' => 'bar-chart-fill', 'roles' => ['admin', 'gestor']],
+                ['key' => 'encuestas','label' => 'Encuestas',   'href' => 'encuestas.php',       'icon' => 'emoji-smile-fill', 'roles' => ['admin', 'gestor'], 'encuesta' => true],
             ],
         ],
         [
@@ -66,6 +68,7 @@ function panel_header(string $titulo, array $user, string $activo = '', string $
 {
     $rol         = (string)$user['rol'];
     $nConflictos = Conflicto::totalPendientes();
+    $nEncuestas  = Encuesta::total();
     ?>
 <!doctype html>
 <html lang="es">
@@ -105,6 +108,9 @@ function panel_header(string $titulo, array $user, string $activo = '', string $
                     <i class="bi bi-<?= h($it['icon']) ?>"></i><?= h($it['label']) ?>
                     <?php if (!empty($it['conflicto']) && $nConflictos > 0): ?>
                         <span class="badge b-conflict ms-auto"><?= (int)$nConflictos ?></span>
+                    <?php endif; ?>
+                    <?php if (!empty($it['encuesta']) && $nEncuestas > 0): ?>
+                        <span class="badge b-activo ms-auto"><?= (int)$nEncuestas ?></span>
                     <?php endif; ?>
                 </a>
             <?php endforeach; ?>

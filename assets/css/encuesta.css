@@ -1,0 +1,113 @@
+/* =============================================================================
+ * encuesta.css — Encuesta de satisfacción embebida en el seguimiento público.
+ *
+ * Portado del prototipo (design/project/Encuesta Trazock.html), prefijo .enc-
+ * para no chocar con las clases .seg- del seguimiento ni .tz- del panel. Tema
+ * claro, alineado a la paleta del seguimiento (azul #0d6efd / verde #22c55e).
+ * ========================================================================== */
+
+.enc-card{
+    background:#fff;border:1px solid #e5e7eb;border-radius:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);
+    overflow:hidden;position:relative;margin-top:1rem;
+}
+
+/* ── Progreso ── */
+.enc-progress{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:20px}
+.enc-pd{width:6px;height:6px;border-radius:3px;background:#e5e7eb;transition:width .25s,background .2s}
+.enc-pd.active{width:22px;background:#0d6efd}
+.enc-pd.done{width:6px;background:#22c55e}
+
+/* ── Vistas ── */
+.enc-view{display:none}
+.enc-view.on{display:block}
+.enc-inner{padding:1.5rem 1.4rem}
+
+/* ── Títulos ── */
+.enc-title{font-size:1.25rem;font-weight:700;letter-spacing:-.02em;line-height:1.2;margin:0 0 .4rem;text-align:center}
+.enc-sub{font-size:.92rem;color:#4b5563;line-height:1.5;margin:0 0 1.3rem;text-align:center}
+.enc-h2{font-size:1.05rem;font-weight:700;letter-spacing:-.02em;margin:0 0 .2rem}
+.enc-h2-sub{font-size:.82rem;color:#4b5563;margin:0 0 1.2rem}
+
+/* ── Grilla de caritas grande (paso 1) ── */
+.enc-eg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.enc-eb{
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    padding:14px 6px 12px;border-radius:14px;
+    border:2px solid #e5e7eb;background:#f6f7f9;
+    cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:inherit;
+    transition:border-color .15s,background .15s,transform .12s,box-shadow .15s;
+}
+.enc-eb:hover{border-color:#0d6efd;background:#e7f1ff;transform:translateY(-2px)}
+.enc-eb.sel{border-color:#0d6efd;background:#e7f1ff;box-shadow:0 0 0 3px rgba(13,110,253,.18)}
+.enc-eb .em{font-size:2rem;line-height:1}
+.enc-eb .lb{font-size:.68rem;font-weight:500;color:#4b5563;text-align:center}
+
+/* ── Aspectos (paso 2) ── */
+.enc-aspect{margin-bottom:18px}
+.enc-aspect-label{font-size:.82rem;font-weight:600;color:#1f2937;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.enc-aspect-label i{color:#9ca3af;font-size:.85rem}
+
+/* ── Grilla de caritas chica ── */
+.enc-egs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.enc-ebs{
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    padding:8px 4px 7px;border-radius:10px;
+    border:1.5px solid #e5e7eb;background:#f6f7f9;
+    cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:inherit;
+    transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.enc-ebs:hover{border-color:#0d6efd;background:#e7f1ff}
+.enc-ebs.sel{border-color:#0d6efd;background:#e7f1ff;box-shadow:0 0 0 2px rgba(13,110,253,.18)}
+.enc-ebs .em{font-size:1.25rem;line-height:1}
+.enc-ebs .lb{font-size:.62rem;font-weight:500;color:#4b5563;text-align:center}
+
+/* ── Separador / comentario ── */
+.enc-div{height:1px;background:#e5e7eb;margin:18px 0}
+.enc-lbl{font-size:.72rem;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;display:block}
+.enc-ta{
+    width:100%;min-height:80px;padding:12px 14px;border-radius:10px;
+    border:1.5px solid #e5e7eb;background:#f6f7f9;
+    font-family:inherit;font-size:.92rem;color:#1f2937;
+    resize:vertical;outline:none;line-height:1.5;
+    transition:border-color .15s,background .15s;
+}
+.enc-ta:focus{border-color:#0d6efd;background:#fff}
+.enc-ta::placeholder{color:#9ca3af}
+
+/* ── Botón enviar ── */
+.enc-btn{
+    width:100%;padding:13px;border-radius:12px;border:none;
+    background:#0d6efd;color:#fff;font-family:inherit;font-size:.98rem;font-weight:700;
+    cursor:pointer;margin-top:18px;
+    transition:background .15s,transform .1s,opacity .15s;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.enc-btn:hover{background:#0b5ed7;transform:translateY(-1px)}
+.enc-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* ── Error inline ── */
+.enc-err{display:none;margin-top:12px;font-size:.85rem;color:#b91c1c;text-align:center}
+.enc-err.on{display:block}
+
+/* ── Gracias ── */
+.enc-celebrate-bar{height:4px;background:linear-gradient(90deg,#0d6efd,#f59e0b,#22c55e)}
+.enc-ty-inner{padding:2rem 1.4rem 1.8rem;text-align:center}
+.enc-ty-ic{
+    width:72px;height:72px;border-radius:50%;background:rgba(34,197,94,.15);
+    display:flex;align-items:center;justify-content:center;font-size:2.2rem;
+    margin:0 auto 1rem;border:2px solid rgba(34,197,94,.25);
+}
+.enc-ty-title{font-size:1.3rem;font-weight:700;letter-spacing:-.02em;margin:0 0 .4rem}
+.enc-ty-sub{font-size:.92rem;color:#4b5563;line-height:1.5;max-width:32ch;margin:0 auto}
+.enc-summary{background:#f6f7f9;border-radius:12px;padding:14px 16px;margin-top:1.2rem;display:flex;flex-direction:column;gap:9px;text-align:left}
+.enc-sr{display:flex;align-items:center;justify-content:space-between;font-size:.85rem}
+.enc-sr-lbl{color:#4b5563}
+.enc-sr-val{font-weight:600;color:#1f2937}
+.enc-sr-divider{height:1px;background:#e5e7eb}
+
+@media(max-width:380px){
+    .enc-eb .em{font-size:1.6rem}
+    .enc-title{font-size:1.1rem}
+    .enc-inner{padding:1.2rem 1.1rem}
+}

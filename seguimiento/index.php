@@ -17,6 +17,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../lib/bootstrap.php';
 
+use Trazock\Auth;
+use Trazock\Models\Encuesta;
 use Trazock\Models\EstadoPublico;
 use Trazock\Models\Orden;
 use Trazock\Models\Producto;
@@ -34,7 +36,7 @@ $ICONOS = [
 ];
 
 /** Cabecera HTML del tema claro público (independiente del panel oscuro). */
-function seg_head(string $titulo): void
+function seg_head(string $titulo, string $extraHead = ''): void
 {
     ?>
 <!doctype html>
@@ -85,6 +87,7 @@ function seg_head(string $titulo): void
         .seg-btn:hover{background:#0b5ed7}
         .seg-note{font-size:.8rem;color:#9ca3af;text-align:center;margin-top:.9rem}
     </style>
+    <?= $extraHead ?>
 </head>
 <body>
 <div class="seg-wrap">
@@ -193,6 +196,195 @@ function seg_form(?string $valor = null): void
     <?php
 }
 
+/** Emoji + etiqueta de un nivel 1-4 de la encuesta (para resúmenes server-side). */
+function enc_nivel(int $v): string
+{
+    $em = ['', '😞', '😐', '😊', '😃'];
+    $lb = ['', 'Muy malo', 'Regular', 'Bueno', 'Excelente'];
+    return isset($em[$v]) && $v >= 1 ? $em[$v] . ' ' . $lb[$v] : '—';
+}
+
+/**
+ * Encuesta de satisfacción embebida (3 pasos). Se muestra solo cuando la orden
+ * está ENTREGADO y aún no fue respondida. Envía por fetch al endpoint público.
+ */
+function seg_encuesta_form(string $nroOrden, string $csrf): void
+{
+    $aspectos = [
+        'tiempo'  => ['Tiempo de entrega',   'clock'],
+        'paquete' => ['Estado del paquete',  'box-seam'],
+        'trato'   => ['Trato del repartidor', 'person-check'],
+    ];
+    ?>
+    <div class="enc-card" id="encCard">
+        <!-- Paso 1: calificación general -->
+        <div class="enc-view on" id="encV1">
+            <div class="enc-inner">
+                <div class="enc-progress"><div class="enc-pd active"></div><div class="enc-pd"></div></div>
+                <div class="enc-title">¿Cómo fue tu experiencia?</div>
+                <div class="enc-sub">Contanos cómo resultó la entrega de tu pedido. Tu opinión nos ayuda a mejorar el servicio.</div>
+                <div class="enc-eg" id="encGeneral">
+                    <button type="button" class="enc-eb" data-v="1"><span class="em">😞</span><span class="lb">Muy malo</span></button>
+                    <button type="button" class="enc-eb" data-v="2"><span class="em">😐</span><span class="lb">Regular</span></button>
+                    <button type="button" class="enc-eb" data-v="3"><span class="em">😊</span><span class="lb">Bueno</span></button>
+                    <button type="button" class="enc-eb" data-v="4"><span class="em">😃</span><span class="lb">Excelente</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paso 2: aspectos + comentario -->
+        <div class="enc-view" id="encV2">
+            <div class="enc-inner">
+                <div class="enc-progress"><div class="enc-pd done"></div><div class="enc-pd active"></div></div>
+                <div class="enc-h2">Contanos un poco más</div>
+                <div class="enc-h2-sub">Calificá cada aspecto de la entrega</div>
+                <?php foreach ($aspectos as $key => [$label, $icono]): ?>
+                <div class="enc-aspect">
+                    <div class="enc-aspect-label"><i class="bi bi-<?= h($icono) ?>"></i><?= h($label) ?></div>
+                    <div class="enc-egs" data-aspect="<?= h($key) ?>">
+                        <button type="button" class="enc-ebs" data-v="1"><span class="em">😞</span><span class="lb">Muy malo</span></button>
+                        <button type="button" class="enc-ebs" data-v="2"><span class="em">😐</span><span class="lb">Regular</span></button>
+                        <button type="button" class="enc-ebs" data-v="3"><span class="em">😊</span><span class="lb">Bueno</span></button>
+                        <button type="button" class="enc-ebs" data-v="4"><span class="em">😃</span><span class="lb">Excelente</span></button>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+
+                <div class="enc-div"></div>
+                <label class="enc-lbl" for="encComentario">Comentario <span style="font-weight:400;letter-spacing:0;text-transform:none;color:#9ca3af">(opcional)</span></label>
+                <textarea class="enc-ta" id="encComentario" maxlength="1000" placeholder="¿Querés contarnos algo más? Cualquier detalle nos ayuda a mejorar."></textarea>
+
+                <div class="enc-err" id="encError"></div>
+                <button type="button" class="enc-btn" id="encSubmit"><i class="bi bi-send-fill" style="font-size:.8rem"></i>Enviar calificación</button>
+            </div>
+        </div>
+
+        <!-- Paso 3: gracias -->
+        <div class="enc-view" id="encV3">
+            <div class="enc-celebrate-bar"></div>
+            <div class="enc-ty-inner">
+                <div class="enc-ty-ic" id="encTyIc">😊</div>
+                <div class="enc-ty-title">¡Gracias por tu opinión!</div>
+                <div class="enc-ty-sub">Tu calificación nos ayuda a mejorar el servicio de entrega.</div>
+                <div class="enc-summary">
+                    <div class="enc-sr"><span class="enc-sr-lbl">Satisfacción general</span><span class="enc-sr-val" id="encTyGen">—</span></div>
+                    <div class="enc-sr-divider"></div>
+                    <div class="enc-sr"><span class="enc-sr-lbl">Tiempo de entrega</span><span class="enc-sr-val" id="encTyTpo">—</span></div>
+                    <div class="enc-sr"><span class="enc-sr-lbl">Estado del paquete</span><span class="enc-sr-val" id="encTyPkg">—</span></div>
+                    <div class="enc-sr"><span class="enc-sr-lbl">Trato del repartidor</span><span class="enc-sr-val" id="encTyTrt">—</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function(){
+        const EMOJIS = ['','😞','😐','😊','😃'];
+        const LABELS = ['','Muy malo','Regular','Bueno','Excelente'];
+        const ENDPOINT = <?= json_encode(url('api/encuesta-enviar.php')) ?>;
+        const NRO = <?= json_encode($nroOrden) ?>;
+        const CSRF = <?= json_encode($csrf) ?>;
+        const ratings = {general:0, tiempo:0, paquete:0, trato:0};
+        let sending = false;
+
+        function show(n){
+            document.querySelectorAll('#encCard .enc-view').forEach(v => v.classList.remove('on'));
+            document.getElementById('encV'+n).classList.add('on');
+            document.getElementById('encCard').scrollIntoView({behavior:'smooth', block:'start'});
+        }
+        function fmt(v){ return v ? EMOJIS[v]+' '+LABELS[v] : '—'; }
+
+        // Paso 1: calificación general → avanza a paso 2.
+        document.querySelectorAll('#encGeneral .enc-eb').forEach(b => b.addEventListener('click', function(){
+            ratings.general = +b.dataset.v;
+            document.querySelectorAll('#encGeneral .enc-eb').forEach(x => x.classList.toggle('sel', x === b));
+            setTimeout(() => show(2), 320);
+        }));
+
+        // Paso 2: aspectos.
+        document.querySelectorAll('#encV2 .enc-egs').forEach(grid => {
+            const aspecto = grid.dataset.aspect;
+            grid.querySelectorAll('.enc-ebs').forEach(b => b.addEventListener('click', function(){
+                ratings[aspecto] = +b.dataset.v;
+                grid.querySelectorAll('.enc-ebs').forEach(x => x.classList.toggle('sel', x === b));
+                document.getElementById('encError').classList.remove('on');
+            }));
+        });
+
+        // Envío.
+        document.getElementById('encSubmit').addEventListener('click', async function(){
+            if (sending) return;
+            const err = document.getElementById('encError');
+            if (!ratings.tiempo || !ratings.paquete || !ratings.trato){
+                err.textContent = 'Calificá los tres aspectos antes de enviar.';
+                err.classList.add('on');
+                return;
+            }
+            sending = true;
+            this.disabled = true;
+            err.classList.remove('on');
+            try {
+                const res = await fetch(ENDPOINT, {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({
+                        csrf_token: CSRF, orden: NRO,
+                        general: ratings.general, tiempo: ratings.tiempo,
+                        paquete: ratings.paquete, trato: ratings.trato,
+                        comentario: document.getElementById('encComentario').value.trim()
+                    })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.ok){
+                    throw new Error(data.error || 'No pudimos registrar tu calificación.');
+                }
+                document.getElementById('encTyIc').textContent  = EMOJIS[ratings.general] || '😊';
+                document.getElementById('encTyGen').textContent = fmt(ratings.general);
+                document.getElementById('encTyTpo').textContent = fmt(ratings.tiempo);
+                document.getElementById('encTyPkg').textContent = fmt(ratings.paquete);
+                document.getElementById('encTyTrt').textContent = fmt(ratings.trato);
+                show(3);
+            } catch(e){
+                err.textContent = e.message || 'No pudimos registrar tu calificación. Probá de nuevo.';
+                err.classList.add('on');
+                sending = false;
+                this.disabled = false;
+            }
+        });
+    })();
+    </script>
+    <?php
+}
+
+/** Resumen "ya respondiste" (cuando la orden ya tiene encuesta). */
+function seg_encuesta_gracias(array $e): void
+{
+    ?>
+    <div class="enc-card">
+        <div class="enc-celebrate-bar"></div>
+        <div class="enc-ty-inner">
+            <div class="enc-ty-ic"><?= h(['', '😞', '😐', '😊', '😃'][(int)$e['general']] ?? '😊') ?></div>
+            <div class="enc-ty-title">¡Gracias por tu opinión!</div>
+            <div class="enc-ty-sub">Ya recibimos tu calificación de esta entrega.</div>
+            <div class="enc-summary">
+                <div class="enc-sr"><span class="enc-sr-lbl">Satisfacción general</span><span class="enc-sr-val"><?= h(enc_nivel((int)$e['general'])) ?></span></div>
+                <div class="enc-sr-divider"></div>
+                <div class="enc-sr"><span class="enc-sr-lbl">Tiempo de entrega</span><span class="enc-sr-val"><?= h(enc_nivel((int)$e['tiempo'])) ?></span></div>
+                <div class="enc-sr"><span class="enc-sr-lbl">Estado del paquete</span><span class="enc-sr-val"><?= h(enc_nivel((int)$e['paquete'])) ?></span></div>
+                <div class="enc-sr"><span class="enc-sr-lbl">Trato del repartidor</span><span class="enc-sr-val"><?= h(enc_nivel((int)$e['trato'])) ?></span></div>
+                <?php if (!empty($e['comentario'])): ?>
+                    <div class="enc-sr-divider"></div>
+                    <div class="enc-sr" style="flex-direction:column;align-items:flex-start;gap:4px">
+                        <span class="enc-sr-lbl">Tu comentario</span>
+                        <span style="font-size:.85rem;color:#1f2937"><?= h((string)$e['comentario']) ?></span>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <?php
+}
+
 // =============================================================================
 // Despacho: ?t=<token> → ítem (compat); si no, por Nº de orden (flujo principal).
 // =============================================================================
@@ -252,10 +444,38 @@ foreach (array_values(array_unique($candidatos)) as $cand) {
 }
 
 if ($orden !== null) {
-    // Estado público derivado de los ítems (sin per-step dates; muestra última act.).
-    $estado = Orden::estadoProductoDerivado((int)$orden['id']) ?? 'INGRESADO';
-    seg_head('Seguimiento ' . $num);
-    seg_card($estado, [], $orden['updated_at'] ?? null, $num, $ICONOS);
+    $ordenId = (int)$orden['id'];
+    // Estado público derivado de los ítems, con la fecha de cada paso del timeline.
+    $estado = Orden::estadoProductoDerivado($ordenId) ?? 'INGRESADO';
+    $fechas = Orden::fechasPorEstado($ordenId);
+
+    // Encuesta de satisfacción: solo con el pedido ENTREGADO.
+    $mostrarEncuesta = ($estado === 'ENTREGADO');
+    $encuestaPrevia  = null;
+    $csrfEncuesta    = '';
+    if ($mostrarEncuesta) {
+        $encuestaPrevia = Encuesta::findPorOrden($ordenId);
+        if ($encuestaPrevia === null) {
+            // Sesión pública solo para sembrar el token CSRF del envío.
+            Auth::iniciarSesion();
+            $csrfEncuesta = Auth::tokenCSRF();
+        }
+    }
+
+    $extraHead = $mostrarEncuesta
+        ? '<link rel="stylesheet" href="' . h(asset('assets/css/encuesta.css')) . '">'
+        : '';
+
+    seg_head('Seguimiento ' . $num, $extraHead);
+    seg_card($estado, $fechas, $orden['updated_at'] ?? null, $num, $ICONOS);
+
+    if ($mostrarEncuesta) {
+        if ($encuestaPrevia !== null) {
+            seg_encuesta_gracias($encuestaPrevia);
+        } else {
+            seg_encuesta_form($num, $csrfEncuesta);
+        }
+    }
     ?>
     <div class="seg-note"><a href="<?= h(url('seguimiento/')) ?>" style="color:#6b7280;text-decoration:none"><i class="bi bi-arrow-left me-1"></i>Buscar otro pedido</a></div>
     <?php

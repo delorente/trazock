@@ -425,3 +425,27 @@ CREATE TABLE IF NOT EXISTS `zona_localidades` (
 -- =============================================================================
 -- END: 007_zonas.sql
 -- =============================================================================
+
+-- =============================================================================
+-- BEGIN: 010_encuestas.sql — encuesta de satisfacción del comprador contra
+-- entrega (1 por orden; se responde desde el seguimiento cuando está ENTREGADO).
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `encuestas` (
+    `id`         INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+    `orden_id`   INT UNSIGNED     NOT NULL,
+    `general`    TINYINT UNSIGNED NOT NULL,
+    `tiempo`     TINYINT UNSIGNED NOT NULL,
+    `paquete`    TINYINT UNSIGNED NOT NULL,
+    `trato`      TINYINT UNSIGNED NOT NULL,
+    `comentario` VARCHAR(1000)    DEFAULT NULL,
+    `created_at` TIMESTAMP        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_encuesta_orden` (`orden_id`),
+    INDEX `idx_encuesta_general` (`general`),
+    INDEX `idx_encuesta_fecha` (`created_at`),
+    CONSTRAINT `fk_encuestas_orden`
+        FOREIGN KEY (`orden_id`) REFERENCES `ordenes` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- END: 010_encuestas.sql
+-- =============================================================================

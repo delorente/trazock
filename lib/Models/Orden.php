@@ -303,6 +303,29 @@ final class Orden
     }
 
     /**
+     * Primera vez (timestamp_cliente más antiguo) que la orden alcanzó cada estado,
+     * agregando sobre todos sus ítems e ignorando transiciones marcadas como
+     * conflicto. Lo usa el seguimiento público para fechar cada paso del timeline.
+     *
+     * @return array<string, string> estado => timestamp_cliente (UTC)
+     */
+    public static function fechasPorEstado(int $ordenId): array
+    {
+        $stmt = DB::getInstance()->prepare(
+            'SELECT t.estado_hasta, MIN(t.timestamp_cliente) AS fecha
+             FROM transiciones t JOIN productos p ON p.id = t.producto_id
+             WHERE p.orden_id = :id AND t.es_conflicto = 0
+             GROUP BY t.estado_hasta'
+        );
+        $stmt->execute([':id' => $ordenId]);
+        $out = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $out[(string)$row['estado_hasta']] = (string)$row['fecha'];
+        }
+        return $out;
+    }
+
+    /**
      * Recalcula y persiste `ordenes.estado` (vocabulario de orden: RECIBIDO en vez
      * de INGRESADO) a partir de los ítems. Lo invoca el ProcesadorLote al transicionar
      * productos de una orden.
