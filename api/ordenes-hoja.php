@@ -16,6 +16,7 @@ use Trazock\Auth;
 use Trazock\ExtractorOcr;
 use Trazock\Models\Carga;
 use Trazock\Models\Categoria;
+use Trazock\Models\Usuario;
 
 Api::exigirMetodo('POST');
 $user = Api::usuarioConRol(['admin', 'gestor']);
@@ -37,6 +38,21 @@ if ($bytes === false || $bytes === '') {
 
 $tipoVenta = in_array(($_POST['tipo_venta'] ?? ''), ['local', 'online'], true) ? (string)$_POST['tipo_venta'] : null;
 $cargaId   = (int)($_POST['carga_id'] ?? 0);
+
+// Datos clave POR DOCUMENTO (obligatorios): transportista que trajo la mercadería
+// y fecha de carga (≤ hoy). El HR lo extrae el OCR; estos dos los ingresa el usuario.
+$transportistaId = (int)($_POST['transportista_id'] ?? 0);
+if ($transportistaId <= 0 || !Usuario::existeActivoConRol($transportistaId, 'transportista')) {
+    Api::error('Elegí un transportista válido para este documento.', 400);
+}
+$fechaCarga = trim((string)($_POST['fecha_carga'] ?? ''));
+$d = \DateTimeImmutable::createFromFormat('!Y-m-d', $fechaCarga);
+if ($d === false || $d->format('Y-m-d') !== $fechaCarga) {
+    Api::error('Fecha de carga inválida.', 400);
+}
+if ($fechaCarga > date('Y-m-d')) {
+    Api::error('La fecha de carga no puede ser posterior a hoy.', 400);
+}
 
 // Categoría (línea de producto) de la carga: solo se fija al crearla.
 $categoriaId = (int)($_POST['categoria_id'] ?? 0);
@@ -63,11 +79,18 @@ try {
 }
 $nuevas = is_array($res['ordenes'] ?? null) ? $res['ordenes'] : [];
 
-// Estampar el tipo de venta de la carga en cada orden (editable luego en revisión).
-if ($tipoVenta !== null) {
-    foreach ($nuevas as &$o) { $o['tipo_venta'] = $tipoVenta; }
-    unset($o);
+// HR del documento (OCR) — puede venir null; el usuario lo completa en revisión.
+$hojaRuta = isset($res['hoja_ruta']) && $res['hoja_ruta'] !== null ? trim((string)$res['hoja_ruta']) : '';
+
+// Estampar en cada orden del documento: tipo de venta de la carga + los datos
+// clave de ESTE documento (HR, transportista, fecha). Todos editables luego.
+foreach ($nuevas as &$o) {
+    if ($tipoVenta !== null) { $o['tipo_venta'] = $tipoVenta; }
+    $o['hoja_ruta']        = $hojaRuta;
+    $o['transportista_id'] = $transportistaId;
+    $o['fecha_carga']      = $fechaCarga;
 }
+unset($o);
 
 // Acumular en el borrador de la carga.
 $c     = Carga::find($cargaId);

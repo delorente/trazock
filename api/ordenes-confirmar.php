@@ -39,6 +39,18 @@ if (!is_array($decoded) || !isset($decoded['ordenes']) || !is_array($decoded['or
     Api::error('Los datos a confirmar no son válidos.', 400);
 }
 
+// La hoja de ruta es obligatoria por orden (dato clave de ingreso). Defensa en
+// el servidor además del bloqueo en la planilla de revisión.
+$sinHR = 0;
+foreach ($decoded['ordenes'] as $o) {
+    if (trim((string)($o['hoja_ruta'] ?? '')) === '') {
+        $sinHR++;
+    }
+}
+if ($sinHR > 0) {
+    Api::error("Faltan {$sinHR} hoja(s) de ruta. Completá el Nº de hoja de ruta de cada orden antes de confirmar.", 400);
+}
+
 Carga::guardarDatos($cargaId, $datos);
 
 try {

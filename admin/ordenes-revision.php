@@ -57,7 +57,7 @@ panel_header('Revisión OCR', $user, 'captura',
     <table class="table mb-0" id="tabla">
       <thead><tr>
         <th style="width:26px"></th>
-        <th>Nº orden</th><th>Nº remito</th><th>Cliente</th><th>Teléfono</th><th>Destino</th>
+        <th>Nº orden</th><th>Nº remito</th><th style="width:120px">Hoja ruta</th><th>Cliente</th><th>Teléfono</th><th>Destino</th>
         <th style="width:96px">Tipo</th><th style="width:70px">m³</th><th style="width:54px">Ítems</th><th style="width:110px">Valor</th><th style="width:34px"></th>
       </tr></thead>
       <tbody id="tbody"></tbody>
@@ -93,6 +93,7 @@ function render(){
   tb.innerHTML = '';
   ORD.forEach((o, i) => {
     const errOrden = !String(o.nro_orden||'').trim();
+    const errHR    = !String(o.hoja_ruta||'').trim();
     const warnDest = !String(o.dest_provincia||'').trim();
     const sinItems = (o.items||[]).length === 0;
 
@@ -103,6 +104,7 @@ function render(){
       <td><button class="xbtn ${expandido.has(i)?'open':''}" data-exp="${i}"><i class="bi bi-chevron-${expandido.has(i)?'down':'right'}"></i></button></td>
       <td>${inp(i,'nro_orden',o.nro_orden||'', errOrden?'cell-err':'')}</td>
       <td>${inp(i,'nro_remito',o.nro_remito||'')}</td>
+      <td>${inp(i,'hoja_ruta',o.hoja_ruta||'', errHR?'cell-err':'')}</td>
       <td>${inp(i,'cliente',o.cliente||'')}</td>
       <td>${inp(i,'telefonos',o.telefonos||'')}</td>
       <td><div class="d-flex flex-column gap-1">${inp(i,'dest_localidad',o.dest_localidad||'')}${inp(i,'dest_provincia',o.dest_provincia||'', warnDest?'cell-warn':'')}</div></td>
@@ -126,7 +128,7 @@ function render(){
           <td class="sub-td" style="width:80px"><input class="cell-edit" data-i="${i}" data-j="${j}" data-f="m3" value="${esc(it.m3??'')}"></td>
           <td class="sub-td" style="width:30px"><button class="xbtn" data-deli="${i}:${j}"><i class="bi bi-x-lg"></i></button></td>
         </tr>`).join('');
-      sub.innerHTML = `<td></td><td colspan="9" style="padding:0!important">
+      sub.innerHTML = `<td></td><td colspan="11" style="padding:0!important">
         <table class="table mb-0" style="background:transparent">
           <thead><tr><th class="sub-th">Código</th><th class="sub-th">Dimensiones</th><th class="sub-th">Cant.</th><th class="sub-th">m³</th><th class="sub-th"></th></tr></thead>
           <tbody>${items || '<tr><td class="sub-td text-muted" colspan="5">Sin ítems.</td></tr>'}</tbody>
@@ -139,17 +141,22 @@ function render(){
 }
 
 function resumen(){
-  let ord=ORD.length, items=0, m3=0, valor=0, errs=0;
+  let ord=ORD.length, items=0, m3=0, valor=0, sinOrden=0, sinHR=0;
   ORD.forEach(o => {
     items += itemsDeOrden(o); m3 += m3DeOrden(o); valor += num(o.valor_declarado);
-    if (!String(o.nro_orden||'').trim()) errs++;
+    if (!String(o.nro_orden||'').trim()) sinOrden++;
+    if (!String(o.hoja_ruta||'').trim()) sinHR++;
   });
+  const errs = sinOrden + sinHR;
   document.getElementById('sb-ord').textContent = ord;
   document.getElementById('sb-items').textContent = items;
   document.getElementById('sb-m3').textContent = fmt(m3);
   document.getElementById('sb-valor').textContent = '$' + fmt(valor);
+  const avisos = [];
+  if (sinOrden) avisos.push(`${sinOrden} sin Nº de orden`);
+  if (sinHR)    avisos.push(`${sinHR} sin hoja de ruta`);
   document.getElementById('sb-alert').innerHTML = errs
-    ? `<i class="bi bi-exclamation-triangle-fill me-1"></i>${errs} orden(es) sin Nº de orden`
+    ? `<i class="bi bi-exclamation-triangle-fill me-1"></i>${avisos.join(' · ')}`
     : `<span style="color:#4ade80"><i class="bi bi-check-circle me-1"></i>Sin errores bloqueantes</span>`;
 
   const cta = document.getElementById('cta');

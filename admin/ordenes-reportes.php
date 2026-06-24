@@ -87,46 +87,66 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     exit;
 }
 
-// --- Modo export Facturación: resumen agregado por provincia -----------------
+// --- Modo export Facturación: una factura por tipo (m³ por destino) -----------
+// Cada tipo (online/local) es una hoja: ítems = m³ por provincia de destino y, al
+// pie, transportista(s), fecha(s) de carga y nº(s) de hoja de ruta del/los doc(s).
 if (($_GET['export'] ?? '') === 'facturacion') {
-    $rows = Orden::resumenFacturacion($filtros);
+    $facturas = Orden::facturacion($filtros);
+    $tvLabel  = ['online' => 'Online', 'local' => 'Local', '' => 'Sin tipo'];
 
     $spreadsheet = new Spreadsheet();
-    $sheet = $spreadsheet->getActiveSheet();
-    $sheet->setTitle('Facturación');
 
-    $encabezados = ['Categoría', 'Tipo', 'Provincia', 'Órdenes', 'm³', 'Valor declarado', 'Ítems'];
-    $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+    if ($facturas === []) {
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Facturación');
+        $sheet->setCellValue('A1', 'No hay órdenes para los filtros seleccionados.');
+    } else {
+        $primera = true;
+        foreach ($facturas as $tipo => $f) {
+            $titulo = $tvLabel[$tipo] ?? 'Sin tipo';
+            $sheet  = $primera ? $spreadsheet->getActiveSheet() : $spreadsheet->createSheet();
+            $primera = false;
+            $sheet->setTitle(mb_substr('Factura ' . $titulo, 0, 31));
 
-    $tvLabel  = ['online' => 'Online', 'local' => 'Local'];
-    $fila     = 2;
-    $totOrd   = 0;
-    $totM3    = 0.0;
-    $totVal   = 0.0;
-    $totItems = 0;
-    foreach ($rows as $r) {
-        $sheet->setCellValue('A' . $fila, (string)($r['categoria'] ?? ''));
-        $sheet->setCellValue('B' . $fila, $tvLabel[(string)($r['tipo'] ?? '')] ?? '—');
-        $sheet->setCellValue('C' . $fila, (string)($r['provincia'] ?? '') !== '' ? (string)$r['provincia'] : '(sin provincia)');
-        $sheet->setCellValue('D' . $fila, (int)($r['ordenes'] ?? 0));
-        $sheet->setCellValue('E' . $fila, (float)($r['m3'] ?? 0));
-        $sheet->setCellValue('F' . $fila, (float)($r['valor'] ?? 0));
-        $sheet->setCellValue('G' . $fila, (int)($r['items'] ?? 0));
-        $totOrd   += (int)($r['ordenes'] ?? 0);
-        $totM3    += (float)($r['m3'] ?? 0);
-        $totVal   += (float)($r['valor'] ?? 0);
-        $totItems += (int)($r['items'] ?? 0);
-        $fila++;
+            $sheet->setCellValue('A1', 'FACTURA — ' . $titulo);
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+
+            $sheet->setCellValue('A3', 'Destino');
+            $sheet->setCellValue('B3', 'm³');
+            $sheet->getStyle('A3:B3')->getFont()->setBold(true);
+
+            $fila = 4;
+            foreach ($f['destinos'] as $d) {
+                $sheet->setCellValue('A' . $fila, (string)$d['provincia']);
+                $sheet->setCellValue('B' . $fila, (float)$d['m3']);
+                $fila++;
+            }
+            $sheet->setCellValue('A' . $fila, 'TOTAL');
+            $sheet->setCellValue('B' . $fila, (float)$f['total_m3']);
+            $sheet->getStyle('A' . $fila . ':B' . $fila)->getFont()->setBold(true);
+
+            // Pie: transportista(s) / fecha(s) / hoja(s) de ruta.
+            $fechasFmt = implode(', ', array_map(
+                static fn(string $x): string => date('d/m/Y', strtotime($x)),
+                array_values(array_filter(explode(',', (string)$f['fechas']), static fn($x) => trim($x) !== ''))
+            ));
+            $pie = [
+                ['Transportista(s):', $f['transportistas'] !== '' ? $f['transportistas'] : '—'],
+                ['Fecha(s) de carga:', $fechasFmt !== '' ? $fechasFmt : '—'],
+                ['Hoja(s) de ruta:',  $f['hojas_ruta'] !== '' ? $f['hojas_ruta'] : '—'],
+            ];
+            $fila += 2;
+            foreach ($pie as [$lbl, $val]) {
+                $sheet->setCellValue('A' . $fila, $lbl);
+                $sheet->getStyle('A' . $fila)->getFont()->setBold(true);
+                $sheet->setCellValueExplicit('B' . $fila, (string)$val, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $fila++;
+            }
+            $sheet->getColumnDimension('A')->setAutoSize(true);
+            $sheet->getColumnDimension('B')->setAutoSize(true);
+        }
+        $spreadsheet->setActiveSheetIndex(0);
     }
-    $sheet->setCellValue('A' . $fila, 'TOTAL');
-    $sheet->setCellValue('D' . $fila, $totOrd);
-    $sheet->setCellValue('E' . $fila, $totM3);
-    $sheet->setCellValue('F' . $fila, $totVal);
-    $sheet->setCellValue('G' . $fila, $totItems);
-    $sheet->getStyle('A' . $fila . ':G' . $fila)->getFont()->setBold(true);
-
-    foreach (range('A', 'G') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

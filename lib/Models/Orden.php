@@ -19,7 +19,8 @@ final class Orden
 
     /** Columnas escribibles de una orden (para crear/actualizar desde la carga). */
     private const CAMPOS = [
-        'carga_id', 'nro_orden', 'nro_remito', 'fecha_remito', 'tipo_venta',
+        'carga_id', 'nro_orden', 'nro_remito', 'hoja_ruta', 'transportista_id', 'fecha_carga',
+        'fecha_remito', 'tipo_venta',
         'cliente', 'cliente_apellido', 'telefonos',
         'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
         'valor_declarado', 'm3_total', 'estado',
@@ -503,39 +504,65 @@ final class Orden
     }
 
     /**
-     * Resumen para facturación: sobre las órdenes filtradas, agrupa por
-     * (categoría, tipo, provincia) y suma m³, valor declarado e ítems. Se usa una
-     * subconsulta para el conteo de ítems por orden y así no multiplicar m³/valor
-     * al sumar. Una fila por combinación; ordenado por provincia.
+     * Datos para el reporte de Facturación: una "factura" por tipo de venta
+     * (online/local). Por cada tipo, los m³ agregados por destino (provincia) como
+     * ítems, y al pie los datos de ingreso del/los documento(s): transportista(s),
+     * fecha(s) de carga y número(s) de hoja de ruta (puede haber varios por viaje).
      *
      * @param array<string, mixed> $filtros
-     * @return array<int, array<string, mixed>>
+     * @return array<string, array{
+     *     destinos: array<int, array{provincia:string, m3:float}>,
+     *     total_m3: float, transportistas: string, fechas: string, hojas_ruta: string
+     * }>  Clave = tipo de venta ('online'|'local'|''), solo los presentes.
      */
-    public static function resumenFacturacion(array $filtros): array
+    public static function facturacion(array $filtros): array
     {
         [$where, $params] = self::whereFiltros($filtros);
-        $sql = "SELECT categoria, tipo, provincia,
-                       COALESCE(SUM(m3_total), 0)        AS m3,
-                       COALESCE(SUM(valor_declarado), 0) AS valor,
-                       COALESCE(SUM(items), 0)           AS items,
-                       COUNT(*)                          AS ordenes
-                FROM (
-                    SELECT
-                        COALESCE((SELECT cat.nombre FROM cargas cg
-                                    JOIN categorias cat ON cat.id = cg.categoria_id
-                                   WHERE cg.id = o.carga_id), '(sin categoría)') AS categoria,
-                        COALESCE(o.tipo_venta, '')      AS tipo,
-                        COALESCE(o.dest_provincia, '')  AS provincia,
-                        o.m3_total,
-                        o.valor_declarado,
-                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS items
-                    FROM ordenes o" . $where . "
-                ) t
-                GROUP BY categoria, tipo, provincia
-                ORDER BY provincia ASC, categoria ASC, tipo ASC";
-        $stmt = DB::getInstance()->prepare($sql);
-        $stmt->execute($params);
-        return $stmt->fetchAll();
+        $db = DB::getInstance();
+
+        // Ítems: m³ por (tipo, provincia). Cada parámetro se ejecuta una sola vez.
+        $stmtD = $db->prepare(
+            "SELECT COALESCE(o.tipo_venta, '')                 AS tipo,
+                    COALESCE(NULLIF(o.dest_provincia, ''), '(sin provincia)') AS provincia,
+                    COALESCE(SUM(o.m3_total), 0)               AS m3
+             FROM ordenes o" . $where . "
+             GROUP BY tipo, provincia
+             ORDER BY tipo ASC, provincia ASC"
+        );
+        $stmtD->execute($params);
+
+        $out = [];
+        foreach ($stmtD->fetchAll() as $r) {
+            $tipo = (string)$r['tipo'];
+            if (!isset($out[$tipo])) {
+                $out[$tipo] = ['destinos' => [], 'total_m3' => 0.0,
+                               'transportistas' => '', 'fechas' => '', 'hojas_ruta' => ''];
+            }
+            $m3 = (float)$r['m3'];
+            $out[$tipo]['destinos'][] = ['provincia' => (string)$r['provincia'], 'm3' => $m3];
+            $out[$tipo]['total_m3']  += $m3;
+        }
+
+        // Pie por tipo: transportista(s), fecha(s) y hoja(s) de ruta distintos.
+        $stmtF = $db->prepare(
+            "SELECT COALESCE(o.tipo_venta, '') AS tipo,
+                    GROUP_CONCAT(DISTINCT u.nombre_completo ORDER BY u.nombre_completo SEPARATOR ', ') AS transportistas,
+                    GROUP_CONCAT(DISTINCT o.fecha_carga ORDER BY o.fecha_carga SEPARATOR ',')          AS fechas,
+                    GROUP_CONCAT(DISTINCT o.hoja_ruta ORDER BY o.hoja_ruta SEPARATOR ', ')             AS hojas_ruta
+             FROM ordenes o
+             LEFT JOIN usuarios u ON u.id = o.transportista_id" . $where . "
+             GROUP BY tipo"
+        );
+        $stmtF->execute($params);
+        foreach ($stmtF->fetchAll() as $r) {
+            $tipo = (string)$r['tipo'];
+            if (!isset($out[$tipo])) { continue; }
+            $out[$tipo]['transportistas'] = (string)($r['transportistas'] ?? '');
+            $out[$tipo]['fechas']         = (string)($r['fechas'] ?? '');
+            $out[$tipo]['hojas_ruta']     = (string)($r['hojas_ruta'] ?? '');
+        }
+
+        return $out;
     }
 
     /**

@@ -348,6 +348,9 @@ CREATE TABLE IF NOT EXISTS `ordenes` (
     `carga_id`         INT UNSIGNED    DEFAULT NULL,
     `nro_orden`        VARCHAR(30)     NOT NULL,
     `nro_remito`       VARCHAR(30)     DEFAULT NULL,
+    `hoja_ruta`        VARCHAR(50)     DEFAULT NULL,
+    `transportista_id` INT UNSIGNED    DEFAULT NULL,
+    `fecha_carga`      DATE            DEFAULT NULL,
     `fecha_remito`     DATE            DEFAULT NULL,
     `tipo_venta`       ENUM('local','online') DEFAULT NULL,
     `cliente`          VARCHAR(150)    NOT NULL,
@@ -369,8 +372,13 @@ CREATE TABLE IF NOT EXISTS `ordenes` (
     INDEX `idx_tipo_venta` (`tipo_venta`),
     INDEX `idx_fecha_remito` (`fecha_remito`),
     INDEX `idx_carga` (`carga_id`),
+    INDEX `idx_orden_hoja_ruta` (`hoja_ruta`),
+    INDEX `idx_orden_transportista` (`transportista_id`),
+    INDEX `idx_orden_fecha_carga` (`fecha_carga`),
     CONSTRAINT `fk_ordenes_carga`
-        FOREIGN KEY (`carga_id`) REFERENCES `cargas` (`id`)
+        FOREIGN KEY (`carga_id`) REFERENCES `cargas` (`id`),
+    CONSTRAINT `fk_ordenes_transportista`
+        FOREIGN KEY (`transportista_id`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE `productos`

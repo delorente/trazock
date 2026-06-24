@@ -12,10 +12,12 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\Models\Categoria;
+use Trazock\Models\Usuario;
 
 $user = Auth::requierePanel(); // admin o gestor
 $csrf = Auth::tokenCSRF();
-$categorias = Categoria::activas();
+$categorias     = Categoria::activas();
+$transportistas = Usuario::transportistasActivos();
 
 panel_header('Nueva carga', $user, 'captura',
     'Fotografiá o subí las hojas resumen del camión — el sistema extrae las órdenes con OCR');
@@ -50,7 +52,10 @@ panel_header('Nueva carga', $user, 'captura',
         <p class="text-muted" style="font-size:12px;margin:0">JPG · PNG · PDF &nbsp;·&nbsp; podés seleccionar varias</p>
       </label>
       <input type="file" id="fileInput" accept="image/*,application/pdf" multiple class="d-none">
-      <p class="text-muted" style="font-size:12px;text-align:center;margin-top:.75rem;margin-bottom:0">Agregá las hojas (de a una o varias). Cuando estén todas, tocá <strong>Procesar</strong>.</p>
+      <p class="text-muted" style="font-size:12px;text-align:center;margin-top:.75rem;margin-bottom:0">Agregá las hojas (de a una o varias). Indicá <strong>transportista</strong> y <strong>fecha de carga</strong> de cada documento; el Nº de hoja de ruta lo extrae el OCR. Cuando estén todas, tocá <strong>Procesar</strong>.</p>
+      <?php if ($transportistas === []): ?>
+      <div class="alert alert-warning mt-2 mb-0" style="font-size:12px">No hay usuarios con rol <strong>Transportista</strong>. Creá al menos uno en <a href="<?= h(url('admin/usuarios.php')) ?>">Usuarios</a> antes de cargar.</div>
+      <?php endif; ?>
     </div>
 
     <div id="sheetWrap" class="d-none" style="border-top:1px solid var(--border)">
@@ -76,7 +81,13 @@ const TZ = {
   cargaId: null,
   tipoVenta: 'online',
   totalOrdenes: 0,
+  transportistas: <?= json_encode(array_map(static fn($t) => ['id' => (int)$t['id'], 'nombre' => (string)$t['nombre_completo']], $transportistas), JSON_UNESCAPED_UNICODE) ?>,
+  hoy: <?= json_encode(date('Y-m-d')) ?>,
 };
+
+// <option>s de transportista reutilizables para cada fila de la cola.
+const TRANSP_OPTS = '<option value="">— Transportista —</option>' +
+  TZ.transportistas.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
 
 // Toggle tipo de venta
 document.querySelectorAll('#tipoVenta [data-tv]').forEach(b => b.addEventListener('click', () => {
@@ -107,6 +118,10 @@ let procesando = false;
 
 function encolar(files) {
   sheetWrap.classList.remove('d-none');
+  // Prefill (transportista/fecha) desde la última fila: un viaje suele compartirlos.
+  const ult = cola.length ? cola[cola.length - 1] : null;
+  const prevTransp = ult ? (ult.row.querySelector('[data-transp]')?.value || '') : '';
+  const prevFecha  = ult ? (ult.row.querySelector('[data-fecha]')?.value || '') : '';
   for (const f of files) {
     const esPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
     if (!f.type.startsWith('image/') && !esPdf) continue;
@@ -115,14 +130,26 @@ function encolar(files) {
     row.className = 'sheet-item';
     row.dataset.id = id;
     row.innerHTML = `<div class="sheet-thumb"><i class="bi ${esPdf ? 'bi-file-earmark-pdf' : 'bi-image'}"></i></div>
-      <div class="sheet-info"><div class="sheet-name">${esc(f.name)}</div>
-        <div class="sheet-meta">En espera</div></div>
+      <div class="sheet-info" style="min-width:0;flex:1">
+        <div class="sheet-name">${esc(f.name)}</div>
+        <div class="sheet-meta">En espera</div>
+        <div class="d-flex gap-2 mt-1 doc-inputs">
+          <select class="form-select form-select-sm" data-transp style="max-width:170px">${TRANSP_OPTS}</select>
+          <input type="date" class="form-control form-control-sm" data-fecha max="${TZ.hoy}" style="max-width:150px">
+        </div>
+      </div>
       <button type="button" class="btn btn-sm btn-link text-muted p-0 ms-2" data-del="${id}" title="Quitar"><i class="bi bi-x-lg"></i></button>`;
     sheetList.appendChild(row);
+    if (prevTransp) row.querySelector('[data-transp]').value = prevTransp;
+    if (prevFecha)  row.querySelector('[data-fecha]').value = prevFecha;
     cola.push({ id, file: f, estado: 'pendiente', row });
   }
   actualizar();
 }
+
+// Revalidar el botón Procesar al editar transportista/fecha de cada documento.
+sheetList.addEventListener('input', () => { if (!procesando) actualizar(); });
+sheetList.addEventListener('change', () => { if (!procesando) actualizar(); });
 
 // Quitar una hoja en espera (antes de procesar).
 sheetList.addEventListener('click', e => {
@@ -149,6 +176,12 @@ async function procesarHoja(item) {
   const meta  = item.row.querySelector('.sheet-meta');
   const thumb = item.row.querySelector('.sheet-thumb');
   const del   = item.row.querySelector('[data-del]'); if (del) del.remove();
+  const selT  = item.row.querySelector('[data-transp]');
+  const inpF  = item.row.querySelector('[data-fecha]');
+  const transportistaId = selT ? selT.value : '';
+  const fechaCarga      = inpF ? inpF.value : '';
+  if (selT) selT.disabled = true;
+  if (inpF) inpF.disabled = true;
   thumb.innerHTML = '<i class="bi bi-hourglass-split"></i>';
   meta.innerHTML = 'Procesando con OCR…<div class="s-prog"><div class="s-prog-fill" style="width:40%"></div></div>';
 
@@ -157,6 +190,8 @@ async function procesarHoja(item) {
   fd.append('hoja', item.file);
   fd.append('tipo_venta', TZ.tipoVenta);
   fd.append('categoria_id', document.getElementById('cfgCategoria').value || '');
+  fd.append('transportista_id', transportistaId);
+  fd.append('fecha_carga', fechaCarga);
   if (TZ.cargaId) fd.append('carga_id', TZ.cargaId);
 
   try {
@@ -183,8 +218,17 @@ btnPrim.addEventListener('click', () => {
   else { procesar(); }
 });
 
+// Una fila está lista para procesar si tiene transportista y fecha (≤ hoy).
+function filaValida(item) {
+  const t = item.row.querySelector('[data-transp]')?.value || '';
+  const f = item.row.querySelector('[data-fecha]')?.value || '';
+  return t !== '' && f !== '' && f <= TZ.hoy;
+}
+
 function actualizar() {
-  const pendientes = cola.filter(c => c.estado === 'pendiente').length;
+  const pend = cola.filter(c => c.estado === 'pendiente');
+  const pendientes = pend.length;
+  const incompletas = pend.filter(c => !filaValida(c)).length;
   document.getElementById('sheetCount').textContent = cola.length;
   document.getElementById('ordCount').textContent = TZ.totalOrdenes;
 
@@ -192,9 +236,11 @@ function actualizar() {
 
   if (pendientes > 0) {
     btnPrim.dataset.modo = 'procesar';
-    btnPrim.disabled = false;
+    btnPrim.disabled = incompletas > 0;
     btnPrim.innerHTML = `<i class="bi bi-gear-fill me-2"></i>Procesar ${pendientes} hoja${pendientes > 1 ? 's' : ''}`;
-    hintEl.textContent = TZ.totalOrdenes > 0 ? 'Hay hojas nuevas sin procesar.' : 'Tocá Procesar para extraer las órdenes con OCR.';
+    hintEl.textContent = incompletas > 0
+      ? `Completá transportista y fecha de carga en ${incompletas} documento${incompletas > 1 ? 's' : ''}.`
+      : (TZ.totalOrdenes > 0 ? 'Hay hojas nuevas sin procesar.' : 'Tocá Procesar para extraer las órdenes con OCR.');
   } else if (TZ.totalOrdenes > 0) {
     btnPrim.dataset.modo = 'revisar';
     btnPrim.disabled = false;

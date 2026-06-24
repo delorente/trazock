@@ -26,6 +26,11 @@ final class ExtractorOcr
 Sos un asistente experto en extraer datos de HOJAS DE RUTA / RESÚMENES DE REMITOS de
 Simmons (logística de colchones). Cada hoja lista varias ÓRDENES (una por remito).
 
+A nivel del DOCUMENTO extraé:
+- hoja_ruta: el Nº de HOJA DE RUTA (HR) que identifica el documento. Suele estar en el
+  encabezado, rotulado "Hoja de Ruta", "HR" o "H/R". Devolvé solo el número/código tal
+  cual figura. Si no aparece, devolvé null (NO lo inventes).
+
 Por cada orden extraé:
 - nro_orden: aparece como "VLO 0775-XXXXXXXX" o similar. Devolvé solo el número con guion (ej. "0775-00312689").
 - nro_remito: aparece como "RMC 0328-XXXXXXXX"; puede terminar en una letra (ej. "0328-00993502R").
@@ -268,8 +273,11 @@ TXT;
         return [
             'type' => 'object',
             'additionalProperties' => false,
-            'required' => ['ordenes'],
-            'properties' => ['ordenes' => ['type' => 'array', 'items' => $orden]],
+            'required' => ['hoja_ruta', 'ordenes'],
+            'properties' => [
+                'hoja_ruta' => $nul('string'),
+                'ordenes'   => ['type' => 'array', 'items' => $orden],
+            ],
         ];
     }
 }
