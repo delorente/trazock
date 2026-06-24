@@ -56,7 +56,7 @@ $csrf = Auth::tokenCSRF();
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ingresar — Trazock</title>
+    <title>Ingresar — Corredora de Servicios</title>
     <link rel="stylesheet" href="<?= h(asset('assets/vendor/inter/inter.css')) ?>">
     <link rel="stylesheet" href="<?= h(asset('assets/vendor/bootstrap/bootstrap.min.css')) ?>">
     <link rel="stylesheet" href="<?= h(asset('assets/vendor/bootstrap-icons/bootstrap-icons.min.css')) ?>">
@@ -66,10 +66,7 @@ $csrf = Auth::tokenCSRF();
 <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem">
     <div style="width:100%;max-width:360px">
         <div class="text-center mb-4">
-            <div class="d-inline-flex align-items-center gap-2 mb-2">
-                <div class="tz-brand-box" style="width:38px;height:38px"><i class="bi bi-upc-scan text-white" style="font-size:1.1rem"></i></div>
-                <span style="font-size:1.75rem;font-weight:700;letter-spacing:-.03em">Trazock</span>
-            </div>
+            <img src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios S.A." style="max-width:200px;width:70%;height:auto;border-radius:10px;background:#fff;padding:6px;margin-bottom:.6rem">
             <p class="text-muted" style="font-size:12px">Sistema de trazabilidad de stock</p>
         </div>
         <div class="card p-4">
@@ -94,7 +91,7 @@ $csrf = Auth::tokenCSRF();
                 <a href="<?= h(url('scan/')) ?>" class="text-muted text-center d-block" style="font-size:12px;text-decoration:none"><i class="bi bi-phone me-1"></i>Ir a app de escaneo →</a>
             </form>
         </div>
-        <p class="text-center text-muted" style="font-size:11px;margin-top:.75rem">Trazock v1.0 · Panel Admin</p>
+        <p class="text-center text-muted" style="font-size:11px;margin-top:.75rem">powered by <strong>Trazock</strong> · v1.0</p>
     </div>
 </div>
 <script>

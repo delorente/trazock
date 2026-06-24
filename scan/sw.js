@@ -6,7 +6,7 @@
 // Registrado con scope = raíz de la app (requiere header Service-Worker-Allowed).
 // =============================================================================
 
-const CACHE_VERSION = 'trazock-v3';
+const CACHE_VERSION = 'trazock-v4';
 
 // El SW vive en <base>/scan/sw.js; los assets cuelgan de <base>/assets/.
 const ASSETS = [
@@ -17,6 +17,7 @@ const ASSETS = [
     '../assets/vendor/idb/idb.js',
     '../assets/css/app.css',
     '../assets/css/scan.css',
+    '../assets/img/logo.jpg',
     '../assets/js/scan/db.js',
     '../assets/js/scan/scanner.js',
     '../assets/js/scan/sync.js',

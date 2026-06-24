@@ -1,7 +1,7 @@
 {
-    "name": "Trazock — Escaneo",
-    "short_name": "Trazock",
-    "description": "Trazabilidad de stock — app de escaneo de lotes",
+    "name": "Corredora de Servicios — Escaneo",
+    "short_name": "Corredora",
+    "description": "Corredora de Servicios — app de escaneo de lotes",
     "start_url": "./",
     "scope": "./",
     "display": "standalone",

@@ -42,8 +42,8 @@ if ($user !== null) {
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Trazock">
-    <title>Trazock — Escaneo</title>
+    <meta name="apple-mobile-web-app-title" content="Corredora">
+    <title>Corredora de Servicios — Escaneo</title>
     <link rel="manifest" href="<?= h(url('scan/manifest.json')) ?>">
     <link rel="apple-touch-icon" href="<?= h(asset('assets/img/icon-192.png')) ?>">
     <link rel="stylesheet" href="<?= h(asset('assets/vendor/inter/inter.css')) ?>">
@@ -58,9 +58,8 @@ if ($user !== null) {
 <section id="view-login" class="tz-view d-none">
     <div class="tz-phone">
         <div class="text-center mb-4">
-            <div class="tz-brand-box mx-auto mb-2" style="width:52px;height:52px;border-radius:12px"><i class="bi bi-upc-scan text-white" style="font-size:1.35rem"></i></div>
-            <div style="font-size:1.6rem;font-weight:700;letter-spacing:-.03em">Trazock</div>
-            <div class="text-muted" style="font-size:12px">App de escaneo</div>
+            <img src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios S.A." style="max-width:180px;width:75%;height:auto;border-radius:10px;background:#fff;padding:6px;margin-bottom:.5rem">
+            <div class="text-muted" style="font-size:12px">App de escaneo · powered by <strong>Trazock</strong></div>
         </div>
         <div id="loginError" class="alert alert-danger py-2 d-none" style="font-size:13px"></div>
         <form id="loginForm" class="card p-4" autocomplete="off" style="width:100%">
@@ -80,7 +79,7 @@ if ($user !== null) {
 <!-- ===== Vista SELECTOR ===== -->
 <section id="view-selector" class="tz-view d-none">
     <header class="tz-scan-header d-flex justify-content-between align-items-center p-3">
-        <span class="fw-bold">Trazock</span>
+        <img src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios S.A." style="height:26px;width:auto;border-radius:5px;background:#fff;padding:2px 4px">
         <div class="d-flex align-items-center gap-2">
             <span class="conn online" id="connInfo"><span class="dot online"></span>Online</span>
             <button class="btn btn-outline-secondary btn-sm py-0 px-2" id="btnLogout"><i class="bi bi-box-arrow-right"></i></button>

@@ -75,7 +75,7 @@ function panel_header(string $titulo, array $user, string $activo = '', string $
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= h($titulo) ?> — Trazock</title>
+    <title><?= h($titulo) ?> — Corredora de Servicios</title>
     <link rel="stylesheet" href="<?= h(asset('assets/vendor/inter/inter.css')) ?>">
     <link rel="stylesheet" href="<?= h(asset('assets/vendor/bootstrap/bootstrap.min.css')) ?>">
     <link rel="stylesheet" href="<?= h(asset('assets/vendor/bootstrap-icons/bootstrap-icons.min.css')) ?>">
@@ -85,9 +85,8 @@ function panel_header(string $titulo, array $user, string $activo = '', string $
 <div id="sidebar-overlay" onclick="tzCloseSidebar()"></div>
 
 <nav id="sidebar">
-    <div class="d-flex align-items-center gap-2" style="padding:.8rem 1rem;border-bottom:1px solid var(--border)">
-        <div class="tz-brand-box"><i class="bi bi-upc-scan text-white" style="font-size:13px"></i></div>
-        <span style="font-weight:700;font-size:1.05rem;letter-spacing:-.02em">Trazock</span>
+    <div style="padding:.8rem 1rem;border-bottom:1px solid var(--border);text-align:center">
+        <img src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios S.A." style="max-width:150px;width:100%;height:auto;border-radius:8px;background:#fff;padding:4px">
     </div>
     <div class="d-flex align-items-center gap-2" style="padding:.6rem 1rem;border-bottom:1px solid var(--border)">
         <div class="tz-avatar"><?= h(panel_iniciales((string)$user['nombre_completo'])) ?></div>
@@ -118,13 +117,14 @@ function panel_header(string $titulo, array $user, string $activo = '', string $
     </div>
     <div style="border-top:1px solid var(--border);padding:.5rem">
         <a class="ni" style="color:var(--red)" href="<?= h(url('admin/logout.php')) ?>"><i class="bi bi-box-arrow-left"></i>Cerrar sesión</a>
+        <div class="text-center" style="font-size:10px;color:var(--muted);padding:.4rem 0 .1rem;opacity:.75">powered by <strong style="color:var(--muted)">Trazock</strong></div>
     </div>
 </nav>
 
 <main id="main">
     <div class="d-flex d-md-none align-items-center gap-3 mb-3">
         <button class="btn btn-outline-secondary btn-sm px-2" onclick="tzOpenSidebar()"><i class="bi bi-list" style="font-size:1.1rem"></i></button>
-        <span style="font-weight:700">Trazock</span>
+        <img src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios S.A." style="height:30px;width:auto;border-radius:5px;background:#fff;padding:2px 4px">
     </div>
 
     <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
