@@ -21,14 +21,17 @@ use Trazock\Models\Zona;
 $user = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo reportes)
 
 $filtros = [
-    'q'           => trim((string)($_GET['q'] ?? '')),
-    'categoria'   => trim((string)($_GET['categoria'] ?? '')),
-    'zona'        => trim((string)($_GET['zona'] ?? '')),
-    'carga'       => trim((string)($_GET['carga'] ?? '')),
-    'estado'      => trim((string)($_GET['estado'] ?? '')),
-    'tipo_venta'  => trim((string)($_GET['tipo_venta'] ?? '')),
-    'fecha_desde' => trim((string)($_GET['fecha_desde'] ?? '')),
-    'fecha_hasta' => trim((string)($_GET['fecha_hasta'] ?? '')),
+    'q'            => trim((string)($_GET['q'] ?? '')),
+    'categoria'    => trim((string)($_GET['categoria'] ?? '')),
+    'zona'         => trim((string)($_GET['zona'] ?? '')),
+    'carga'        => filtro_multi_valores('carga'),      // multi (lotes)
+    'provincia'    => filtro_multi_valores('provincia'),  // multi (destinos)
+    'hoja_ruta'    => filtro_multi_valores('hoja_ruta'),  // multi (hojas de ruta)
+    'transportista'=> trim((string)($_GET['transportista'] ?? '')),
+    'estado'       => trim((string)($_GET['estado'] ?? '')),
+    'tipo_venta'   => trim((string)($_GET['tipo_venta'] ?? '')),
+    'fecha_desde'  => trim((string)($_GET['fecha_desde'] ?? '')),
+    'fecha_hasta'  => trim((string)($_GET['fecha_hasta'] ?? '')),
 ];
 
 /** Destino "Localidad · Provincia". */
@@ -102,12 +105,24 @@ $offset    = ($pagina - 1) * $porPagina;
 
 $total     = Producto::reporteContar($filtros);
 $rows      = Producto::reporte($filtros, $porPagina, $offset);
-$zonas      = Zona::todas();
-$cargas     = Carga::recientes(100);
-$categorias = Categoria::activas();
-$paginas    = (int)max(1, ceil($total / $porPagina));
+$zonas       = Zona::todas();
+$cargas      = Carga::recientes(100);
+$categorias  = Categoria::activas();
+$provincias  = \Trazock\Models\Orden::provincias();
+$hojasRuta   = \Trazock\Models\Orden::hojasRuta();
+$transportistas = \Trazock\Models\Orden::transportistasUsados();
+$paginas     = (int)max(1, ceil($total / $porPagina));
 
-$qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== ''));
+// Opciones de los filtros multi (mismas que el reporte por órdenes).
+$cargaOpts = [];
+foreach ($cargas as $c) {
+    if ($c['estado'] !== 'confirmada') { continue; }
+    $cargaOpts[] = [(string)$c['id'], carga_num((int)$c['id'], (string)$c['created_at']) . ' · ' . (int)$c['cantidad_ordenes'] . ' órd.'];
+}
+$provOpts = array_map(static fn($p) => [$p, $p], $provincias);
+$hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
+
+$qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== '' && $v !== []));
 
 $acciones =
     '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase : '')) . '"><i class="bi bi-list-ul me-1"></i>Por órdenes</a>'
@@ -136,13 +151,15 @@ panel_header('Reporte por productos', $user, 'reportes', 'Un ítem físico por f
         <?php endforeach; ?>
       </select>
     </div>
+    <?php filtro_multi_dropdown('Lote (carga)', 'carga', $cargaOpts, $filtros['carga']); ?>
+    <?php filtro_multi_dropdown('Destino (provincia)', 'provincia', $provOpts, $filtros['provincia']); ?>
+    <?php filtro_multi_dropdown('Hoja de ruta', 'hoja_ruta', $hrOpts, $filtros['hoja_ruta']); ?>
     <div>
-      <label class="form-label">Lote (carga)</label>
-      <select class="form-select form-select-sm" name="carga">
-        <option value="">Todas</option>
-        <?php foreach ($cargas as $c): if ($c['estado'] !== 'confirmada') continue; ?>
-          <option value="<?= (int)$c['id'] ?>" <?= (string)$c['id'] === $filtros['carga'] ? 'selected' : '' ?>>
-            <?= h(carga_num((int)$c['id'], (string)$c['created_at'])) ?> · <?= (int)$c['cantidad_ordenes'] ?> órd.</option>
+      <label class="form-label">Transportista</label>
+      <select class="form-select form-select-sm" name="transportista">
+        <option value="">Todos</option>
+        <?php foreach ($transportistas as $t): ?>
+          <option value="<?= (int)$t['id'] ?>" <?= (string)$t['id'] === $filtros['transportista'] ? 'selected' : '' ?>><?= h($t['nombre']) ?></option>
         <?php endforeach; ?>
       </select>
     </div>
@@ -226,5 +243,6 @@ panel_header('Reporte por productos', $user, 'reportes', 'Un ítem físico por f
   </div>
 </div>
 <style>@media print{.rep-print-title{display:block!important}}</style>
+<?php filtro_multi_script(); ?>
 <?php
 panel_footer();

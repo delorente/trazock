@@ -258,6 +258,31 @@ final class Producto
     public const ESTADOS = ['INGRESADO', 'EN_REPARTO', 'ENTREGADO', 'REINGRESADO', 'DEVUELTO', 'BAJA'];
 
     /**
+     * Cláusula `col IN (:pfx0, …)` con placeholders únicos para un filtro multi-valor
+     * (prepares nativos no permiten reusar nombres). Null si no quedan valores.
+     *
+     * @param array<int,mixed> $vals
+     * @param array<string,mixed> $params
+     */
+    private static function inClause(string $col, array $vals, string $prefijo, array &$params): ?string
+    {
+        $vals = array_values(array_unique(array_filter(
+            array_map(static fn($v) => trim((string)$v), $vals),
+            static fn(string $v): bool => $v !== ''
+        )));
+        if ($vals === []) {
+            return null;
+        }
+        $ph = [];
+        foreach ($vals as $i => $v) {
+            $k = ':' . $prefijo . $i;
+            $ph[] = $k;
+            $params[$k] = $v;
+        }
+        return $col . ' IN (' . implode(', ', $ph) . ')';
+    }
+
+    /**
      * @param array<string,mixed> $f
      * @return array{0:string,1:array<string,mixed>}
      */
@@ -271,9 +296,19 @@ final class Producto
             $like = '%' . $f['q'] . '%';
             $params[':q1'] = $like; $params[':q2'] = $like; $params[':q3'] = $like;
         }
-        if (!empty($f['carga'])) {
-            $where[] = 'o.carga_id = :carga';
-            $params[':carga'] = (int)$f['carga'];
+        // Multi-valor: lote (carga), destino (provincia) y hoja de ruta.
+        if (($c = self::inClause('o.carga_id', (array)($f['carga'] ?? []), 'carga', $params)) !== null) {
+            $where[] = $c;
+        }
+        if (($c = self::inClause('o.dest_provincia', (array)($f['provincia'] ?? []), 'prov', $params)) !== null) {
+            $where[] = $c;
+        }
+        if (($c = self::inClause('o.hoja_ruta', (array)($f['hoja_ruta'] ?? []), 'hr', $params)) !== null) {
+            $where[] = $c;
+        }
+        if (!empty($f['transportista'])) {
+            $where[] = 'o.transportista_id = :transp';
+            $params[':transp'] = (int)$f['transportista'];
         }
         if (!empty($f['zona'])) {
             $where[] = 'EXISTS (SELECT 1 FROM zona_localidades zl
@@ -294,13 +329,13 @@ final class Producto
             $where[] = 'o.tipo_venta = :tv';
             $params[':tv'] = $f['tipo_venta'];
         }
-        // Fecha de CARGA (ingreso de la orden al sistema), no la del remito.
+        // Fecha de CARGA del documento (la que se ingresa al importar; columna DATE).
         if (!empty($f['fecha_desde'])) {
-            $where[] = 'DATE(o.created_at) >= :fd';
+            $where[] = 'o.fecha_carga >= :fd';
             $params[':fd'] = $f['fecha_desde'];
         }
         if (!empty($f['fecha_hasta'])) {
-            $where[] = 'DATE(o.created_at) <= :fh';
+            $where[] = 'o.fecha_carga <= :fh';
             $params[':fh'] = $f['fecha_hasta'];
         }
 
@@ -324,11 +359,14 @@ final class Producto
         $sql = 'SELECT p.id, p.codigo, p.descripcion, p.dimensiones, p.m3, p.secuencia,
                        p.estado_actual, p.etiquetada_at,
                        o.id AS orden_id, o.carga_id, o.nro_orden, o.cliente, o.tipo_venta,
+                       o.hoja_ruta, o.fecha_carga,
                        o.dest_provincia, o.dest_localidad, o.created_at AS fecha_ingreso,
+                       tu.nombre_completo AS transportista_nombre,
                        cat.nombre AS categoria
                 FROM productos p
                 JOIN ordenes o ON o.id = p.orden_id
-                LEFT JOIN categorias cat ON cat.id = p.categoria_id'
+                LEFT JOIN categorias cat ON cat.id = p.categoria_id
+                LEFT JOIN usuarios tu ON tu.id = o.transportista_id'
              . $where
              . " ORDER BY o.created_at DESC, o.id DESC, p.secuencia LIMIT {$limit} OFFSET {$offset}";
 

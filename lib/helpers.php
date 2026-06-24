@@ -183,6 +183,83 @@ if (!function_exists('seguimiento_orden_url')) {
     }
 }
 
+if (!function_exists('filtro_multi_valores')) {
+    /**
+     * Normaliza un filtro multi-valor de $_GET (name="campo[]") a array de strings
+     * no vacíos. Tolera que venga como escalar (un solo valor) o ausente.
+     *
+     * @return array<int, string>
+     */
+    function filtro_multi_valores(string $clave): array
+    {
+        $v = $_GET[$clave] ?? [];
+        $v = is_array($v) ? $v : [$v];
+        return array_values(array_filter(
+            array_map(static fn($x) => trim((string)$x), $v),
+            static fn(string $x): bool => $x !== ''
+        ));
+    }
+}
+
+if (!function_exists('filtro_multi_dropdown')) {
+    /**
+     * Filtro multi-valor para formularios GET: botón desplegable con checkboxes
+     * (name="<campo>[]"). Comparte estilo con el panel; el contador del rótulo lo
+     * actualiza un script con la clase .tz-multi.
+     *
+     * @param array<int, array{0:int|string, 1:string}> $opciones  [valor, etiqueta]
+     * @param array<int, string> $sel  valores seleccionados
+     */
+    function filtro_multi_dropdown(string $label, string $campo, array $opciones, array $sel): void
+    {
+        $n = count($sel);
+        ?>
+        <div>
+          <label class="form-label"><?= h($label) ?></label>
+          <div class="dropdown tz-multi">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle w-100 d-flex justify-content-between align-items-center"
+                    type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" data-multi-label="<?= h($label) ?>">
+              <span class="text-truncate"><?= $n ? h($label) . ' (' . $n . ')' : 'Todas' ?></span>
+            </button>
+            <div class="dropdown-menu p-2" style="max-height:260px;overflow:auto;min-width:230px">
+              <?php if ($opciones === []): ?>
+                <div class="text-muted small px-1">Sin opciones aún</div>
+              <?php else: foreach ($opciones as [$val, $txt]):
+                $val = (string)$val;
+                $id  = $campo . '_' . preg_replace('/[^A-Za-z0-9]/', '', $val);
+              ?>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="<?= h($campo) ?>[]" value="<?= h($val) ?>"
+                         id="<?= h($id) ?>" <?= in_array($val, $sel, true) ? 'checked' : '' ?>>
+                  <label class="form-check-label small text-truncate d-block" for="<?= h($id) ?>"><?= h($txt) ?></label>
+                </div>
+              <?php endforeach; endif; ?>
+            </div>
+          </div>
+        </div>
+        <?php
+    }
+}
+
+if (!function_exists('filtro_multi_script')) {
+    /** Script que actualiza el rótulo de cada .tz-multi con la cantidad tildada. */
+    function filtro_multi_script(): void
+    {
+        ?>
+        <script>
+        document.querySelectorAll('.tz-multi').forEach(function (dd) {
+          var btn = dd.querySelector('[data-multi-label]'); if (!btn) return;
+          var base = btn.getAttribute('data-multi-label'), span = btn.querySelector('span');
+          dd.addEventListener('change', function () {
+            var n = dd.querySelectorAll('input:checked').length;
+            span.textContent = n ? base + ' (' + n + ')' : 'Todas';
+          });
+        });
+        </script>
+        <?php
+    }
+}
+
 if (!function_exists('flash_render')) {
     /** Imprime el flash como alerta Bootstrap si existe. */
     function flash_render(): void

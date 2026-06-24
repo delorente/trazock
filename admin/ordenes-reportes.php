@@ -21,14 +21,17 @@ use Trazock\Models\Zona;
 $user = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo reportes)
 
 $filtros = [
-    'q'           => trim((string)($_GET['q'] ?? '')),
-    'categoria'   => trim((string)($_GET['categoria'] ?? '')),
-    'zona'        => trim((string)($_GET['zona'] ?? '')),
-    'carga'       => trim((string)($_GET['carga'] ?? '')),
-    'estado'      => trim((string)($_GET['estado'] ?? '')),
-    'tipo_venta'  => trim((string)($_GET['tipo_venta'] ?? '')),
-    'fecha_desde' => trim((string)($_GET['fecha_desde'] ?? '')),
-    'fecha_hasta' => trim((string)($_GET['fecha_hasta'] ?? '')),
+    'q'            => trim((string)($_GET['q'] ?? '')),
+    'categoria'    => trim((string)($_GET['categoria'] ?? '')),
+    'zona'         => trim((string)($_GET['zona'] ?? '')),
+    'carga'        => filtro_multi_valores('carga'),      // multi (lotes)
+    'provincia'    => filtro_multi_valores('provincia'),  // multi (destinos)
+    'hoja_ruta'    => filtro_multi_valores('hoja_ruta'),  // multi (hojas de ruta)
+    'transportista'=> trim((string)($_GET['transportista'] ?? '')),
+    'estado'       => trim((string)($_GET['estado'] ?? '')),
+    'tipo_venta'   => trim((string)($_GET['tipo_venta'] ?? '')),
+    'fecha_desde'  => trim((string)($_GET['fecha_desde'] ?? '')),
+    'fecha_hasta'  => trim((string)($_GET['fecha_hasta'] ?? '')),
 ];
 
 /** Destino legible "Localidad · Provincia". */
@@ -54,10 +57,11 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     $sheet = $spreadsheet->getActiveSheet();
     $sheet->setTitle('Órdenes');
 
-    $encabezados = ['Lote', 'Nº orden', 'Categoría', 'Nº remito', 'F. remito', 'Tipo', 'Cliente', 'Teléfono', 'Destino',
+    $encabezados = ['Lote', 'Nº orden', 'Categoría', 'Nº remito', 'Hoja ruta', 'Transportista', 'F. carga',
+                    'F. remito', 'Tipo', 'Cliente', 'Teléfono', 'Destino',
                     'm³', 'Valor declarado', 'Ítems', 'Estado', 'F. ingreso'];
     $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:N1')->getFont()->setBold(true);
+    $sheet->getStyle('A1:Q1')->getFont()->setBold(true);
 
     $fila = 2;
     foreach ($rows as $o) {
@@ -65,19 +69,22 @@ if (($_GET['export'] ?? '') === 'xlsx') {
         $sheet->setCellValue('B' . $fila, (string)$o['nro_orden']);
         $sheet->setCellValue('C' . $fila, (string)($o['categoria'] ?? ''));
         $sheet->setCellValue('D' . $fila, (string)($o['nro_remito'] ?? ''));
-        $sheet->setCellValue('E' . $fila, (string)($o['fecha_remito'] ?? ''));
-        $sheet->setCellValue('F' . $fila, (string)($o['tipo_venta'] ?? ''));
-        $sheet->setCellValue('G' . $fila, (string)($o['cliente'] ?? ''));
-        $sheet->setCellValueExplicit('H' . $fila, (string)($o['telefonos'] ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-        $sheet->setCellValue('I' . $fila, rep_destino($o));
-        $sheet->setCellValue('J' . $fila, (float)($o['m3_total'] ?? 0));
-        $sheet->setCellValue('K' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
-        $sheet->setCellValue('L' . $fila, (int)($o['cant_items'] ?? 0));
-        $sheet->setCellValue('M' . $fila, (string)($o['estado'] ?? ''));
-        $sheet->setCellValue('N' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
+        $sheet->setCellValueExplicit('E' . $fila, (string)($o['hoja_ruta'] ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->setCellValue('F' . $fila, (string)($o['transportista_nombre'] ?? ''));
+        $sheet->setCellValue('G' . $fila, ($o['fecha_carga'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_carga'])) : '');
+        $sheet->setCellValue('H' . $fila, (string)($o['fecha_remito'] ?? ''));
+        $sheet->setCellValue('I' . $fila, (string)($o['tipo_venta'] ?? ''));
+        $sheet->setCellValue('J' . $fila, (string)($o['cliente'] ?? ''));
+        $sheet->setCellValueExplicit('K' . $fila, (string)($o['telefonos'] ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->setCellValue('L' . $fila, rep_destino($o));
+        $sheet->setCellValue('M' . $fila, (float)($o['m3_total'] ?? 0));
+        $sheet->setCellValue('N' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
+        $sheet->setCellValue('O' . $fila, (int)($o['cant_items'] ?? 0));
+        $sheet->setCellValue('P' . $fila, (string)($o['estado'] ?? ''));
+        $sheet->setCellValue('Q' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
         $fila++;
     }
-    foreach (range('A', 'N') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+    foreach (range('A', 'Q') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -166,13 +173,17 @@ $offset    = ($pagina - 1) * $porPagina;
 $total     = Orden::contar($filtros);
 $totales   = Orden::totales($filtros);
 $ordenes   = Orden::buscar($filtros, $porPagina, $offset);
-$zonas      = Zona::todas();
-$cargas     = Carga::recientes(100);
-$categorias = Categoria::activas();
-$paginas    = (int)max(1, ceil($total / $porPagina));
+$zonas       = Zona::todas();
+$cargas      = Carga::recientes(100);
+$categorias  = Categoria::activas();
+$provincias  = Orden::provincias();
+$hojasRuta   = Orden::hojasRuta();
+$transportistas = Orden::transportistasUsados();
+$paginas     = (int)max(1, ceil($total / $porPagina));
 
 // Query string de los filtros (para paginación y export, sin 'pagina').
-$qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== ''));
+// Se descartan vacíos y arrays vacíos; http_build_query serializa los arrays (carga[]=…).
+$qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== '' && $v !== []));
 
 $acciones =
     '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-productos.php') . ($qsBase ? '?' . $qsBase : '')) . '"><i class="bi bi-box-seam me-1"></i>Por productos</a>'
@@ -181,6 +192,15 @@ $acciones =
     . '<button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>';
 
 panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · armado de rutas', $acciones);
+
+// Opciones para los filtros multi.
+$cargaOpts = [];
+foreach ($cargas as $c) {
+    if ($c['estado'] !== 'confirmada') { continue; }
+    $cargaOpts[] = [(string)$c['id'], carga_num((int)$c['id'], (string)$c['created_at']) . ' · ' . (int)$c['cantidad_ordenes'] . ' órd.'];
+}
+$provOpts = array_map(static fn($p) => [$p, $p], $provincias);
+$hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
 ?>
 <form method="get" action="<?= h(url('admin/ordenes-reportes.php')) ?>" class="card mb-3 no-print" style="padding:.85rem 1rem">
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-bottom:.6rem">
@@ -202,13 +222,15 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
         <?php endforeach; ?>
       </select>
     </div>
+    <?php filtro_multi_dropdown('Lote (carga)', 'carga', $cargaOpts, $filtros['carga']); ?>
+    <?php filtro_multi_dropdown('Destino (provincia)', 'provincia', $provOpts, $filtros['provincia']); ?>
+    <?php filtro_multi_dropdown('Hoja de ruta', 'hoja_ruta', $hrOpts, $filtros['hoja_ruta']); ?>
     <div>
-      <label class="form-label">Lote (carga)</label>
-      <select class="form-select form-select-sm" name="carga">
-        <option value="">Todas</option>
-        <?php foreach ($cargas as $c): if ($c['estado'] !== 'confirmada') continue; ?>
-          <option value="<?= (int)$c['id'] ?>" <?= (string)$c['id'] === $filtros['carga'] ? 'selected' : '' ?>>
-            <?= h(carga_num((int)$c['id'], (string)$c['created_at'])) ?> · <?= (int)$c['cantidad_ordenes'] ?> órd.</option>
+      <label class="form-label">Transportista</label>
+      <select class="form-select form-select-sm" name="transportista">
+        <option value="">Todos</option>
+        <?php foreach ($transportistas as $t): ?>
+          <option value="<?= (int)$t['id'] ?>" <?= (string)$t['id'] === $filtros['transportista'] ? 'selected' : '' ?>><?= h($t['nombre']) ?></option>
         <?php endforeach; ?>
       </select>
     </div>
@@ -258,12 +280,12 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
       <table class="table table-hover mb-0">
         <thead><tr>
           <th>Lote</th><th>Nº orden</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Destino</th><th>Teléfono</th><th>m³</th>
-          <th>Tipo</th><th>F. remito</th><th>Nº remito</th><th>F. ingreso</th>
+          <th>Tipo</th><th>F. remito</th><th>Nº remito</th><th>Hoja ruta</th><th>Transportista</th><th>F. carga</th><th>F. ingreso</th>
           <th>Estado</th><th class="no-print"></th>
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-          <tr><td colspan="13" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
+          <tr><td colspan="16" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
         <?php else: foreach ($ordenes as $o):
             $tv = (string)($o['tipo_venta'] ?? '');
         ?>
@@ -278,6 +300,9 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
             <td><?php if ($tv !== ''): ?><span class="badge b-<?= h(strtoupper($tv)) ?>"><?= h(ucfirst($tv)) ?></span><?php else: ?>—<?php endif; ?></td>
             <td style="color:var(--muted)"><?= h(($o['fecha_remito'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_remito'])) : '—') ?></td>
             <td class="mono" style="font-size:12px"><?= h((string)($o['nro_remito'] ?? '—')) ?></td>
+            <td class="mono" style="font-size:12px"><?= h((string)($o['hoja_ruta'] ?? '') !== '' ? (string)$o['hoja_ruta'] : '—') ?></td>
+            <td style="font-size:12px"><?= h((string)($o['transportista_nombre'] ?? '') !== '' ? (string)$o['transportista_nombre'] : '—') ?></td>
+            <td style="color:var(--muted)"><?= h(($o['fecha_carga'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_carga'])) : '—') ?></td>
             <td style="color:var(--muted)"><?= h(fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i')) ?></td>
             <td><?= estado_badge((string)($o['estado'] ?? '')) ?></td>
             <td class="no-print"><a class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px" href="<?= h(url('admin/ordenes-detalle.php') . '?id=' . (int)$o['id']) ?>">Ver</a></td>
@@ -301,5 +326,6 @@ panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · arm
   </div>
 </div>
 <style>@media print{.rep-print-title{display:block!important}}</style>
+<?php filtro_multi_script(); ?>
 <?php
 panel_footer();

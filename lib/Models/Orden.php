@@ -378,6 +378,32 @@ final class Orden
      * @param array<string, mixed> $f
      * @return array{0:string, 1:array<string,mixed>}
      */
+    /**
+     * Arma una cláusula `col IN (:pfx0, :pfx1, …)` para un filtro multi-valor, con
+     * placeholders únicos (prepares nativos no permiten reusar nombres). Devuelve
+     * null si no quedan valores. Agrega los binds a $params por referencia.
+     *
+     * @param array<int,mixed> $vals
+     * @param array<string,mixed> $params
+     */
+    private static function inClause(string $col, array $vals, string $prefijo, array &$params): ?string
+    {
+        $vals = array_values(array_unique(array_filter(
+            array_map(static fn($v) => trim((string)$v), $vals),
+            static fn(string $v): bool => $v !== ''
+        )));
+        if ($vals === []) {
+            return null;
+        }
+        $ph = [];
+        foreach ($vals as $i => $v) {
+            $k = ':' . $prefijo . $i;
+            $ph[] = $k;
+            $params[$k] = $v;
+        }
+        return $col . ' IN (' . implode(', ', $ph) . ')';
+    }
+
     private static function whereFiltros(array $f): array
     {
         $where  = [];
@@ -391,13 +417,19 @@ final class Orden
             $params[':q2'] = $like;
             $params[':q3'] = $like;
         }
-        if (!empty($f['provincia'])) {
-            $where[] = 'o.dest_provincia = :prov';
-            $params[':prov'] = $f['provincia'];
+        // Multi-valor: destino (provincia), lote (carga) y hoja de ruta.
+        if (($c = self::inClause('o.dest_provincia', (array)($f['provincia'] ?? []), 'prov', $params)) !== null) {
+            $where[] = $c;
         }
-        if (!empty($f['carga'])) {
-            $where[] = 'o.carga_id = :carga';
-            $params[':carga'] = (int)$f['carga'];
+        if (($c = self::inClause('o.carga_id', (array)($f['carga'] ?? []), 'carga', $params)) !== null) {
+            $where[] = $c;
+        }
+        if (($c = self::inClause('o.hoja_ruta', (array)($f['hoja_ruta'] ?? []), 'hr', $params)) !== null) {
+            $where[] = $c;
+        }
+        if (!empty($f['transportista'])) {
+            $where[] = 'o.transportista_id = :transp';
+            $params[':transp'] = (int)$f['transportista'];
         }
         if (!empty($f['categoria'])) {
             // La categoría es de la carga; la orden la hereda por su carga_id.
@@ -422,13 +454,13 @@ final class Orden
             $where[] = 'o.tipo_venta = :tv';
             $params[':tv'] = $f['tipo_venta'];
         }
-        // Fecha de CARGA (ingreso de la orden al sistema), no la del remito.
+        // Fecha de CARGA del documento (la que se ingresa al importar; columna DATE).
         if (!empty($f['fecha_desde'])) {
-            $where[] = 'DATE(o.created_at) >= :fd';
+            $where[] = 'o.fecha_carga >= :fd';
             $params[':fd'] = $f['fecha_desde'];
         }
         if (!empty($f['fecha_hasta'])) {
-            $where[] = 'DATE(o.created_at) <= :fh';
+            $where[] = 'o.fecha_carga <= :fh';
             $params[':fh'] = $f['fecha_hasta'];
         }
 
@@ -450,9 +482,11 @@ final class Orden
         $offset = max(0, $offset);
 
         $sql = 'SELECT o.id, o.carga_id, o.nro_orden, o.nro_remito, o.fecha_remito, o.tipo_venta,
+                       o.hoja_ruta, o.transportista_id, o.fecha_carga,
                        o.cliente, o.telefonos, o.dest_provincia, o.dest_localidad, o.m3_total,
                        o.valor_declarado, o.estado, o.created_at AS fecha_ingreso,
                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items,
+                       (SELECT u.nombre_completo FROM usuarios u WHERE u.id = o.transportista_id) AS transportista_nombre,
                        (SELECT cat.nombre FROM cargas cg JOIN categorias cat ON cat.id = cg.categoria_id
                           WHERE cg.id = o.carga_id) AS categoria
                 FROM ordenes o'
@@ -578,5 +612,36 @@ final class Orden
              ORDER BY dest_provincia"
         )->fetchAll(\PDO::FETCH_COLUMN);
         return array_map('strval', $rows);
+    }
+
+    /**
+     * Números de hoja de ruta distintos presentes en las órdenes (para el filtro).
+     *
+     * @return array<int, string>
+     */
+    public static function hojasRuta(): array
+    {
+        $rows = DB::getInstance()->query(
+            "SELECT DISTINCT hoja_ruta FROM ordenes
+             WHERE hoja_ruta IS NOT NULL AND hoja_ruta <> ''
+             ORDER BY hoja_ruta"
+        )->fetchAll(\PDO::FETCH_COLUMN);
+        return array_map('strval', $rows);
+    }
+
+    /**
+     * Transportistas que figuran en alguna orden (id + nombre), para el filtro.
+     *
+     * @return array<int, array{id:int, nombre:string}>
+     */
+    public static function transportistasUsados(): array
+    {
+        $rows = DB::getInstance()->query(
+            "SELECT DISTINCT u.id, u.nombre_completo
+             FROM ordenes o JOIN usuarios u ON u.id = o.transportista_id
+             WHERE o.transportista_id IS NOT NULL
+             ORDER BY u.nombre_completo"
+        )->fetchAll();
+        return array_map(static fn($r) => ['id' => (int)$r['id'], 'nombre' => (string)$r['nombre_completo']], $rows);
     }
 }
