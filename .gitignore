@@ -8,5 +8,8 @@ Trazock-handoff.zip
 codigo.jpg
 *.jpg
 
+# …pero los assets de imagen de la app SÍ se versionan (logo del cliente, etc.)
+!assets/img/*.jpg
+
 # Fuentes de Claude Design (no se versionan)
 design/

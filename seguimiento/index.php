@@ -52,8 +52,8 @@ function seg_head(string $titulo, string $extraHead = ''): void
     <style>
         body{font-family:'Inter',system-ui,sans-serif;background:#f4f6f9;color:#1f2937;margin:0}
         .seg-wrap{max-width:560px;margin:0 auto;padding:1.5rem 1rem 3rem}
-        .seg-brand{display:flex;align-items:center;gap:.55rem;justify-content:center;margin:.5rem 0 1.5rem;color:#0d6efd;font-weight:700;font-size:1.15rem;letter-spacing:-.02em}
-        .seg-brand .box{width:28px;height:28px;border-radius:7px;background:#0d6efd;display:flex;align-items:center;justify-content:center;color:#fff}
+        .seg-brand{display:flex;align-items:center;justify-content:center;margin:.25rem 0 1.5rem}
+        .seg-logo{max-width:200px;width:60%;height:auto;border-radius:10px;background:#fff}
         .seg-card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
         .seg-hero{padding:1.6rem 1.4rem;text-align:center}
         .seg-hero .ic{width:64px;height:64px;border-radius:50%;background:#e7f1ff;color:#0d6efd;display:inline-flex;align-items:center;justify-content:center;font-size:1.9rem;margin-bottom:.8rem}
@@ -76,6 +76,9 @@ function seg_head(string $titulo, string $extraHead = ''): void
         .seg-step .body .d{font-size:.85rem;color:#6b7280;margin-top:.15rem;line-height:1.45}
         .seg-step .body .f{font-size:.75rem;color:#9ca3af;margin-top:.25rem}
         .seg-foot{text-align:center;font-size:.78rem;color:#9ca3af;margin-top:1.4rem}
+        .seg-powered{display:inline-flex;align-items:center;gap:.4rem;margin-top:.35rem;font-size:.72rem;color:#9ca3af}
+        .seg-powered .tzbox{width:15px;height:15px;border-radius:4px;background:#0d6efd;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:8px}
+        .seg-powered strong{color:#6b7280;font-weight:700}
         .seg-empty{padding:2.4rem 1.4rem;text-align:center}
         .seg-empty .ic{font-size:2.6rem;color:#d1d5db}
         .seg-empty h1{font-size:1.2rem;font-weight:700;margin:.6rem 0 .4rem}
@@ -91,14 +94,17 @@ function seg_head(string $titulo, string $extraHead = ''): void
 </head>
 <body>
 <div class="seg-wrap">
-    <div class="seg-brand"><span class="box"><i class="bi bi-upc-scan"></i></span> Trazock</div>
+    <div class="seg-brand"><img src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios S.A." class="seg-logo"></div>
     <?php
 }
 
 function seg_foot(): void
 {
     ?>
-    <div class="seg-foot">Seguimiento de tu pedido · Trazock</div>
+    <div class="seg-foot">
+        Seguimiento de tu pedido
+        <div class="seg-powered"><span class="tzbox"><i class="bi bi-upc-scan"></i></span> powered by <strong>Trazock</strong></div>
+    </div>
 </div>
 </body>
 </html>
