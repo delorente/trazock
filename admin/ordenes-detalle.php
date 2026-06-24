@@ -14,6 +14,7 @@ use Trazock\Auth;
 use Trazock\EtiquetaQr;
 use Trazock\Models\Orden;
 use Trazock\Models\Producto;
+use Trazock\Models\Usuario;
 
 $user    = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo lectura)
 $esAdmin = $user['rol'] === 'admin';
@@ -76,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'dest_domicilio'   => trim((string)($_POST['dest_domicilio'] ?? '')),
             'dest_cp'          => trim((string)($_POST['dest_cp'] ?? '')),
             'nro_remito'       => trim((string)($_POST['nro_remito'] ?? '')),
+            'hoja_ruta'        => trim((string)($_POST['hoja_ruta'] ?? '')),
             'fecha_remito'     => trim((string)($_POST['fecha_remito'] ?? '')),
             'valor_declarado'  => $valor !== '' ? str_replace(',', '.', $valor) : null,
         ]);
@@ -99,6 +101,13 @@ if ($orden === null) {
 
 $items     = Producto::paraEtiquetasPorOrden($id);
 $num       = carga_num((int)($orden['carga_id'] ?? 0), (string)($orden['created_at'] ?? ''));
+
+// Datos de ingreso por documento (hoja de ruta / transportista / fecha de carga).
+$transpNombre = '';
+if (!empty($orden['transportista_id'])) {
+    $t = Usuario::findById((int)$orden['transportista_id']);
+    $transpNombre = (string)($t['nombre_completo'] ?? '');
+}
 $tv        = (string)($orden['tipo_venta'] ?? '');
 $urlEti    = url('admin/ordenes-etiquetas.php') . '?orden=' . $id;
 $csrf      = Auth::tokenCSRF();
@@ -163,6 +172,9 @@ $campo = static function (string $label, string $valor): void {
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:.65rem;font-size:13px">
     <?php
       $campo('Nº Remito', (string)($orden['nro_remito'] ?? ''));
+      $campo('Hoja de ruta', (string)($orden['hoja_ruta'] ?? ''));
+      $campo('Transportista', $transpNombre);
+      $campo('Fecha de carga', ($orden['fecha_carga'] ?? '') ? date('d/m/Y', strtotime((string)$orden['fecha_carga'])) : '');
       $campo('Cliente', (string)($orden['cliente'] ?? ''));
       $campo('Teléfonos', (string)($orden['telefonos'] ?? ''));
       $campo('Destino', $destino);
@@ -291,6 +303,7 @@ $campo = static function (string $label, string $valor): void {
       <div class="modal-body">
         <div class="row g-2">
           <div class="col-md-4"><label class="form-label">Nº remito</label><input class="form-control form-control-sm" name="nro_remito" value="<?= h((string)($orden['nro_remito'] ?? '')) ?>"></div>
+          <div class="col-md-4"><label class="form-label">Hoja de ruta</label><input class="form-control form-control-sm" name="hoja_ruta" value="<?= h((string)($orden['hoja_ruta'] ?? '')) ?>"></div>
           <div class="col-md-4"><label class="form-label">Fecha remito</label><input type="date" class="form-control form-control-sm" name="fecha_remito" value="<?= h((string)($orden['fecha_remito'] ?? '')) ?>"></div>
           <div class="col-md-4"><label class="form-label">Tipo de venta</label>
             <select class="form-select form-select-sm" name="tipo_venta">

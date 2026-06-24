@@ -54,7 +54,7 @@ final class Orden
 
     /** Campos editables de una orden desde el detalle (subconjunto de CAMPOS). */
     private const EDITABLES = [
-        'nro_remito', 'fecha_remito', 'tipo_venta', 'cliente', 'cliente_apellido',
+        'nro_remito', 'hoja_ruta', 'fecha_remito', 'tipo_venta', 'cliente', 'cliente_apellido',
         'telefonos', 'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
         'valor_declarado',
     ];
