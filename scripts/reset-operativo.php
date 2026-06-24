@@ -6,7 +6,7 @@ declare(strict_types=1);
 // cero, conservando catálogos y configuración.
 //
 //   BORRA:     cargas, ordenes, productos, lotes, transiciones, lote_items,
-//              conflictos_producto  (con AUTO_INCREMENT reseteado a 1)
+//              conflictos_producto, encuestas  (con AUTO_INCREMENT reseteado a 1)
 //   CONSERVA:  usuarios, categorias, proveedores, motivos, zonas,
 //              zona_localidades, estados_publicos, intentos_login
 //
@@ -30,7 +30,7 @@ if (!in_array('--confirm', $argv, true)) {
 $db = DB::getInstance();
 
 // Orden no importa con las FK desactivadas; TRUNCATE además resetea el AUTO_INCREMENT.
-$tablas = ['lote_items', 'conflictos_producto', 'transiciones', 'productos', 'ordenes', 'lotes', 'cargas'];
+$tablas = ['encuestas', 'lote_items', 'conflictos_producto', 'transiciones', 'productos', 'ordenes', 'lotes', 'cargas'];
 
 $db->exec('SET FOREIGN_KEY_CHECKS = 0');
 foreach ($tablas as $t) {
