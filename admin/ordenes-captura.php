@@ -196,8 +196,20 @@ async function procesarHoja(item) {
 
   try {
     const r = await fetch(TZ.apiHoja, { method:'POST', credentials:'same-origin', body: fd });
-    const d = await r.json();
-    if (!r.ok || !d.ok) throw new Error(d.error || 'Error al procesar la hoja.');
+    // El servidor puede cortar con una página HTML (503/504/502) si el OCR del PDF
+    // supera su límite de tiempo. Parsear defensivo para mostrar algo útil.
+    const raw = await r.text();
+    let d = {};
+    try { d = JSON.parse(raw); } catch (_) {}
+    if (!r.ok || !d.ok) {
+      let msg = d.error;
+      if (!msg) {
+        msg = (r.status === 503 || r.status === 504 || r.status === 502)
+          ? 'El servidor cortó la conexión procesando este archivo (timeout). Si es un PDF grande/multipágina, probá subir las hojas como imágenes (JPG/PNG) o un PDF de menos páginas.'
+          : 'Error al procesar la hoja (HTTP ' + r.status + ').';
+      }
+      throw new Error(msg);
+    }
     TZ.cargaId = d.carga_id;
     TZ.totalOrdenes = d.total;
     // La categoría se fijó al crear la carga; ya no se puede cambiar.
