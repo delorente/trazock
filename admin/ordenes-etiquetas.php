@@ -33,10 +33,10 @@ $GAP_MM    = 2;
 $USABLE_W  = 198; // 210 - 2×6
 $USABLE_H  = 281; // 297 - 2×8
 $TAMANOS = [
-    'grande'  => ['w' => 98, 'h' => 137, 'qr' => '44mm', 'fs' => '16px', 'nom' => 'Grande'],
-    'mediana' => ['w' => 98, 'h' => 67,  'qr' => '32mm', 'fs' => '11px', 'nom' => 'Mediana'],
-    'chica'   => ['w' => 64, 'h' => 49,  'qr' => '24mm', 'fs' => '9px',  'nom' => 'Chica'],
-    'mini'    => ['w' => 48, 'h' => 33,  'qr' => '17mm', 'fs' => '7.5px','nom' => 'Mini'],
+    'grande'  => ['w' => 98, 'h' => 137, 'qr' => '47mm', 'fs' => '16px', 'nom' => 'Grande'],
+    'mediana' => ['w' => 98, 'h' => 67,  'qr' => '36mm', 'fs' => '11px', 'nom' => 'Mediana'],
+    'chica'   => ['w' => 64, 'h' => 49,  'qr' => '26mm', 'fs' => '9px',  'nom' => 'Chica'],
+    'mini'    => ['w' => 48, 'h' => 33,  'qr' => '18mm', 'fs' => '7.5px','nom' => 'Mini'],
 ];
 
 /** Cuántas columnas/filas/etiquetas de un tamaño entran en la hoja A4. */

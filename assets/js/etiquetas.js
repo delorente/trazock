@@ -27,7 +27,10 @@
       var qr = qrcode(0, 'M');      // 0 = versión automática (la menor que entre)
       qr.addData(data);             // sin tipo → modo byte (UTF-8) para acentos
       qr.make();
-      el.innerHTML = qr.createSvgTag({ cellSize: 2, margin: 0, scalable: true });
+      // Zona de silencio estándar = 4 módulos en blanco alrededor. El margin está
+      // en px y cellSize=2 px/módulo → margin:8 = 4 módulos. Antes estaba en 0, lo
+      // que dejaba el QR pegado al texto/borde y los lectores (zxing en iPhone) fallaban.
+      el.innerHTML = qr.createSvgTag({ cellSize: 2, margin: 8, scalable: true });
     } catch (e) {
       console.error('etiquetas.js: no se pudo generar el QR para', data, e);
       el.textContent = '⚠';
