@@ -71,6 +71,14 @@ final class Encuesta
         return (int)DB::getInstance()->query('SELECT COUNT(*) FROM encuestas')->fetchColumn();
     }
 
+    /** Elimina una encuesta por id. Devuelve true si borró una fila. */
+    public static function eliminar(int $id): bool
+    {
+        $stmt = DB::getInstance()->prepare('DELETE FROM encuestas WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+        return $stmt->rowCount() > 0;
+    }
+
     // -------------------------------------------------------------------------
     // Panel (admin/encuestas.php)
     // -------------------------------------------------------------------------

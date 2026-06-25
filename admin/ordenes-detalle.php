@@ -64,6 +64,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $res === 'despachada'
                 ? 'No se puede eliminar: la orden ya tiene ítems despachados.'
                 : 'No se encontró la orden.');
+    } elseif ($accion === 'corregir_estado') {
+        // Corrección manual del estado de la orden (ajuste manual a todos sus ítems).
+        $mapa   = ['RECIBIDO' => 'INGRESADO', 'EN_REPARTO' => 'EN_REPARTO', 'ENTREGADO' => 'ENTREGADO',
+                   'REINGRESADO' => 'REINGRESADO', 'DEVUELTO' => 'DEVUELTO', 'BAJA' => 'BAJA'];
+        $dest   = (string)($_POST['nuevo_estado'] ?? '');
+        $motivo = trim((string)($_POST['motivo'] ?? ''));
+        if (!isset($mapa[$dest])) {
+            flash_set('danger', 'Estado destino inválido.');
+        } elseif ($motivo === '') {
+            flash_set('danger', 'El motivo es obligatorio.');
+        } else {
+            try {
+                $n = Orden::corregirEstado($oid, $mapa[$dest], $motivo, (int)$user['id']);
+                flash_set('success', "Estado corregido a " . str_replace('_', ' ', $dest) . " ({$n} ítem(s) ajustado(s)).");
+            } catch (\Throwable $e) {
+                flash_set('danger', 'No se pudo corregir el estado: ' . $e->getMessage());
+            }
+        }
     } else { // guardar
         $tvIn  = (string)($_POST['tipo_venta'] ?? '');
         $valor = trim((string)($_POST['valor_declarado'] ?? ''));
@@ -144,6 +162,7 @@ foreach ($items as $it) {
 $acciones = $volver;
 if ($esAdmin) {
     $acciones .= '<button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEditar"><i class="bi bi-pencil me-1"></i>Editar</button>'
+        . '<button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalCorregirEstado"><i class="bi bi-arrow-repeat me-1"></i>Corregir estado</button>'
         . '<a class="btn btn-sm btn-outline-secondary" href="' . h($urlEti) . '"><i class="bi bi-tag me-1"></i>Re-imprimir etiquetas</a>';
     if ($todoIngresado) {
         $acciones .= '<button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalEliminar"><i class="bi bi-trash me-1"></i>Eliminar orden</button>';
@@ -353,6 +372,40 @@ $campo = static function (string $label, string $valor): void {
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
         <button class="btn btn-success" type="submit"><i class="bi bi-plus-lg me-1"></i>Agregar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: corregir estado de la orden -->
+<div class="modal fade" id="modalCorregirEstado" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>">
+      <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
+      <input type="hidden" name="id" value="<?= $id ?>">
+      <input type="hidden" name="accion" value="corregir_estado">
+      <div class="modal-header">
+        <h5 class="modal-title">Corregir estado de <span class="mono"><?= h((string)$orden['nro_orden']) ?></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Nuevo estado</label>
+          <select class="form-select form-select-sm" name="nuevo_estado">
+            <?php foreach (Orden::ESTADOS as $e): ?>
+              <option value="<?= h($e) ?>" <?= $e === (string)($orden['estado'] ?? '') ? 'selected' : '' ?>><?= h(str_replace('_', ' ', $e)) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Motivo *</label>
+          <textarea class="form-control form-control-sm" name="motivo" rows="3" placeholder="Explicá por qué corregís el estado…" required></textarea>
+        </div>
+        <div class="alert alert-warning py-2 mb-0" style="font-size:12px"><i class="bi bi-exclamation-triangle me-1"></i>Aplica un <strong>ajuste manual</strong> a los <?= count($items) ?> ítem(s) de la orden y queda registrado con tu usuario en el historial de cada uno. Usalo solo para corregir errores.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-warning" type="submit"><i class="bi bi-check-lg me-1"></i>Corregir estado</button>
       </div>
     </form>
   </div>

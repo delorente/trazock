@@ -16,7 +16,27 @@ require __DIR__ . '/_layout.php';
 use Trazock\Auth;
 use Trazock\Models\Encuesta;
 
-$user = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor
+$user    = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor
+$esAdmin = $user['rol'] === 'admin';
+
+// POST: eliminar encuesta (solo admin; patrón PRG + CSRF). Conserva los filtros.
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$esAdmin) {
+        flash_set('danger', 'No tenés permiso para eliminar encuestas.');
+    } elseif (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
+        flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
+    } else {
+        $eid = (int)($_POST['id'] ?? 0);
+        if ($eid > 0 && Encuesta::eliminar($eid)) {
+            flash_set('success', 'Encuesta eliminada.');
+        } else {
+            flash_set('danger', 'No se encontró la encuesta.');
+        }
+    }
+    $qs = trim((string)($_POST['qs'] ?? ''));
+    header('Location: ' . url('admin/encuestas.php') . ($qs !== '' ? '?' . $qs : ''));
+    exit;
+}
 
 $filtros = [
     'fecha_desde' => trim((string)($_GET['fecha_desde'] ?? '')),
@@ -58,12 +78,14 @@ $ultima    = $encuestas[0]['entregada_at'] ?? null;
 
 // Query string de los filtros (para paginación, sin 'pagina').
 $qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== ''));
+$csrf    = Auth::tokenCSRF();
 $maxDist = max(1, ...array_values($stats['distribucion']));
 
 $subtitulo = $stats['respuestas'] . ' ' . ($stats['respuestas'] === 1 ? 'respuesta' : 'respuestas')
     . ($ultima ? ' · Última: ' . fmt_fecha((string)$ultima, 'd/m/y') : '');
 
 panel_header('Encuestas de satisfacción', $user, 'encuestas', $subtitulo);
+flash_render();
 ?>
 <!-- KPIs -->
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.75rem;margin-bottom:1.1rem">
@@ -121,11 +143,11 @@ panel_header('Encuestas de satisfacción', $user, 'encuestas', $subtitulo);
   <div style="overflow-x:auto">
     <table class="table table-hover mb-0">
       <thead><tr>
-        <th>Operación</th><th>Entrega</th><th>General</th><th>Tiempo</th><th>Paquete</th><th>Trato</th><th>Comentario</th>
+        <th>Operación</th><th>Entrega</th><th>General</th><th>Tiempo</th><th>Paquete</th><th>Trato</th><th>Comentario</th><?php if ($esAdmin): ?><th></th><?php endif; ?>
       </tr></thead>
       <tbody>
       <?php if ($encuestas === []): ?>
-        <tr><td colspan="7" class="text-muted" style="text-align:center;padding:1.5rem">No hay encuestas para los filtros seleccionados.</td></tr>
+        <tr><td colspan="<?= $esAdmin ? 8 : 7 ?>" class="text-muted" style="text-align:center;padding:1.5rem">No hay encuestas para los filtros seleccionados.</td></tr>
       <?php else: foreach ($encuestas as $e): ?>
         <tr>
           <td class="mono" style="font-size:12px"><a href="<?= h(url('admin/ordenes-detalle.php') . '?id=' . (int)$e['orden_id']) ?>" style="color:inherit;text-decoration:none"><?= h((string)$e['nro_orden']) ?></a></td>
@@ -141,6 +163,16 @@ panel_header('Encuestas de satisfacción', $user, 'encuestas', $subtitulo);
               <span class="text-muted">—</span>
             <?php endif; ?>
           </td>
+          <?php if ($esAdmin): ?>
+          <td style="text-align:right">
+            <form method="post" action="<?= h(url('admin/encuestas.php')) ?>" style="display:inline" onsubmit="return confirm('¿Eliminar esta encuesta? No se puede deshacer.')">
+              <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
+              <input type="hidden" name="id" value="<?= (int)$e['id'] ?>">
+              <input type="hidden" name="qs" value="<?= h($qsBase) ?>">
+              <button class="btn btn-sm btn-link text-danger p-0" title="Eliminar encuesta"><i class="bi bi-trash"></i></button>
+            </form>
+          </td>
+          <?php endif; ?>
         </tr>
       <?php endforeach; endif; ?>
       </tbody>

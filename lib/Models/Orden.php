@@ -341,6 +341,62 @@ final class Orden
     }
 
     /**
+     * Corrección manual del estado de una orden (para arreglar errores). Aplica un
+     * AJUSTE MANUAL (transición es_ajuste_manual=1, sin conflicto) a TODOS los ítems
+     * que no estén ya en $estadoProducto, y recalcula el estado de la orden. Devuelve
+     * cuántos ítems cambió. $estadoProducto es un valor del enum Estado (vocabulario
+     * de producto: INGRESADO para "RECIBIDO").
+     *
+     * @throws \InvalidArgumentException|\RuntimeException
+     */
+    public static function corregirEstado(int $ordenId, string $estadoProducto, string $motivo, int $usuarioId): int
+    {
+        $estado = \Trazock\Estado::tryFrom($estadoProducto);
+        if ($estado === null) {
+            throw new \InvalidArgumentException('Estado destino inválido.');
+        }
+        $motivo = trim($motivo);
+        if ($motivo === '') {
+            throw new \InvalidArgumentException('El motivo es obligatorio.');
+        }
+
+        $db = DB::getInstance();
+        $stmt = $db->prepare('SELECT id, estado_actual FROM productos WHERE orden_id = :o');
+        $stmt->execute([':o' => $ordenId]);
+        $items = $stmt->fetchAll();
+        if ($items === []) {
+            throw new \RuntimeException('La orden no tiene ítems.');
+        }
+
+        $ahora     = gmdate('Y-m-d H:i:s');
+        $motivo50  = mb_substr($motivo, 0, 50);
+        $cambiados = 0;
+
+        $db->beginTransaction();
+        try {
+            foreach ($items as $it) {
+                $desde = (string)$it['estado_actual'];
+                if ($desde === $estado->value) {
+                    continue; // ya está en el estado destino
+                }
+                $pid = (int)$it['id'];
+                $tid = Transicion::insertar($pid, null, $desde, $estado->value, $ahora, false, $motivo50, true, $usuarioId);
+                // Solo fija el estado actual si no hay una transición más reciente (timestamps futuros).
+                if (!Transicion::existeMasReciente($pid, $ahora)) {
+                    Producto::fijarEstadoActual($pid, $estado->value, $tid);
+                }
+                $cambiados++;
+            }
+            self::recalcularEstado($ordenId);
+            $db->commit();
+            return $cambiados;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
      * Resumen agregado de una carga confirmada (para la pantalla de confirmación
      * y la de etiquetas): nº de órdenes, ítems, m³ total y cuántos ítems ya tienen
      * su etiqueta impresa.
