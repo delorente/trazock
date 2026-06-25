@@ -45,6 +45,8 @@ function seg_head(string $titulo, string $extraHead = ''): void
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/png" href="<?= h(asset('favicon.png')) ?>">
+    <link rel="apple-touch-icon" href="<?= h(asset('favicon.png')) ?>">
     <title><?= h($titulo) ?></title>
     <link rel="stylesheet" href="<?= h(asset('assets/vendor/inter/inter.css')) ?>">
     <link rel="stylesheet" href="<?= h(asset('assets/vendor/bootstrap/bootstrap.min.css')) ?>">

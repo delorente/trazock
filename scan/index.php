@@ -44,6 +44,7 @@ if ($user !== null) {
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Corredora">
     <title>Corredora de Servicios — Escaneo</title>
+    <link rel="icon" type="image/png" href="<?= h(asset('favicon.png')) ?>">
     <link rel="manifest" href="<?= h(url('scan/manifest.json')) ?>">
     <link rel="apple-touch-icon" href="<?= h(asset('assets/img/icon-192.png')) ?>">
     <link rel="stylesheet" href="<?= h(asset('assets/vendor/inter/inter.css')) ?>">
