@@ -10,8 +10,40 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\Models\Lote;
+use Trazock\Models\Orden;
+use Trazock\Models\Usuario;
 
-$user = Auth::requierePanel();
+$user    = Auth::requierePanel();
+$esAdmin = $user['rol'] === 'admin';
+
+// POST: edición en bloque de los datos de ingreso de la carga (solo admin, PRG+CSRF).
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $lid = (int)($_POST['id'] ?? 0);
+    if (!$esAdmin) {
+        flash_set('danger', 'No tenés permiso para editar la carga.');
+    } elseif (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
+        flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
+    } else {
+        $cargaId  = (int)($_POST['carga_id'] ?? 0);
+        $transpId = (int)($_POST['transportista_id'] ?? 0);
+        $tipo     = (string)($_POST['tipo_venta'] ?? '');
+        $fCarga   = trim((string)($_POST['fecha_carga'] ?? ''));
+        if ($cargaId <= 0) {
+            flash_set('danger', 'Carga inválida.');
+        } elseif ($transpId > 0 && !Usuario::existeActivoConRol($transpId, 'transportista')) {
+            flash_set('danger', 'Transportista inválido.');
+        } elseif ($tipo !== '' && !in_array($tipo, ['online', 'local'], true)) {
+            flash_set('danger', 'Tipo de venta inválido.');
+        } elseif ($fCarga !== '' && $fCarga > date('Y-m-d')) {
+            flash_set('danger', 'La fecha de carga no puede ser posterior a hoy.');
+        } else {
+            $n = Orden::actualizarDatosCarga($cargaId, $transpId > 0 ? $transpId : null, $tipo !== '' ? $tipo : null, $fCarga !== '' ? $fCarga : null);
+            flash_set('success', "Datos de carga actualizados en {$n} orden(es).");
+        }
+    }
+    header('Location: ' . url('admin/lote-detalle.php') . '?id=' . $lid);
+    exit;
+}
 
 $id   = (int)($_GET['id'] ?? 0);
 $lote = $id > 0 ? Lote::findById($id) : null;
@@ -28,12 +60,26 @@ if ($lote === null) {
 $items   = Lote::items($id);
 $ordenes = Lote::ordenes($id); // vacío en lotes legacy sin orden
 
+// Carga (import OCR) de este lote de INGRESO: para editar en bloque sus datos.
+$cargaId    = $ordenes !== [] ? (int)($ordenes[0]['carga_id'] ?? 0) : 0;
+$cargaDatos = null;
+$transportistasAll = [];
+$csrf = '';
+if ($lote['tipo'] === 'INGRESO' && $cargaId > 0) {
+    $cargaDatos = Orden::datosCarga($cargaId);
+    $transportistasAll = Usuario::transportistasActivos();
+    $csrf = Auth::tokenCSRF();
+}
+
 // Los lotes de INGRESO agrupan los productos de una carga: se pueden reimprimir
 // todas sus etiquetas juntas (por si no salieron bien al cargar).
 if ($lote['tipo'] === 'INGRESO') {
     $volver .= '<a class="btn btn-sm btn-outline-secondary" href="'
         . h(url('admin/ordenes-etiquetas.php') . '?lote=' . $id)
         . '"><i class="bi bi-tag me-1"></i>Re-imprimir etiquetas</a>';
+    if ($esAdmin && $cargaId > 0) {
+        $volver .= '<button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEditarCarga"><i class="bi bi-pencil me-1"></i>Editar datos de carga</button>';
+    }
 }
 
 /** Celda de campo con label en mayúsculas (estilo prototipo). */
@@ -44,6 +90,7 @@ function tz_campo(string $label, ?string $valor, bool $mono = false): void
 }
 
 panel_header(lote_num((int)$lote['id'], $lote['created_at']), $user, 'lotes', tipo_lote_label($lote['tipo']), $volver);
+flash_render();
 ?>
 <div class="card p-3 mb-3">
     <div class="d-flex align-items-start justify-content-between flex-wrap gap-2 mb-3">
@@ -123,5 +170,50 @@ panel_header(lote_num((int)$lote['id'], $lote['created_at']), $user, 'lotes', ti
         </table>
     </div>
 </div>
+<?php if ($esAdmin && $lote['tipo'] === 'INGRESO' && $cargaId > 0): ?>
+<!-- Modal: editar datos de la carga (en bloque, todas sus órdenes) -->
+<div class="modal fade" id="modalEditarCarga" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="post" class="modal-content" action="<?= h(url('admin/lote-detalle.php') . '?id=' . $id) ?>">
+      <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
+      <input type="hidden" name="id" value="<?= $id ?>">
+      <input type="hidden" name="carga_id" value="<?= (int)$cargaId ?>">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar datos de carga</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Transportista</label>
+          <select class="form-select form-select-sm" name="transportista_id">
+            <option value="">—</option>
+            <?php foreach ($transportistasAll as $t): ?>
+              <option value="<?= (int)$t['id'] ?>" <?= (int)($cargaDatos['transportista_id'] ?? 0) === (int)$t['id'] ? 'selected' : '' ?>><?= h($t['nombre_completo']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Tipo de venta</label>
+          <select class="form-select form-select-sm" name="tipo_venta">
+            <?php $tvC = (string)($cargaDatos['tipo_venta'] ?? ''); ?>
+            <option value="" <?= $tvC === '' ? 'selected' : '' ?>>—</option>
+            <option value="online" <?= $tvC === 'online' ? 'selected' : '' ?>>Online</option>
+            <option value="local" <?= $tvC === 'local' ? 'selected' : '' ?>>Local</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Fecha de carga</label>
+          <input type="date" class="form-control form-control-sm" name="fecha_carga" max="<?= h(date('Y-m-d')) ?>" value="<?= h((string)($cargaDatos['fecha_carga'] ?? '')) ?>">
+        </div>
+        <div class="alert alert-warning py-2 mb-0" style="font-size:12px"><i class="bi bi-exclamation-triangle me-1"></i>Se aplica a <strong>todas las <?= count($ordenes) ?> órden(es)</strong> de esta carga. Si en su momento cargaste documentos con datos distintos, quedarán todos iguales.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-warning" type="submit"><i class="bi bi-check-lg me-1"></i>Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+<?php endif; ?>
 <?php
 panel_footer();

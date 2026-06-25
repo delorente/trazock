@@ -83,23 +83,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } else { // guardar
-        $tvIn  = (string)($_POST['tipo_venta'] ?? '');
-        $valor = trim((string)($_POST['valor_declarado'] ?? ''));
-        Orden::actualizarDatos($oid, [
-            'cliente'          => trim((string)($_POST['cliente'] ?? '')),
-            'cliente_apellido' => trim((string)($_POST['cliente_apellido'] ?? '')),
-            'telefonos'        => trim((string)($_POST['telefonos'] ?? '')),
-            'tipo_venta'       => in_array($tvIn, ['online', 'local'], true) ? $tvIn : null,
-            'dest_provincia'   => trim((string)($_POST['dest_provincia'] ?? '')),
-            'dest_localidad'   => trim((string)($_POST['dest_localidad'] ?? '')),
-            'dest_domicilio'   => trim((string)($_POST['dest_domicilio'] ?? '')),
-            'dest_cp'          => trim((string)($_POST['dest_cp'] ?? '')),
-            'nro_remito'       => trim((string)($_POST['nro_remito'] ?? '')),
-            'hoja_ruta'        => trim((string)($_POST['hoja_ruta'] ?? '')),
-            'fecha_remito'     => trim((string)($_POST['fecha_remito'] ?? '')),
-            'valor_declarado'  => $valor !== '' ? str_replace(',', '.', $valor) : null,
-        ]);
-        flash_set('success', 'Orden actualizada.');
+        $tvIn     = (string)($_POST['tipo_venta'] ?? '');
+        $valor    = trim((string)($_POST['valor_declarado'] ?? ''));
+        $transpId = (int)($_POST['transportista_id'] ?? 0);
+        $fCarga   = trim((string)($_POST['fecha_carga'] ?? ''));
+        if ($transpId > 0 && !\Trazock\Models\Usuario::existeActivoConRol($transpId, 'transportista')) {
+            flash_set('danger', 'Transportista inválido.');
+        } elseif ($fCarga !== '' && $fCarga > date('Y-m-d')) {
+            flash_set('danger', 'La fecha de carga no puede ser posterior a hoy.');
+        } else {
+            Orden::actualizarDatos($oid, [
+                'cliente'          => trim((string)($_POST['cliente'] ?? '')),
+                'cliente_apellido' => trim((string)($_POST['cliente_apellido'] ?? '')),
+                'telefonos'        => trim((string)($_POST['telefonos'] ?? '')),
+                'tipo_venta'       => in_array($tvIn, ['online', 'local'], true) ? $tvIn : null,
+                'transportista_id' => $transpId > 0 ? $transpId : '',
+                'fecha_carga'      => $fCarga,
+                'dest_provincia'   => trim((string)($_POST['dest_provincia'] ?? '')),
+                'dest_localidad'   => trim((string)($_POST['dest_localidad'] ?? '')),
+                'dest_domicilio'   => trim((string)($_POST['dest_domicilio'] ?? '')),
+                'dest_cp'          => trim((string)($_POST['dest_cp'] ?? '')),
+                'nro_remito'       => trim((string)($_POST['nro_remito'] ?? '')),
+                'hoja_ruta'        => trim((string)($_POST['hoja_ruta'] ?? '')),
+                'fecha_remito'     => trim((string)($_POST['fecha_remito'] ?? '')),
+                'valor_declarado'  => $valor !== '' ? str_replace(',', '.', $valor) : null,
+            ]);
+            flash_set('success', 'Orden actualizada.');
+        }
     }
     header('Location: ' . $volverA);
     exit;
@@ -126,6 +136,7 @@ if (!empty($orden['transportista_id'])) {
     $t = Usuario::findById((int)$orden['transportista_id']);
     $transpNombre = (string)($t['nombre_completo'] ?? '');
 }
+$transportistasAll = Usuario::transportistasActivos();
 $tv        = (string)($orden['tipo_venta'] ?? '');
 $urlEti    = url('admin/ordenes-etiquetas.php') . '?orden=' . $id;
 $csrf      = Auth::tokenCSRF();
@@ -331,6 +342,15 @@ $campo = static function (string $label, string $valor): void {
               <option value="local" <?= $tv === 'local' ? 'selected' : '' ?>>Local</option>
             </select>
           </div>
+          <div class="col-md-4"><label class="form-label">Transportista</label>
+            <select class="form-select form-select-sm" name="transportista_id">
+              <option value="">—</option>
+              <?php foreach ($transportistasAll as $t): ?>
+                <option value="<?= (int)$t['id'] ?>" <?= (int)($orden['transportista_id'] ?? 0) === (int)$t['id'] ? 'selected' : '' ?>><?= h($t['nombre_completo']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="col-md-4"><label class="form-label">Fecha de carga</label><input type="date" class="form-control form-control-sm" name="fecha_carga" max="<?= h(date('Y-m-d')) ?>" value="<?= h((string)($orden['fecha_carga'] ?? '')) ?>"></div>
           <div class="col-md-6"><label class="form-label">Cliente</label><input class="form-control form-control-sm" name="cliente" value="<?= h((string)($orden['cliente'] ?? '')) ?>"></div>
           <div class="col-md-3"><label class="form-label">Apellido</label><input class="form-control form-control-sm" name="cliente_apellido" value="<?= h((string)($orden['cliente_apellido'] ?? '')) ?>"></div>
           <div class="col-md-3"><label class="form-label">Teléfonos</label><input class="form-control form-control-sm" name="telefonos" value="<?= h((string)($orden['telefonos'] ?? '')) ?>"></div>

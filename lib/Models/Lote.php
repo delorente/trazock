@@ -267,13 +267,13 @@ final class Lote
     public static function ordenes(int $loteId): array
     {
         $stmt = DB::getInstance()->prepare(
-            'SELECT o.id, o.nro_orden, o.cliente, o.dest_provincia, o.dest_localidad, o.estado,
+            'SELECT o.id, o.carga_id, o.nro_orden, o.cliente, o.dest_provincia, o.dest_localidad, o.estado,
                     COUNT(DISTINCT p.id) AS items
              FROM transiciones t
              JOIN productos p ON p.id = t.producto_id
              JOIN ordenes o   ON o.id = p.orden_id
              WHERE t.lote_id = :lote AND p.orden_id IS NOT NULL
-             GROUP BY o.id, o.nro_orden, o.cliente, o.dest_provincia, o.dest_localidad, o.estado
+             GROUP BY o.id, o.carga_id, o.nro_orden, o.cliente, o.dest_provincia, o.dest_localidad, o.estado
              ORDER BY o.nro_orden ASC'
         );
         $stmt->execute([':lote' => $loteId]);

@@ -54,7 +54,8 @@ final class Orden
 
     /** Campos editables de una orden desde el detalle (subconjunto de CAMPOS). */
     private const EDITABLES = [
-        'nro_remito', 'hoja_ruta', 'fecha_remito', 'tipo_venta', 'cliente', 'cliente_apellido',
+        'nro_remito', 'hoja_ruta', 'transportista_id', 'fecha_carga', 'fecha_remito', 'tipo_venta',
+        'cliente', 'cliente_apellido',
         'telefonos', 'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
         'valor_declarado',
     ];
@@ -91,6 +92,40 @@ final class Orden
         }
         $stmt = DB::getInstance()->prepare('UPDATE ordenes SET ' . implode(', ', $sets) . ' WHERE id = :id');
         $stmt->execute($vals);
+    }
+
+    /**
+     * Edición EN BLOQUE de los datos de ingreso de toda una carga (corrección de
+     * errores de import): fija transportista, tipo de venta y fecha de carga en
+     * TODAS las órdenes de la carga. Devuelve cuántas órdenes actualizó.
+     */
+    public static function actualizarDatosCarga(int $cargaId, ?int $transportistaId, ?string $tipoVenta, ?string $fechaCarga): int
+    {
+        $stmt = DB::getInstance()->prepare(
+            'UPDATE ordenes SET transportista_id = :t, tipo_venta = :tv, fecha_carga = :f WHERE carga_id = :c'
+        );
+        $stmt->bindValue(':t', $transportistaId, $transportistaId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+        $stmt->bindValue(':tv', ($tipoVenta === null || $tipoVenta === '') ? null : $tipoVenta, ($tipoVenta === null || $tipoVenta === '') ? \PDO::PARAM_NULL : \PDO::PARAM_STR);
+        $stmt->bindValue(':f', ($fechaCarga === null || $fechaCarga === '') ? null : $fechaCarga, ($fechaCarga === null || $fechaCarga === '') ? \PDO::PARAM_NULL : \PDO::PARAM_STR);
+        $stmt->bindValue(':c', $cargaId, \PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->rowCount();
+    }
+
+    /**
+     * Datos de ingreso representativos de una carga (de su primera orden), para
+     * precargar la edición en bloque: transportista_id, tipo_venta, fecha_carga.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function datosCarga(int $cargaId): ?array
+    {
+        $stmt = DB::getInstance()->prepare(
+            'SELECT transportista_id, tipo_venta, fecha_carga FROM ordenes WHERE carga_id = :c ORDER BY id LIMIT 1'
+        );
+        $stmt->execute([':c' => $cargaId]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
     }
 
     /** Recalcula ordenes.m3_total como la suma de los m³ de sus productos. */
