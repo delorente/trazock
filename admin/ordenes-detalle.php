@@ -107,6 +107,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'hoja_ruta'        => trim((string)($_POST['hoja_ruta'] ?? '')),
                 'fecha_remito'     => trim((string)($_POST['fecha_remito'] ?? '')),
                 'valor_declarado'  => $valor !== '' ? str_replace(',', '.', $valor) : null,
+                'observaciones'    => trim((string)($_POST['observaciones'] ?? '')),
+                'marca'            => in_array((string)($_POST['marca'] ?? ''), Orden::MARCAS, true) ? (string)$_POST['marca'] : '',
             ]);
             flash_set('success', 'Orden actualizada.');
         }
@@ -195,6 +197,9 @@ $campo = static function (string $label, string $valor): void {
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <?= estado_badge((string)($orden['estado'] ?? '')) ?>
         <?php if ($tv !== ''): ?><span class="badge b-<?= h(strtoupper($tv)) ?>"><?= h(ucfirst($tv)) ?></span><?php endif; ?>
+        <?php $marca = (string)($orden['marca'] ?? ''); ?>
+        <?php if ($marca === 'no_entregar'): ?><span class="badge" style="background:rgba(239,68,68,.2);color:#f87171"><i class="bi bi-x-octagon-fill me-1"></i>No entregar</span>
+        <?php elseif ($marca === 'prioridad'): ?><span class="badge" style="background:rgba(245,158,11,.2);color:#fbbf24"><i class="bi bi-lightning-charge-fill me-1"></i>Prioridad</span><?php endif; ?>
         <span style="font-size:12px;color:var(--muted)"><?= h($num) ?></span>
       </div>
     </div>
@@ -216,6 +221,12 @@ $campo = static function (string $label, string $valor): void {
       $campo('Ítems', count($items) . ' unidad(es)');
     ?>
   </div>
+  <?php if (trim((string)($orden['observaciones'] ?? '')) !== ''): ?>
+    <div style="margin-top:.85rem;border-top:1px solid var(--border);padding-top:.7rem">
+      <span style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:3px"><i class="bi bi-chat-left-text me-1"></i>Observaciones</span>
+      <div style="font-size:13px;white-space:pre-wrap"><?= h((string)$orden['observaciones']) ?></div>
+    </div>
+  <?php endif; ?>
 </div>
 
 <div class="card p-3 mb-3">
@@ -359,6 +370,15 @@ $campo = static function (string $label, string $valor): void {
           <div class="col-md-2"><label class="form-label">CP</label><input class="form-control form-control-sm" name="dest_cp" value="<?= h((string)($orden['dest_cp'] ?? '')) ?>"></div>
           <div class="col-md-2"><label class="form-label">Valor decl.</label><input class="form-control form-control-sm" name="valor_declarado" value="<?= $orden['valor_declarado'] !== null ? h(number_format((float)$orden['valor_declarado'], 2, '.', '')) : '' ?>"></div>
           <div class="col-12"><label class="form-label">Domicilio</label><input class="form-control form-control-sm" name="dest_domicilio" value="<?= h((string)($orden['dest_domicilio'] ?? '')) ?>"></div>
+          <?php $marcaEd = (string)($orden['marca'] ?? ''); ?>
+          <div class="col-md-4"><label class="form-label">Marca</label>
+            <select class="form-select form-select-sm" name="marca">
+              <option value="">Sin marca</option>
+              <option value="no_entregar" <?= $marcaEd === 'no_entregar' ? 'selected' : '' ?>>🚫 No entregar</option>
+              <option value="prioridad" <?= $marcaEd === 'prioridad' ? 'selected' : '' ?>>⚡ Prioridad</option>
+            </select>
+          </div>
+          <div class="col-12"><label class="form-label">Observaciones</label><textarea class="form-control form-control-sm" name="observaciones" rows="2" maxlength="1000" placeholder="Detalles del cliente: no entregar tal pedido, priorizar otro, horarios…"><?= h((string)($orden['observaciones'] ?? '')) ?></textarea></div>
         </div>
         <div class="text-muted small mt-2"><i class="bi bi-info-circle me-1"></i>Editás los datos de la orden. El destino de las etiquetas ya impresas no cambia hasta reimprimirlas.</div>
       </div>

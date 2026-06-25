@@ -88,13 +88,6 @@ function panel_header(string $titulo, array $user, string $activo = '', string $
     <div style="padding:.8rem 1rem;border-bottom:1px solid var(--border);text-align:center">
         <img src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios S.A." style="max-width:150px;width:100%;height:auto;border-radius:8px;background:#fff;padding:4px">
     </div>
-    <div class="d-flex align-items-center gap-2" style="padding:.6rem 1rem;border-bottom:1px solid var(--border)">
-        <div class="tz-avatar"><?= h(panel_iniciales((string)$user['nombre_completo'])) ?></div>
-        <div>
-            <div style="font-size:12px;font-weight:600;line-height:1.3"><?= h((string)$user['nombre_completo']) ?></div>
-            <?= rol_badge($rol) ?>
-        </div>
-    </div>
     <div style="flex:1;overflow-y:auto;padding:.5rem 0">
         <?php foreach (panel_menu() as $grupo): ?>
             <?php
@@ -116,6 +109,13 @@ function panel_header(string $titulo, array $user, string $activo = '', string $
         <?php endforeach; ?>
     </div>
     <div style="border-top:1px solid var(--border);padding:.5rem">
+        <div class="d-flex align-items-center gap-2" style="padding:.3rem .4rem .5rem">
+            <div class="tz-avatar"><?= h(panel_iniciales((string)$user['nombre_completo'])) ?></div>
+            <div>
+                <div style="font-size:12px;font-weight:600;line-height:1.3"><?= h((string)$user['nombre_completo']) ?></div>
+                <?= rol_badge($rol) ?>
+            </div>
+        </div>
         <a class="ni" style="color:var(--red)" href="<?= h(url('admin/logout.php')) ?>"><i class="bi bi-box-arrow-left"></i>Cerrar sesión</a>
         <div class="text-center" style="font-size:10px;color:var(--muted);padding:.4rem 0 .1rem;opacity:.75">powered by <strong style="color:var(--muted)">Trazock</strong></div>
     </div>

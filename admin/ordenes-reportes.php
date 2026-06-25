@@ -179,6 +179,7 @@ $categorias  = Categoria::activas();
 $provincias  = Orden::provincias();
 $hojasRuta   = Orden::hojasRuta();
 $transportistas = Orden::transportistasUsados();
+$csrf        = Auth::tokenCSRF();
 $paginas     = (int)max(1, ceil($total / $porPagina));
 
 // Query string de los filtros (para paginación y export, sin 'pagina').
@@ -253,14 +254,14 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
     </div>
     <div><label class="form-label">F. carga desde</label><input type="date" class="form-control form-control-sm" name="fecha_desde" value="<?= h($filtros['fecha_desde']) ?>"></div>
     <div><label class="form-label">F. carga hasta</label><input type="date" class="form-control form-control-sm" name="fecha_hasta" value="<?= h($filtros['fecha_hasta']) ?>"></div>
-  </div>
-  <div class="d-flex gap-2 flex-wrap" style="max-width:520px">
-    <div class="input-group input-group-sm" style="flex:1;min-width:200px">
-      <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input type="text" class="form-control" name="q" value="<?= h($filtros['q']) ?>" placeholder="Orden, remito, cliente…">
+    <div>
+      <label class="form-label">Buscar</label>
+      <input type="text" class="form-control form-control-sm" name="q" value="<?= h($filtros['q']) ?>" placeholder="Orden, remito, cliente…">
     </div>
-    <button class="btn btn-primary btn-sm px-3" type="submit">Buscar</button>
-    <?php if ($qsBase !== ''): ?><a class="btn btn-outline-secondary btn-sm" href="<?= h(url('admin/ordenes-reportes.php')) ?>">Limpiar</a><?php endif; ?>
+    <div style="display:flex;align-items:flex-end;gap:.4rem">
+      <button class="btn btn-primary btn-sm px-3" type="submit">Buscar</button>
+      <?php if ($qsBase !== ''): ?><a class="btn btn-outline-secondary btn-sm" href="<?= h(url('admin/ordenes-reportes.php')) ?>">Limpiar</a><?php endif; ?>
+    </div>
   </div>
 </form>
 
@@ -279,17 +280,24 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
     <div style="overflow-x:auto">
       <table class="table table-hover mb-0">
         <thead><tr>
+          <th style="width:58px">Marca</th>
           <th>Lote</th><th>Nº orden</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Destino</th><th>Teléfono</th><th>m³</th>
           <th>Tipo</th><th>F. remito</th><th>Nº remito</th><th>Hoja ruta</th><th>Transportista</th><th>F. carga</th><th>F. ingreso</th>
           <th>Estado</th><th class="no-print"></th>
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-          <tr><td colspan="16" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
+          <tr><td colspan="17" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
         <?php else: foreach ($ordenes as $o):
             $tv = (string)($o['tipo_venta'] ?? '');
         ?>
+          <?php $marca = (string)($o['marca'] ?? ''); $obs = trim((string)($o['observaciones'] ?? '')); ?>
           <tr>
+            <td style="white-space:nowrap">
+              <button type="button" class="tz-marca-btn <?= $marca === 'no_entregar' ? 'on-ne' : '' ?>" data-id="<?= (int)$o['id'] ?>" data-marca="no_entregar" title="No entregar"><i class="bi bi-x-octagon-fill"></i></button>
+              <button type="button" class="tz-marca-btn <?= $marca === 'prioridad' ? 'on-pr' : '' ?>" data-id="<?= (int)$o['id'] ?>" data-marca="prioridad" title="Prioridad"><i class="bi bi-lightning-charge-fill"></i></button>
+              <?php if ($obs !== ''): ?><i class="bi bi-chat-left-text-fill tz-obs-ic" title="<?= h($obs) ?>"></i><?php endif; ?>
+            </td>
             <td class="mono" style="font-size:12px;color:var(--muted)"><?= h(rep_lote($o)) ?></td>
             <td class="mono" style="font-size:12px"><?= h((string)$o['nro_orden']) ?></td>
             <td style="font-size:13px"><?= h((string)($o['categoria'] ?? '—')) ?></td>
@@ -325,7 +333,38 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
     <?php endif; ?>
   </div>
 </div>
-<style>@media print{.rep-print-title{display:block!important}}</style>
+<style>
+@media print{.rep-print-title{display:block!important}}
+.tz-marca-btn{background:none;border:none;padding:0 3px;cursor:pointer;color:#475569;opacity:.45;font-size:15px;line-height:1}
+.tz-marca-btn:hover{opacity:.9}
+.tz-marca-btn.on-ne{color:#ef4444;opacity:1}
+.tz-marca-btn.on-pr{color:#f59e0b;opacity:1}
+.tz-obs-ic{color:#60a5fa;font-size:13px;margin-left:3px}
+@media print{.tz-marca-btn:not(.on-ne):not(.on-pr){display:none}}
+</style>
 <?php filtro_multi_script(); ?>
+<script>
+(function () {
+  const URL = <?= json_encode(url('api/orden-marca.php')) ?>, CSRF = <?= json_encode($csrf) ?>;
+  document.querySelectorAll('.tz-marca-btn').forEach(function (btn) {
+    btn.addEventListener('click', async function () {
+      const cell = btn.closest('td');
+      const cls  = btn.dataset.marca === 'no_entregar' ? 'on-ne' : 'on-pr';
+      const nuevo = btn.classList.contains(cls) ? '' : btn.dataset.marca; // toggle
+      try {
+        const r = await fetch(URL, {
+          method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ csrf_token: CSRF, id: +btn.dataset.id, marca: nuevo })
+        });
+        const d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo marcar.');
+        cell.querySelectorAll('.tz-marca-btn').forEach(b => b.classList.remove('on-ne', 'on-pr'));
+        if (d.marca === 'no_entregar') cell.querySelector('[data-marca="no_entregar"]').classList.add('on-ne');
+        else if (d.marca === 'prioridad') cell.querySelector('[data-marca="prioridad"]').classList.add('on-pr');
+      } catch (e) { alert(e.message); }
+    });
+  });
+})();
+</script>
 <?php
 panel_footer();

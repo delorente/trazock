@@ -350,6 +350,11 @@
         }
         const faltante = validarConfig(tipo, lote);
         if (faltante) { err.textContent = faltante; err.classList.remove('d-none'); return; }
+        // Reparto/entrega: refrescar la lista "no entregar" (best-effort, si hay conexión)
+        // para que el aviso al escanear use datos al día.
+        if ((tipo === 'SALIDA_REPARTO' || tipo === 'ENTREGA') && navigator.onLine) {
+            try { await refrescarCatalogos(); } catch (e) {}
+        }
         estado.lote = lote;
         try { await TZDB.guardarLoteActual(lote); } catch (e) {}
         irScan(false);
@@ -413,6 +418,19 @@
             return;
         }
 
+        // Reparto/entrega: si la orden está marcada NO ENTREGAR, avisar y pedir confirmación.
+        if (l.tipo === 'SALIDA_REPARTO' || l.tipo === 'ENTREGA') {
+            const ne = ((estado.catalogos && estado.catalogos.ordenes_no_entregar) || [])
+                .find(o => o.nro_orden === p.nro_orden);
+            if (ne) {
+                flashCam('flash-dup'); vibrar([300, 90, 300]); beep(330);
+                confirmandoZona = true;
+                const continuar = await modalNoEntregar(p.nro_orden, ne.observaciones || '');
+                confirmandoZona = false;
+                if (!continuar) { feedback('dup', 'NO ENTREGAR — ítem no agregado'); return; }
+            }
+        }
+
         // Salida a reparto: si el ítem es de OTRA zona, avisar fuerte pero NO bloquear:
         // el operador puede decidir llevarlo igual. Nunca se detiene la operación.
         let fueraZona = false;
@@ -457,6 +475,37 @@
                 '<div class="modal-footer">' +
                 '<button type="button" class="btn btn-secondary" data-act="no">No cargar</button>' +
                 '<button type="button" class="btn btn-danger" data-act="si">Llevar igual</button>' +
+                '</div></div></div>';
+            document.body.appendChild(el);
+            const m = bootstrap.Modal.getOrCreateInstance(el);
+            let result = false;
+            el.addEventListener('click', function (e) {
+                const b = e.target.closest('[data-act]'); if (!b) return;
+                result = b.getAttribute('data-act') === 'si';
+                m.hide();
+            });
+            el.addEventListener('hidden.bs.modal', function () { el.remove(); resolve(result); });
+            m.show();
+        });
+    }
+
+    // Aviso de orden marcada NO ENTREGAR (reparto/entrega). Devuelve promesa que
+    // resuelve true si el operador decide continuar igual.
+    function modalNoEntregar(nroOrden, obs) {
+        return new Promise(function (resolve) {
+            const el = document.createElement('div');
+            el.className = 'modal fade'; el.tabIndex = -1;
+            el.setAttribute('data-bs-backdrop', 'static'); el.setAttribute('data-bs-keyboard', 'false');
+            el.innerHTML =
+                '<div class="modal-dialog modal-dialog-centered"><div class="modal-content">' +
+                '<div class="modal-header bg-danger text-white"><h5 class="modal-title">' +
+                '<i class="bi bi-x-octagon-fill me-2"></i>Orden marcada NO ENTREGAR</h5></div>' +
+                '<div class="modal-body"><p class="mb-2">La orden <strong>' + esc(nroOrden) + '</strong> está marcada como <strong>NO ENTREGAR</strong>.</p>' +
+                (obs ? '<p class="mb-2"><strong>Observación:</strong> ' + esc(obs) + '</p>' : '') +
+                '<p class="mb-0 text-danger">¿Desea continuar igual?</p></div>' +
+                '<div class="modal-footer">' +
+                '<button type="button" class="btn btn-secondary" data-act="no">Cancelar</button>' +
+                '<button type="button" class="btn btn-danger" data-act="si">Continuar igual</button>' +
                 '</div></div></div>';
             document.body.appendChild(el);
             const m = bootstrap.Modal.getOrCreateInstance(el);

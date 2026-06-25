@@ -17,13 +17,16 @@ final class Orden
     /** Estados posibles de una orden (derivados de sus ítems), para el filtro de Reportes. */
     public const ESTADOS = ['RECIBIDO', 'EN_REPARTO', 'ENTREGADO', 'REINGRESADO', 'DEVUELTO'];
 
+    /** Marcas operativas EXCLUYENTES de una orden (planilla de Reportes). NULL = sin marca. */
+    public const MARCAS = ['no_entregar', 'prioridad'];
+
     /** Columnas escribibles de una orden (para crear/actualizar desde la carga). */
     private const CAMPOS = [
         'carga_id', 'nro_orden', 'nro_remito', 'hoja_ruta', 'transportista_id', 'fecha_carga',
         'fecha_remito', 'tipo_venta',
         'cliente', 'cliente_apellido', 'telefonos',
         'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
-        'valor_declarado', 'm3_total', 'estado',
+        'valor_declarado', 'observaciones', 'marca', 'm3_total', 'estado',
     ];
 
     /**
@@ -57,7 +60,7 @@ final class Orden
         'nro_remito', 'hoja_ruta', 'transportista_id', 'fecha_carga', 'fecha_remito', 'tipo_venta',
         'cliente', 'cliente_apellido',
         'telefonos', 'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
-        'valor_declarado',
+        'valor_declarado', 'observaciones', 'marca',
     ];
 
     /**
@@ -575,7 +578,7 @@ final class Orden
         $sql = 'SELECT o.id, o.carga_id, o.nro_orden, o.nro_remito, o.fecha_remito, o.tipo_venta,
                        o.hoja_ruta, o.transportista_id, o.fecha_carga,
                        o.cliente, o.telefonos, o.dest_provincia, o.dest_localidad, o.m3_total,
-                       o.valor_declarado, o.estado, o.created_at AS fecha_ingreso,
+                       o.valor_declarado, o.observaciones, o.marca, o.estado, o.created_at AS fecha_ingreso,
                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items,
                        (SELECT u.nombre_completo FROM usuarios u WHERE u.id = o.transportista_id) AS transportista_nombre,
                        (SELECT cat.nombre FROM cargas cg JOIN categorias cat ON cat.id = cg.categoria_id
@@ -734,5 +737,33 @@ final class Orden
              ORDER BY u.nombre_completo"
         )->fetchAll();
         return array_map(static fn($r) => ['id' => (int)$r['id'], 'nombre' => (string)$r['nombre_completo']], $rows);
+    }
+
+    /** Fija (o limpia con null) la marca operativa de una orden. */
+    public static function setMarca(int $id, ?string $marca): void
+    {
+        $marca = ($marca !== null && in_array($marca, self::MARCAS, true)) ? $marca : null;
+        $stmt = DB::getInstance()->prepare('UPDATE ordenes SET marca = :m WHERE id = :id');
+        $stmt->bindValue(':m', $marca, $marca === null ? \PDO::PARAM_NULL : \PDO::PARAM_STR);
+        $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
+        $stmt->execute();
+    }
+
+    /**
+     * Órdenes marcadas 'no_entregar' (nro_orden + observación) para que el escáner
+     * avise al intentar escanearlas en reparto/entrega. Lista chica (solo marcadas).
+     *
+     * @return array<int, array{nro_orden:string, observaciones:string}>
+     */
+    public static function noEntregar(): array
+    {
+        $rows = DB::getInstance()->query(
+            "SELECT nro_orden, COALESCE(observaciones, '') AS observaciones
+             FROM ordenes WHERE marca = 'no_entregar' ORDER BY nro_orden"
+        )->fetchAll();
+        return array_map(
+            static fn($r) => ['nro_orden' => (string)$r['nro_orden'], 'observaciones' => (string)$r['observaciones']],
+            $rows
+        );
     }
 }

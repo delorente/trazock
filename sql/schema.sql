@@ -361,6 +361,8 @@ CREATE TABLE IF NOT EXISTS `ordenes` (
     `dest_domicilio`   VARCHAR(200)    DEFAULT NULL,
     `dest_cp`          VARCHAR(10)     DEFAULT NULL,
     `valor_declarado`  DECIMAL(12,2)   DEFAULT NULL,
+    `observaciones`    VARCHAR(1000)   DEFAULT NULL,
+    `marca`            ENUM('no_entregar','prioridad') DEFAULT NULL,
     `m3_total`         DECIMAL(8,2)    DEFAULT NULL,
     `estado`           VARCHAR(20)     NOT NULL DEFAULT 'RECIBIDO',
     `created_at`       TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -375,6 +377,7 @@ CREATE TABLE IF NOT EXISTS `ordenes` (
     INDEX `idx_orden_hoja_ruta` (`hoja_ruta`),
     INDEX `idx_orden_transportista` (`transportista_id`),
     INDEX `idx_orden_fecha_carga` (`fecha_carga`),
+    INDEX `idx_orden_marca` (`marca`),
     CONSTRAINT `fk_ordenes_carga`
         FOREIGN KEY (`carga_id`) REFERENCES `cargas` (`id`),
     CONSTRAINT `fk_ordenes_transportista`

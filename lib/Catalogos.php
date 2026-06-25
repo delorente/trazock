@@ -5,6 +5,7 @@ namespace Trazock;
 
 use Trazock\Models\Categoria;
 use Trazock\Models\Motivo;
+use Trazock\Models\Orden;
 use Trazock\Models\Proveedor;
 use Trazock\Models\Usuario;
 use Trazock\Models\Zona;
@@ -27,6 +28,7 @@ final class Catalogos
             'transportistas'  => Usuario::transportistasActivos(),
             'zonas'           => Zona::activasConLocalidades(),
             'tipos_permitidos' => MaquinaEstados::tiposPermitidos($rol),
+            'ordenes_no_entregar' => Orden::noEntregar(),
             'last_updated'    => date('c'),
         ];
     }
