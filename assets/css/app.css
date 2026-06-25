@@ -283,7 +283,7 @@ a { color: var(--blue); }
 .label-card .ld{font-size:15px;font-weight:700;font-family:'Inter',system-ui,sans-serif;text-transform:uppercase;line-height:1.15;color:#000;letter-spacing:.01em}
 .label-card .ln{font-size:12.5px;font-weight:600;font-family:'Inter',system-ui,sans-serif;margin-top:5px;color:#111}
 .label-card .li{font-size:12.5px;color:#555;font-family:'Inter',system-ui,sans-serif;margin-top:2px}
-.label-card .lc{font-size:12.5px;color:#888;margin-top:8px;border-top:1px dashed #ddd;padding-top:7px;letter-spacing:.04em;display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.label-card .lc{font-size:12.5px;color:#000;margin-top:8px;border-top:1px dashed #ddd;padding-top:7px;letter-spacing:.04em;display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
 .label-card .lqty{font-size:13px;font-weight:700;font-family:'Inter',system-ui,sans-serif;letter-spacing:.01em;color:#000;white-space:nowrap}
 
 /* Hoja de etiquetas A4 (8 por hoja, estilo Avery L7165). En pantalla se ve como
@@ -300,7 +300,7 @@ a { color: var(--blue); }
 .label-cell .ld{font-size:1.18em;font-weight:700;text-transform:uppercase;line-height:1.15;color:#000}
 .label-cell .ln{font-size:1em;font-weight:600;margin-top:3px;color:#111}
 .label-cell .li{font-size:1em;color:#555;margin-top:2px}
-.label-cell .lc{font-size:1em;color:#888;margin-top:6px;border-top:1px dashed #e6e6e6;padding-top:5px;letter-spacing:.03em;font-family:'Courier New',monospace;display:flex;justify-content:space-between;align-items:flex-end;gap:6px}
+.label-cell .lc{font-size:1em;color:#000;margin-top:6px;border-top:1px dashed #e6e6e6;padding-top:5px;letter-spacing:.03em;font-family:'Courier New',monospace;display:flex;justify-content:space-between;align-items:flex-end;gap:6px}
 .label-cell .lqty{font-size:1em;font-weight:700;font-family:'Inter',system-ui,sans-serif;letter-spacing:.01em;color:#000;white-space:nowrap}
 
 /* Impresión: se imprime solo el contenido marcado .print-area (etiquetas o

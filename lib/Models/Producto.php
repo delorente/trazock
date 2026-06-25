@@ -432,8 +432,13 @@ final class Producto
      */
     private static function paraEtiquetas(string $cond, int $id): array
     {
+        // posicion = ranking contiguo 1..N dentro de la orden (para el "X de N"
+        // visible). Es independiente de `secuencia`, que puede tener huecos tras
+        // borrar/agregar ítems y NO se renumera porque el `codigo` (= nro_orden-NN,
+        // que el QR reconstruye desde sec) depende de ella.
         $sql = 'SELECT p.id, p.codigo, p.secuencia, p.descripcion, p.dimensiones, p.m3,
                        p.estado_actual, p.etiquetada_at,
+                       ROW_NUMBER() OVER (PARTITION BY p.orden_id ORDER BY p.secuencia, p.id) AS posicion,
                        o.id AS orden_id, o.nro_orden, o.nro_remito, o.carga_id,
                        o.cliente, o.cliente_apellido,
                        o.dest_provincia, o.dest_localidad,

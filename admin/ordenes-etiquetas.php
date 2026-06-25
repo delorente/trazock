@@ -159,7 +159,8 @@ function eti_destino(array $it): string
   <section class="sheet-page" style="--cols:<?= (int)$grid['cols'] ?>;--cellw:<?= (int)$T['w'] ?>mm;--cellh:<?= (int)$T['h'] ?>mm;--qr:<?= h($T['qr']) ?>;--fs:<?= h($T['fs']) ?>">
     <?php foreach ($pagina as $it):
         $nro     = (string)$it['nro_orden'];
-        $sec     = (int)$it['secuencia'];
+        $sec     = (int)$it['secuencia'];                       // para el QR/código (no renumera)
+        $pos     = (int)($it['posicion'] ?? $it['secuencia']);  // "X de N" visible (contiguo)
         $tot     = (int)$it['total_items'];
         $prov    = (string)($it['dest_provincia'] ?? '');
         $ape     = (string)($it['cliente_apellido'] ?? '');
@@ -177,7 +178,7 @@ function eti_destino(array $it): string
         <div class="ld"><?= h(eti_destino($it)) ?></div>
         <div class="ln"><?= h($nombre) ?></div>
         <?php if ($desc !== ''): ?><div class="li"><?= h($desc) ?></div><?php endif; ?>
-        <div class="lc"><span><?= h((string)$it['codigo']) ?></span><span class="lqty"><?= $sec ?> de <?= $tot ?></span></div>
+        <div class="lc"><span><?= h((string)$it['codigo']) ?></span><span class="lqty"><?= $pos ?> de <?= $tot ?></span></div>
       </div>
     </div>
     <?php endforeach; ?>

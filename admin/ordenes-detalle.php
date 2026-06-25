@@ -253,7 +253,7 @@ $campo = static function (string $label, string $valor): void {
             <td><?= h((string)($it['descripcion'] ?? '—')) ?></td>
             <td style="font-size:12px;color:var(--muted)"><?= h((string)($it['dimensiones'] ?? '—')) ?></td>
             <td><?= $it['m3'] !== null ? number_format((float)$it['m3'], 3, ',', '.') : '—' ?></td>
-            <td style="color:var(--muted)"><?= (int)$it['secuencia'] ?> de <?= (int)$it['total_items'] ?></td>
+            <td style="color:var(--muted)"><?= (int)($it['posicion'] ?? $it['secuencia']) ?> de <?= (int)$it['total_items'] ?></td>
             <td><?= estado_badge(item_estado($it)) ?></td>
             <?php if ($esAdmin): ?>
             <td style="text-align:right">
@@ -288,7 +288,7 @@ $campo = static function (string $label, string $valor): void {
         <div class="ld"><?= h($destino) ?></div>
         <div class="ln"><?= h(trim((string)$orden['cliente']) !== '' ? (string)$orden['cliente'] : $ape) ?></div>
         <div class="li"><?= h((string)($m['descripcion'] ?? 'Ítem')) ?></div>
-        <div class="lc"><span><?= h((string)$m['codigo']) ?></span><span class="lqty"><?= (int)$m['secuencia'] ?> de <?= (int)$m['total_items'] ?></span></div>
+        <div class="lc"><span><?= h((string)$m['codigo']) ?></span><span class="lqty"><?= (int)($m['posicion'] ?? $m['secuencia']) ?> de <?= (int)$m['total_items'] ?></span></div>
       </div>
     </div>
     <?php if ($esAdmin): ?><a class="btn btn-outline-secondary btn-sm w-100 mt-2" href="<?= h($urlEti) ?>"><i class="bi bi-printer me-1"></i>Re-imprimir etiquetas</a><?php endif; ?>
