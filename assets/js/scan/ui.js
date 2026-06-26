@@ -291,6 +291,10 @@
             } else {
                 html += '<div class="alert alert-warning py-2 small">No hay zonas de reparto cargadas. Pedí al admin que cree al menos una (panel → Zonas).</div>';
             }
+            // Datos del viaje para la hoja de ruta (opcionales).
+            html += campoTexto('cfgVehiculo', 'Vehículo / unidad (hoja de ruta)');
+            html += campoTexto('cfgChofer', 'Chofer (hoja de ruta)');
+            html += campoTexto('cfgAyudantes', 'Ayudante(s) (hoja de ruta)');
         } else if (tipo === 'ENTREGA') {
             html += '<div class="alert alert-info py-2 small">El transportista sos vos (' + esc(estado.usuario.nombre) + ').</div>';
         } else if (tipo === 'REINGRESO') {
@@ -336,6 +340,7 @@
             categoria_id: valOf('cfgCategoria'), proveedor_id: valOf('cfgProveedor'),
             transportista_id: valOf('cfgTransportista'), motivo_id: valOf('cfgMotivo'),
             motivo_libre: textOf('cfgMotivoLibre'), numero_remito: textOf('cfgRemito'),
+            vehiculo: textOf('cfgVehiculo'), chofer: textOf('cfgChofer'), ayudantes: textOf('cfgAyudantes'),
             observaciones: $('cfgObs').value.trim() || null,
             timestamp_apertura: nowISO(), timestamp_cierre: null,
             dispositivo_info: navigator.userAgent, items: []
@@ -593,6 +598,8 @@
         }
 
         l.timestamp_cierre = nowISO();
+        const esReparto = l.tipo === 'SALIDA_REPARTO';
+        const loteUuid  = l.uuid;
         overlay(true, 'Guardando lote…');
         const registro = {
             uuid: l.uuid, tipo: l.tipo, payload: l, estado: 'pendiente_sync',
@@ -610,6 +617,33 @@
         if (navigator.onLine) { TZSync.syncAhora(); showToast('Lote enviado', 'ok'); }
         else { showToast('Lote guardado — se enviará al reconectar', 'ok'); }
         irSelector();
+        // Salida a reparto: ofrecer imprimir la hoja de ruta (abre en pestaña nueva).
+        if (esReparto && navigator.onLine) { try { await modalHojaRuta(loteUuid); } catch (e) {} }
+    }
+
+    // Ofrece imprimir la hoja de ruta del reparto recién enviado (página del panel,
+    // en pestaña nueva). El uuid resuelve el lote aunque aún no se haya sincronizado
+    // (la página avisa si todavía no está disponible).
+    function modalHojaRuta(uuid) {
+        return new Promise(function (resolve) {
+            const appBase = (API || '').replace(/\/api$/, '');
+            const url = appBase + '/admin/hoja-ruta.php?uuid=' + encodeURIComponent(uuid);
+            const el = document.createElement('div');
+            el.className = 'modal fade'; el.tabIndex = -1;
+            el.innerHTML =
+                '<div class="modal-dialog modal-dialog-centered"><div class="modal-content">' +
+                '<div class="modal-header"><h5 class="modal-title"><i class="bi bi-printer me-2"></i>Hoja de ruta</h5></div>' +
+                '<div class="modal-body"><p class="mb-0">El reparto se envió. Imprimí la hoja de ruta con el vehículo, el chofer y los ayudantes.</p></div>' +
+                '<div class="modal-footer">' +
+                '<button type="button" class="btn btn-secondary" data-act="no">Ahora no</button>' +
+                '<a class="btn btn-primary" href="' + url + '" target="_blank" rel="noopener" data-act="si">Imprimir hoja de ruta</a>' +
+                '</div></div></div>';
+            document.body.appendChild(el);
+            const m = bootstrap.Modal.getOrCreateInstance(el);
+            el.addEventListener('click', function (e) { if (e.target.closest('[data-act]')) m.hide(); });
+            el.addEventListener('hidden.bs.modal', function () { el.remove(); resolve(); });
+            m.show();
+        });
     }
 
     // Modal de órdenes incompletas. modo='aviso' (reparto: deja cerrar con

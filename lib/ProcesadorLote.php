@@ -233,6 +233,10 @@ final class ProcesadorLote
         $motivoLibre     = trim((string)($loteData['motivo_libre'] ?? '')) ?: null;
         $numeroRemito    = trim((string)($loteData['numero_remito'] ?? '')) ?: null;
         $observaciones   = trim((string)($loteData['observaciones'] ?? '')) ?: null;
+        // Datos del viaje para la hoja de ruta (solo SALIDA_REPARTO).
+        $vehiculo        = trim((string)($loteData['vehiculo'] ?? '')) ?: null;
+        $chofer          = trim((string)($loteData['chofer'] ?? '')) ?: null;
+        $ayudantes       = trim((string)($loteData['ayudantes'] ?? '')) ?: null;
 
         // Base: todo en null; cada tipo rellena lo suyo.
         $d = [
@@ -241,6 +245,9 @@ final class ProcesadorLote
             'categoria_id'       => null,
             'proveedor_id'       => null,
             'transportista_id'   => null,
+            'vehiculo'           => null,
+            'chofer'             => null,
+            'ayudantes'          => null,
             'motivo_id'          => null,
             'motivo_libre'       => null,
             'responsable_id'     => (int)$usuario['id'],
@@ -284,6 +291,9 @@ final class ProcesadorLote
                     throw new LoteException('El transportista indicado no existe, está inactivo o no tiene ese rol.', 400);
                 }
                 $d['transportista_id'] = $transportistaId;
+                $d['vehiculo']  = $vehiculo;
+                $d['chofer']    = $chofer;
+                $d['ayudantes'] = $ayudantes;
                 break;
 
             case TipoLote::ENTREGA:

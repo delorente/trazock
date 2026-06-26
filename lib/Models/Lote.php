@@ -52,11 +52,13 @@ final class Lote
         $db   = DB::getInstance();
         $stmt = $db->prepare(
             'INSERT INTO lotes
-                (uuid, tipo, categoria_id, proveedor_id, transportista_id, motivo_id,
+                (uuid, tipo, categoria_id, proveedor_id, transportista_id,
+                 vehiculo, chofer, ayudantes, motivo_id,
                  motivo_libre, responsable_id, observaciones, numero_remito,
                  timestamp_apertura, timestamp_cierre, timestamp_sync, dispositivo_info)
              VALUES
-                (:uuid, :tipo, :categoria_id, :proveedor_id, :transportista_id, :motivo_id,
+                (:uuid, :tipo, :categoria_id, :proveedor_id, :transportista_id,
+                 :vehiculo, :chofer, :ayudantes, :motivo_id,
                  :motivo_libre, :responsable_id, :observaciones, :numero_remito,
                  :ts_apertura, :ts_cierre, NOW(), :dispositivo)'
         );
@@ -72,6 +74,9 @@ final class Lote
         $bindNullableInt(':categoria_id', $d['categoria_id']);
         $bindNullableInt(':proveedor_id', $d['proveedor_id']);
         $bindNullableInt(':transportista_id', $d['transportista_id']);
+        $bindNullableStr(':vehiculo', $d['vehiculo'] ?? null);
+        $bindNullableStr(':chofer', $d['chofer'] ?? null);
+        $bindNullableStr(':ayudantes', $d['ayudantes'] ?? null);
         $bindNullableInt(':motivo_id', $d['motivo_id']);
         $bindNullableStr(':motivo_libre', $d['motivo_libre']);
         $stmt->bindValue(':responsable_id', $d['responsable_id'], PDO::PARAM_INT);
@@ -264,6 +269,35 @@ final class Lote
      *
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * Órdenes de un lote de SALIDA_REPARTO con los datos para la HOJA DE RUTA:
+     * Nº orden, cliente/apellido, destino, bultos (ítems de ESTE lote), m³ y
+     * teléfono. bultos/m³ cuentan solo las unidades escaneadas en este reparto.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function ordenesParaHojaRuta(int $loteId): array
+    {
+        $stmt = DB::getInstance()->prepare(
+            "SELECT o.id, o.nro_orden, o.cliente, o.cliente_apellido, o.telefonos,
+                    o.dest_provincia, o.dest_localidad,
+                    cat.nombre AS categoria,
+                    COUNT(DISTINCT p.id) AS bultos,
+                    COALESCE(SUM(p.m3), 0) AS m3
+             FROM transiciones t
+             JOIN productos p ON p.id = t.producto_id
+             JOIN ordenes o   ON o.id = p.orden_id
+             LEFT JOIN cargas cg     ON cg.id = o.carga_id
+             LEFT JOIN categorias cat ON cat.id = cg.categoria_id
+             WHERE t.lote_id = :lote AND p.orden_id IS NOT NULL
+             GROUP BY o.id, o.nro_orden, o.cliente, o.cliente_apellido, o.telefonos,
+                      o.dest_provincia, o.dest_localidad, cat.nombre
+             ORDER BY o.dest_provincia, o.dest_localidad, o.nro_orden"
+        );
+        $stmt->execute([':lote' => $loteId]);
+        return $stmt->fetchAll();
+    }
+
     public static function ordenes(int $loteId): array
     {
         $stmt = DB::getInstance()->prepare(

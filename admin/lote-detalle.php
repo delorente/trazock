@@ -82,6 +82,13 @@ if ($lote['tipo'] === 'INGRESO') {
     }
 }
 
+// Salida a reparto: imprimir la hoja de ruta con los datos del viaje.
+if ($lote['tipo'] === 'SALIDA_REPARTO') {
+    $volver .= '<a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener" href="'
+        . h(url('admin/hoja-ruta.php') . '?lote=' . $id)
+        . '"><i class="bi bi-printer me-1"></i>Hoja de ruta</a>';
+}
+
 /** Celda de campo con label en mayúsculas (estilo prototipo). */
 function tz_campo(string $label, ?string $valor, bool $mono = false): void
 {
