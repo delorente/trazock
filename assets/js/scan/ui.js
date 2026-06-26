@@ -284,17 +284,18 @@
             html += campoSelect('cfgTransportista', 'Transportista (opcional)', '<option value="">—</option>' + optionList(c.transportistas, 'id', 'nombre_completo'), false);
             html += campoTexto('cfgRemito', 'N° remito (opcional)');
         } else if (tipo === 'SALIDA_REPARTO') {
-            html += campoSelect('cfgTransportista', 'Transportista', optionList(c.transportistas, 'id', 'nombre_completo'), true);
+            html += campoSelect('cfgTransportista', 'Chofer / transportista', optionList(c.transportistas, 'id', 'nombre_completo'), true);
             const zonas = c.zonas || [];
             if (zonas.length) {
                 html += campoSelect('cfgZona', 'Zona de reparto', optionList(zonas, 'id', 'nombre'), true);
             } else {
                 html += '<div class="alert alert-warning py-2 small">No hay zonas de reparto cargadas. Pedí al admin que cree al menos una (panel → Zonas).</div>';
             }
-            // Datos del viaje para la hoja de ruta (opcionales).
-            html += campoTexto('cfgVehiculo', 'Vehículo / unidad (hoja de ruta)');
-            html += campoTexto('cfgChofer', 'Chofer (hoja de ruta)');
-            html += campoTexto('cfgAyudantes', 'Ayudante(s) (hoja de ruta)');
+            // Datos del viaje para la hoja de ruta: se eligen del desplegable (sin escribir).
+            html += campoSelectNombre('cfgVehiculo', 'Vehículo / unidad (hoja de ruta)', c.vehiculos,
+                'No hay vehículos cargados. Pedí al admin que los cargue (panel → Vehículos).');
+            html += campoChecks('cfgAyudantes', 'Acompañante(s) (hoja de ruta)', c.acompanantes,
+                'No hay acompañantes cargados. Pedí al admin que los cargue (panel → Acompañantes).');
         } else if (tipo === 'ENTREGA') {
             html += '<div class="alert alert-info py-2 small">El transportista sos vos (' + esc(estado.usuario.nombre) + ').</div>';
         } else if (tipo === 'REINGRESO') {
@@ -329,6 +330,42 @@
         return '<div class="mb-3"><label class="form-label" for="' + id + '">' + esc(label) +
             '</label><input class="form-control" id="' + id + '"' + (required ? ' required' : '') + '></div>';
     }
+    // Select cuyo VALUE es el nombre (no el id): se guarda el texto tal cual en el lote.
+    function campoSelectNombre(id, label, arr, vacioMsg) {
+        if (!arr || !arr.length) {
+            return '<div class="mb-3"><label class="form-label">' + esc(label) +
+                '</label><div class="form-text">' + esc(vacioMsg || 'Sin opciones.') + '</div></div>';
+        }
+        let opts = '<option value="">—</option>';
+        arr.forEach(x => {
+            const obs = x.observacion ? ' · ' + x.observacion : '';
+            opts += '<option value="' + esc(x.nombre) + '">' + esc(x.nombre + obs) + '</option>';
+        });
+        return campoSelect(id, label, opts, false);
+    }
+    // Lista de checkboxes (selección múltiple) cuyo VALUE es el nombre.
+    function campoChecks(id, label, arr, vacioMsg) {
+        if (!arr || !arr.length) {
+            return '<div class="mb-3"><label class="form-label">' + esc(label) +
+                '</label><div class="form-text">' + esc(vacioMsg || 'Sin opciones.') + '</div></div>';
+        }
+        const items = arr.map(x => {
+            const obs = x.observacion ? ' <span class="text-muted">· ' + esc(x.observacion) + '</span>' : '';
+            const cid = id + '_' + x.id;
+            return '<div class="form-check"><input class="form-check-input" type="checkbox" name="' + id +
+                '" value="' + esc(x.nombre) + '" id="' + cid + '">' +
+                '<label class="form-check-label" for="' + cid + '">' + esc(x.nombre) + obs + '</label></div>';
+        }).join('');
+        return '<div class="mb-3"><label class="form-label">' + esc(label) +
+            '</label><div style="max-height:170px;overflow-y:auto;border:1px solid #d4d9e0;border-radius:8px;padding:.5rem .75rem">' +
+            items + '</div></div>';
+    }
+    // Nombres tildados en una lista de checkboxes, unidos por coma (o null si ninguno).
+    function checksOf(name) {
+        const els = document.querySelectorAll('input[name="' + name + '"]:checked');
+        const v = Array.from(els).map(e => e.value.trim()).filter(Boolean);
+        return v.length ? v.join(', ') : null;
+    }
 
     $('configForm').addEventListener('submit', async function (e) {
         e.preventDefault();
@@ -340,7 +377,7 @@
             categoria_id: valOf('cfgCategoria'), proveedor_id: valOf('cfgProveedor'),
             transportista_id: valOf('cfgTransportista'), motivo_id: valOf('cfgMotivo'),
             motivo_libre: textOf('cfgMotivoLibre'), numero_remito: textOf('cfgRemito'),
-            vehiculo: textOf('cfgVehiculo'), chofer: textOf('cfgChofer'), ayudantes: textOf('cfgAyudantes'),
+            vehiculo: textOf('cfgVehiculo'), chofer: null, ayudantes: checksOf('cfgAyudantes'),
             observaciones: $('cfgObs').value.trim() || null,
             timestamp_apertura: nowISO(), timestamp_cierre: null,
             dispositivo_info: navigator.userAgent, items: []
@@ -352,6 +389,9 @@
             const z = ((estado.catalogos && estado.catalogos.zonas) || []).find(x => +x.id === +lote.zona_id);
             lote.zona_nombre = z ? z.nombre : null;
             lote.zona_localidades = z ? (z.localidades || []) : [];
+            // Chofer de la hoja de ruta = nombre del transportista elegido (desnormalizado).
+            const tr = ((estado.catalogos && estado.catalogos.transportistas) || []).find(x => +x.id === +lote.transportista_id);
+            lote.chofer = tr ? tr.nombre_completo : null;
         }
         const faltante = validarConfig(tipo, lote);
         if (faltante) { err.textContent = faltante; err.classList.remove('d-none'); return; }

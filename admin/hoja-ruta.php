@@ -84,17 +84,17 @@ function hr_cliente(array $o): string
     <style>
         *{box-sizing:border-box}
         body{font-family:'Inter',system-ui,sans-serif;color:#111;background:#e9edf2;margin:0;padding:18px}
-        .hr-bar{max-width:1000px;margin:0 auto 12px;display:flex;gap:.5rem;justify-content:flex-end}
+        .hr-bar{max-width:1300px;margin:0 auto 12px;display:flex;gap:.5rem;justify-content:flex-end}
         .btn{border:1px solid #cfd6df;background:#fff;border-radius:8px;padding:.5rem .9rem;font-size:.85rem;font-weight:600;cursor:pointer;text-decoration:none;color:#1f2937}
         .btn-primary{background:#0d6efd;border-color:#0d6efd;color:#fff}
-        .sheet{max-width:1000px;margin:0 auto;background:#fff;border:1px solid #d4d9e0;padding:20px 22px}
+        .sheet{max-width:1300px;margin:0 auto;background:#fff;border:1px solid #d4d9e0;padding:20px 22px}
         .hr-head{display:flex;align-items:center;gap:14px;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:12px}
         .hr-head img{height:46px;width:auto;border-radius:6px}
         .hr-head .t{flex:1}
         .hr-head .t h1{font-size:1.15rem;margin:0;letter-spacing:-.01em}
         .hr-head .t .sub{font-size:.78rem;color:#555;margin-top:2px}
         .hr-head .meta{font-size:.72rem;color:#555;text-align:right;line-height:1.5}
-        .hr-via{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+        .hr-via{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
         .hr-via .c{border:1px solid #cfd6df;border-radius:6px;padding:6px 9px}
         .hr-via .c .l{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:#777}
         .hr-via .c .v{font-size:.92rem;font-weight:600;min-height:1.1em}
@@ -115,7 +115,7 @@ function hr_cliente(array $o): string
             body{background:#fff;padding:0}
             .no-print{display:none!important}
             .sheet{border:none;max-width:none;padding:0}
-            @page{size:A4;margin:10mm}
+            @page{size:A4 landscape;margin:8mm}
         }
     </style>
 </head>
@@ -141,17 +141,15 @@ function hr_cliente(array $o): string
     <div class="hr-via">
         <div class="c"><div class="l">Unidad asignada</div><div class="v"><?= h(trim((string)($lote['vehiculo'] ?? '')) ?: '—') ?></div></div>
         <div class="c"><div class="l">Chofer</div><div class="v"><?= h($chofer !== '' ? $chofer : '—') ?></div></div>
-        <div class="c"><div class="l">Ayudante(s)</div><div class="v"><?= h(trim((string)($lote['ayudantes'] ?? '')) ?: '—') ?></div></div>
-        <div class="c"><div class="l">Transportista</div><div class="v"><?= h((string)($lote['transportista_nombre'] ?? '—')) ?></div></div>
+        <div class="c"><div class="l">Acompañante(s)</div><div class="v"><?= h(trim((string)($lote['ayudantes'] ?? '')) ?: '—') ?></div></div>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th class="n">#</th>
-                <th>Cliente</th>
-                <th>Operación</th>
-                <th>Cliente destino</th>
+                <th>Cliente Origen</th>
+                <th class="n">N° Orden</th>
+                <th>Cliente Destino</th>
                 <th>Localidad</th>
                 <th class="n">Btos.</th>
                 <th class="n">m³</th>
@@ -163,10 +161,9 @@ function hr_cliente(array $o): string
         </thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-            <tr><td colspan="11" style="text-align:center;padding:1rem;color:#777">El lote no tiene órdenes escaneadas.</td></tr>
-        <?php else: $i = 0; foreach ($ordenes as $o): $i++; ?>
+            <tr><td colspan="10" style="text-align:center;padding:1rem;color:#777">El lote no tiene órdenes escaneadas.</td></tr>
+        <?php else: foreach ($ordenes as $o): ?>
             <tr>
-                <td class="n"><?= $i ?></td>
                 <td><?= h((string)($o['categoria'] ?? '—')) ?></td>
                 <td class="n"><?= h((string)$o['nro_orden']) ?></td>
                 <td><?= h(hr_cliente($o)) ?></td>
@@ -182,7 +179,7 @@ function hr_cliente(array $o): string
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="5" style="text-align:right">Totales</td>
+                <td colspan="4" style="text-align:right">Totales</td>
                 <td class="n"><?= (int)$totBultos ?></td>
                 <td class="n"><?= number_format($totM3, 2, ',', '.') ?></td>
                 <td colspan="4"></td>

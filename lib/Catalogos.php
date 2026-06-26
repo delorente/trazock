@@ -3,11 +3,13 @@ declare(strict_types=1);
 
 namespace Trazock;
 
+use Trazock\Models\Acompanante;
 use Trazock\Models\Categoria;
 use Trazock\Models\Motivo;
 use Trazock\Models\Orden;
 use Trazock\Models\Proveedor;
 use Trazock\Models\Usuario;
+use Trazock\Models\Vehiculo;
 use Trazock\Models\Zona;
 
 /**
@@ -26,6 +28,8 @@ final class Catalogos
             'proveedores'     => Proveedor::activos(),
             'motivos'         => Motivo::activosAgrupados(),
             'transportistas'  => Usuario::transportistasActivos(),
+            'vehiculos'       => Vehiculo::activos(),
+            'acompanantes'    => Acompanante::activos(),
             'zonas'           => Zona::activasConLocalidades(),
             'tipos_permitidos' => MaquinaEstados::tiposPermitidos($rol),
             'ordenes_no_entregar' => Orden::noEntregar(),
