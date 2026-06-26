@@ -122,8 +122,11 @@ final class Producto
         $params = [];
 
         if (!empty($f['codigo'])) {
-            $where[] = 'p.codigo LIKE :codigo';
-            $params[':codigo'] = '%' . $f['codigo'] . '%';
+            // Busca tanto el código del ítem (nro_orden-NN) como la descripción/código
+            // de producto de Simmons (OCR). Placeholders distintos: EMULATE_PREPARES off.
+            $where[] = '(p.codigo LIKE :codigo1 OR p.descripcion LIKE :codigo2)';
+            $params[':codigo1'] = '%' . $f['codigo'] . '%';
+            $params[':codigo2'] = '%' . $f['codigo'] . '%';
         }
         if (!empty($f['categoria_id'])) {
             $where[] = 'p.categoria_id = :cat';
@@ -160,7 +163,7 @@ final class Producto
         $limit  = max(1, min(500, $limit));
         $offset = max(0, $offset);
 
-        $sql = 'SELECT p.id, p.codigo, p.estado_actual, p.tiene_conflicto, p.updated_at,
+        $sql = 'SELECT p.id, p.codigo, p.descripcion, p.estado_actual, p.tiene_conflicto, p.updated_at,
                        c.nombre AS categoria_nombre
                 FROM productos p
                 LEFT JOIN categorias c ON c.id = p.categoria_id'
@@ -292,9 +295,9 @@ final class Producto
         $params = [];
 
         if (!empty($f['q'])) {
-            $where[] = '(p.codigo LIKE :q1 OR o.nro_orden LIKE :q2 OR o.cliente LIKE :q3)';
+            $where[] = '(p.codigo LIKE :q1 OR p.descripcion LIKE :q2 OR o.nro_orden LIKE :q3 OR o.cliente LIKE :q4)';
             $like = '%' . $f['q'] . '%';
-            $params[':q1'] = $like; $params[':q2'] = $like; $params[':q3'] = $like;
+            $params[':q1'] = $like; $params[':q2'] = $like; $params[':q3'] = $like; $params[':q4'] = $like;
         }
         // Multi-valor: lote (carga), destino (provincia) y hoja de ruta.
         if (($c = self::inClause('o.carga_id', (array)($f['carga'] ?? []), 'carga', $params)) !== null) {

@@ -186,7 +186,7 @@ panel_header('Reporte por productos', $user, 'reportes', 'Un ítem físico por f
   <div class="d-flex gap-2 flex-wrap" style="max-width:520px">
     <div class="input-group input-group-sm" style="flex:1;min-width:200px">
       <span class="input-group-text"><i class="bi bi-search"></i></span>
-      <input type="text" class="form-control" name="q" value="<?= h($filtros['q']) ?>" placeholder="Código, orden, cliente…">
+      <input type="text" class="form-control" name="q" value="<?= h($filtros['q']) ?>" placeholder="Código ítem/producto, orden, cliente…">
     </div>
     <button class="btn btn-primary btn-sm px-3" type="submit">Buscar</button>
     <?php if ($qsBase !== ''): ?><a class="btn btn-outline-secondary btn-sm" href="<?= h(url('admin/ordenes-productos.php')) ?>">Limpiar</a><?php endif; ?>

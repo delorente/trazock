@@ -45,7 +45,7 @@ panel_header('Productos', $user, 'productos', $total . ' registros', $acciones);
             <label class="form-label">Buscar por código (parcial)</label>
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" class="form-control" name="codigo" id="fCodigo" value="<?= h($filtros['codigo']) ?>" autocomplete="off" autofocus placeholder="Escribí parte del código…">
+                <input type="text" class="form-control" name="codigo" id="fCodigo" value="<?= h($filtros['codigo']) ?>" autocomplete="off" autofocus placeholder="Código del ítem o código de producto (Simmons)…">
             </div>
         </div>
         <div><label class="form-label">Categoría</label>
@@ -76,14 +76,15 @@ panel_header('Productos', $user, 'productos', $total . ' registros', $acciones);
 <div class="card">
     <div style="overflow-x:auto">
         <table class="table table-hover mb-0">
-            <thead><tr><th>Código</th><th>Categoría</th><th>Estado</th><th>Último cambio</th><th>⚠</th><th></th></tr></thead>
+            <thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Estado</th><th>Último cambio</th><th>⚠</th><th></th></tr></thead>
             <tbody>
             <?php if ($rows === []): ?>
-                <tr><td colspan="6" class="text-center text-muted py-4">Sin resultados.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">Sin resultados.</td></tr>
             <?php endif; ?>
             <?php foreach ($rows as $p): ?>
                 <tr>
                     <td><a class="mono" href="<?= h(url('admin/producto-detalle.php?codigo=' . urlencode($p['codigo']))) ?>"><?= h($p['codigo']) ?></a></td>
+                    <td style="font-size:12px"><?= h((string)($p['descripcion'] ?? '') !== '' ? (string)$p['descripcion'] : '—') ?></td>
                     <td><?= h($p['categoria_nombre'] ?? '(sin categoría)') ?></td>
                     <td><?= estado_badge($p['estado_actual']) ?></td>
                     <td class="text-muted" style="font-size:12px"><?= h(fmt_fecha($p['updated_at'])) ?></td>
