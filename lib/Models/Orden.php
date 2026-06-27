@@ -694,41 +694,6 @@ final class Orden
     }
 
     /**
-     * Detalle orden por orden para el respaldo de la factura, agrupado por tipo
-     * de venta. Mismos filtros que facturacion().
-     *
-     * @param array<string, mixed> $filtros
-     * @return array<string, array<int, array{nro_orden:string, nro_remito:string,
-     *     cliente:string, provincia:string, m3:float}>>  Clave = tipo ('online'|'local'|'').
-     */
-    public static function facturacionDetalle(array $filtros): array
-    {
-        [$where, $params] = self::whereFiltros($filtros);
-        $stmt = DB::getInstance()->prepare(
-            "SELECT COALESCE(o.tipo_venta, '') AS tipo,
-                    o.nro_orden, o.nro_remito, o.cliente,
-                    COALESCE(NULLIF(o.dest_provincia, ''), '(sin provincia)') AS provincia,
-                    COALESCE(o.m3_total, 0) AS m3
-             FROM ordenes o" . $where . "
-             ORDER BY tipo ASC, provincia ASC, o.nro_orden ASC"
-        );
-        $stmt->execute($params);
-
-        $out = [];
-        foreach ($stmt->fetchAll() as $r) {
-            $tipo = (string)$r['tipo'];
-            $out[$tipo][] = [
-                'nro_orden'  => (string)$r['nro_orden'],
-                'nro_remito' => (string)($r['nro_remito'] ?? ''),
-                'cliente'    => (string)($r['cliente'] ?? ''),
-                'provincia'  => (string)$r['provincia'],
-                'm3'         => (float)$r['m3'],
-            ];
-        }
-        return $out;
-    }
-
-    /**
      * Provincias de destino distintas presentes en las órdenes (para el filtro).
      *
      * @return array<int, string>
