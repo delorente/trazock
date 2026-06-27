@@ -22,36 +22,32 @@ function panel_menu(): array
 {
     return [
         [
-            'seccion' => 'Principal',
+            'seccion' => 'Operación',
             'items'   => [
-                ['key' => 'dashboard',  'label' => 'Dashboard',  'href' => 'index.php',      'icon' => 'grid-1x2-fill',           'roles' => ['admin']],
-                ['key' => 'productos',  'label' => 'Productos',   'href' => 'productos.php',  'icon' => 'boxes',                   'roles' => ['admin']],
-                ['key' => 'lotes',      'label' => 'Lotes',       'href' => 'lotes.php',      'icon' => 'collection-fill',         'roles' => ['admin']],
-                ['key' => 'conflictos', 'label' => 'Conflictos',  'href' => 'conflictos.php', 'icon' => 'exclamation-triangle-fill','roles' => ['admin'], 'conflicto' => true],
-                ['key' => 'exportar',   'label' => 'Exportar',    'href' => 'exportar.php',   'icon' => 'download',                'roles' => ['admin']],
+                ['key' => 'dashboard',  'label' => 'Dashboard',   'href' => 'index.php',           'icon' => 'grid-1x2-fill',            'roles' => ['admin']],
+                ['key' => 'captura',    'label' => 'Nueva carga', 'href' => 'ordenes-captura.php',  'icon' => 'cloud-upload-fill',        'roles' => ['admin']],
+                ['key' => 'productos',  'label' => 'Productos',   'href' => 'productos.php',        'icon' => 'boxes',                    'roles' => ['admin']],
+                ['key' => 'lotes',      'label' => 'Lotes',       'href' => 'lotes.php',            'icon' => 'collection-fill',          'roles' => ['admin']],
+                ['key' => 'conflictos', 'label' => 'Conflictos',  'href' => 'conflictos.php',       'icon' => 'exclamation-triangle-fill','roles' => ['admin'], 'conflicto' => true],
+                ['key' => 'reportes',   'label' => 'Reportes',    'href' => 'ordenes-reportes.php', 'icon' => 'bar-chart-fill',           'roles' => ['admin', 'gestor']],
+                ['key' => 'encuestas',  'label' => 'Encuestas',   'href' => 'encuestas.php',        'icon' => 'emoji-smile-fill',         'roles' => ['admin', 'gestor'], 'encuesta' => true],
+                ['key' => 'exportar',   'label' => 'Exportar',    'href' => 'exportar.php',         'icon' => 'download',                 'roles' => ['admin']],
             ],
         ],
         [
-            'seccion' => 'Órdenes',
+            'seccion' => 'Configuración',
+            'config'  => true,
             'items'   => [
-                ['key' => 'captura',  'label' => 'Nueva carga', 'href' => 'ordenes-captura.php', 'icon' => 'cloud-upload-fill', 'roles' => ['admin']],
-                ['key' => 'reportes', 'label' => 'Reportes',    'href' => 'ordenes-reportes.php', 'icon' => 'bar-chart-fill', 'roles' => ['admin', 'gestor']],
-                ['key' => 'tarifas',  'label' => 'Tarifario',   'href' => 'tarifas.php',         'icon' => 'cash-stack', 'roles' => ['admin']],
-                ['key' => 'afip-emisor', 'label' => 'Datos del emisor', 'href' => 'afip-emisor.php', 'icon' => 'receipt', 'roles' => ['admin']],
-                ['key' => 'encuestas','label' => 'Encuestas',   'href' => 'encuestas.php',       'icon' => 'emoji-smile-fill', 'roles' => ['admin', 'gestor'], 'encuesta' => true],
-            ],
-        ],
-        [
-            'seccion' => 'Administración',
-            'items'   => [
-                ['key' => 'usuarios',     'label' => 'Usuarios',     'href' => 'usuarios.php',     'icon' => 'people-fill',  'roles' => ['admin']],
-                ['key' => 'categorias',   'label' => 'Categorías',   'href' => 'categorias.php',   'icon' => 'tag-fill',     'roles' => ['admin']],
-                ['key' => 'proveedores',  'label' => 'Proveedores',  'href' => 'proveedores.php',  'icon' => 'truck',        'roles' => ['admin']],
-                ['key' => 'zonas',        'label' => 'Zonas',        'href' => 'zonas.php',        'icon' => 'map-fill',     'roles' => ['admin']],
-                ['key' => 'vehiculos',    'label' => 'Vehículos',    'href' => 'vehiculos.php',    'icon' => 'truck-front-fill', 'roles' => ['admin']],
-                ['key' => 'acompanantes', 'label' => 'Acompañantes', 'href' => 'acompanantes.php', 'icon' => 'person-badge-fill', 'roles' => ['admin']],
-                ['key' => 'motivos',      'label' => 'Motivos',      'href' => 'motivos.php',      'icon' => 'chat-text-fill','roles' => ['admin']],
-                ['key' => 'seguimiento',  'label' => 'Seguimiento',  'href' => 'seguimiento.php',  'icon' => 'geo-alt-fill', 'roles' => ['admin']],
+                ['key' => 'usuarios',     'label' => 'Usuarios',         'href' => 'usuarios.php',     'icon' => 'people-fill',      'roles' => ['admin']],
+                ['key' => 'categorias',   'label' => 'Categorías',       'href' => 'categorias.php',   'icon' => 'tag-fill',         'roles' => ['admin']],
+                ['key' => 'proveedores',  'label' => 'Proveedores',      'href' => 'proveedores.php',  'icon' => 'truck',            'roles' => ['admin']],
+                ['key' => 'zonas',        'label' => 'Zonas',            'href' => 'zonas.php',        'icon' => 'map-fill',         'roles' => ['admin']],
+                ['key' => 'vehiculos',    'label' => 'Vehículos',        'href' => 'vehiculos.php',    'icon' => 'truck-front-fill', 'roles' => ['admin']],
+                ['key' => 'acompanantes', 'label' => 'Acompañantes',     'href' => 'acompanantes.php', 'icon' => 'person-badge-fill','roles' => ['admin']],
+                ['key' => 'motivos',      'label' => 'Motivos',          'href' => 'motivos.php',      'icon' => 'chat-text-fill',   'roles' => ['admin']],
+                ['key' => 'tarifas',      'label' => 'Tarifario',        'href' => 'tarifas.php',      'icon' => 'cash-stack',       'roles' => ['admin']],
+                ['key' => 'afip-emisor',  'label' => 'Datos del emisor', 'href' => 'afip-emisor.php',  'icon' => 'receipt',          'roles' => ['admin']],
+                ['key' => 'seguimiento',  'label' => 'Seguimiento',      'href' => 'seguimiento.php',  'icon' => 'geo-alt-fill',     'roles' => ['admin']],
             ],
         ],
     ];
@@ -79,6 +75,7 @@ function panel_header(string $titulo, array $user, string $activo = '', string $
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script>try{if(localStorage.getItem('tzRail')==='1')document.documentElement.classList.add('rail');}catch(e){}</script>
     <link rel="icon" type="image/png" href="<?= h(asset('favicon.png')) ?>">
     <link rel="apple-touch-icon" href="<?= h(asset('favicon.png')) ?>">
     <title><?= h($titulo) ?> — Corredora de Servicios</title>
@@ -91,39 +88,59 @@ function panel_header(string $titulo, array $user, string $activo = '', string $
 <div id="sidebar-overlay" onclick="tzCloseSidebar()"></div>
 
 <nav id="sidebar">
-    <div style="padding:.8rem 1rem;border-bottom:1px solid var(--border);text-align:center">
-        <img src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios S.A." style="max-width:150px;width:100%;height:auto;border-radius:8px;background:#fff;padding:4px">
+    <div class="sb-head d-flex align-items-center gap-2" style="padding:.7rem 1rem;border-bottom:1px solid var(--border)">
+        <img class="brand-img" src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios S.A." style="max-width:140px;width:100%;height:auto;border-radius:8px;background:#fff;padding:4px">
+        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 ms-auto tz-userbox" onclick="tzToggleRail()" title="Replegar / expandir menú"><i class="bi bi-chevron-double-left"></i></button>
     </div>
     <div style="flex:1;overflow-y:auto;padding:.5rem 0">
         <?php foreach (panel_menu() as $grupo): ?>
             <?php
             $visibles = array_filter($grupo['items'], static fn(array $it): bool => in_array($rol, $it['roles'], true));
             if ($visibles === []) { continue; }
+            $esConfig = !empty($grupo['config']);
+            $abierto  = false;
+            if ($esConfig) {
+                foreach ($visibles as $it) { if ($activo === $it['key']) { $abierto = true; break; } }
+            }
             ?>
-            <div class="nd"><?= h($grupo['seccion']) ?></div>
-            <?php foreach ($visibles as $it): ?>
-                <a class="ni <?= $activo === $it['key'] ? 'active' : '' ?>" href="<?= h(url('admin/' . $it['href'])) ?>">
-                    <i class="bi bi-<?= h($it['icon']) ?>"></i><?= h($it['label']) ?>
-                    <?php if (!empty($it['conflicto']) && $nConflictos > 0): ?>
-                        <span class="badge b-conflict ms-auto"><?= (int)$nConflictos ?></span>
-                    <?php endif; ?>
-                    <?php if (!empty($it['encuesta']) && $nEncuestas > 0): ?>
-                        <span class="badge b-activo ms-auto"><?= (int)$nEncuestas ?></span>
-                    <?php endif; ?>
-                </a>
-            <?php endforeach; ?>
+            <?php if ($esConfig): ?>
+                <button type="button" class="ni ni-group<?= $abierto ? ' open' : '' ?>" onclick="tzToggleConfig(this)">
+                    <i class="bi bi-gear-fill"></i><span class="ni-label"><?= h($grupo['seccion']) ?></span>
+                    <i class="bi bi-chevron-down ni-caret ms-auto"></i>
+                </button>
+                <div class="subnav<?= $abierto ? ' open' : '' ?>" id="cfgSub">
+                    <?php foreach ($visibles as $it): ?>
+                        <a class="ni <?= $activo === $it['key'] ? 'active' : '' ?>" href="<?= h(url('admin/' . $it['href'])) ?>">
+                            <i class="bi bi-<?= h($it['icon']) ?>"></i><span class="ni-label"><?= h($it['label']) ?></span>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <div class="nd"><?= h($grupo['seccion']) ?></div>
+                <?php foreach ($visibles as $it): ?>
+                    <a class="ni <?= $activo === $it['key'] ? 'active' : '' ?>" href="<?= h(url('admin/' . $it['href'])) ?>">
+                        <i class="bi bi-<?= h($it['icon']) ?>"></i><span class="ni-label"><?= h($it['label']) ?></span>
+                        <?php if (!empty($it['conflicto']) && $nConflictos > 0): ?>
+                            <span class="badge b-conflict ms-auto"><?= (int)$nConflictos ?></span>
+                        <?php endif; ?>
+                        <?php if (!empty($it['encuesta']) && $nEncuestas > 0): ?>
+                            <span class="badge b-activo ms-auto"><?= (int)$nEncuestas ?></span>
+                        <?php endif; ?>
+                    </a>
+                <?php endforeach; ?>
+            <?php endif; ?>
         <?php endforeach; ?>
     </div>
     <div style="border-top:1px solid var(--border);padding:.5rem">
         <div class="d-flex align-items-center gap-2" style="padding:.3rem .4rem .5rem">
             <div class="tz-avatar"><?= h(panel_iniciales((string)$user['nombre_completo'])) ?></div>
-            <div>
+            <div class="tz-userbox">
                 <div style="font-size:12px;font-weight:600;line-height:1.3"><?= h((string)$user['nombre_completo']) ?></div>
                 <?= rol_badge($rol) ?>
             </div>
         </div>
-        <a class="ni" style="color:var(--red)" href="<?= h(url('admin/logout.php')) ?>"><i class="bi bi-box-arrow-left"></i>Cerrar sesión</a>
-        <div class="text-center" style="font-size:10px;color:var(--muted);padding:.4rem 0 .1rem;opacity:.75">powered by <strong style="color:var(--muted)">Trazock</strong></div>
+        <a class="ni" style="color:var(--red)" href="<?= h(url('admin/logout.php')) ?>"><i class="bi bi-box-arrow-left"></i><span class="ni-label">Cerrar sesión</span></a>
+        <div class="text-center tz-powered" style="font-size:10px;color:var(--muted);padding:.4rem 0 .1rem;opacity:.75">powered by <strong style="color:var(--muted)">Trazock</strong></div>
     </div>
 </nav>
 
@@ -161,6 +178,11 @@ function panel_footer(): void
 <script>
 function tzOpenSidebar(){document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').classList.add('show');}
 function tzCloseSidebar(){document.getElementById('sidebar').classList.remove('open');document.getElementById('sidebar-overlay').classList.remove('show');}
+
+// Submenú Configuración (acordeón).
+function tzToggleConfig(btn){ btn.classList.toggle('open'); var s=document.getElementById('cfgSub'); if(s){ s.classList.toggle('open'); } }
+// Replegar/expandir el sidebar a íconos (persistente).
+function tzToggleRail(){ var h=document.documentElement; h.classList.toggle('rail'); try{ localStorage.setItem('tzRail', h.classList.contains('rail')?'1':'0'); }catch(e){} }
 
 // Confirmación con modal: tzConfirm(form, mensaje) → al confirmar, envía el form.
 let __tzConfirmForm = null;
