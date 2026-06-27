@@ -725,6 +725,65 @@ final class Orden
     }
 
     /**
+     * Facturación simple para el Excel: una "factura" por tipo de venta
+     * (online/local), con m³ por destino (provincia) y al pie transportista(s),
+     * fecha(s) de carga y hoja(s) de ruta. Sin marca ni importes.
+     *
+     * @param array<string, mixed> $filtros
+     * @return array<string, array{
+     *     destinos: array<int, array{provincia:string, m3:float}>,
+     *     total_m3: float, transportistas: string, fechas: string, hojas_ruta: string
+     * }>  Clave = tipo de venta ('online'|'local'|'').
+     */
+    public static function facturacionPorTipo(array $filtros): array
+    {
+        [$where, $params] = self::whereFiltros($filtros);
+        $db = DB::getInstance();
+
+        $stmtD = $db->prepare(
+            "SELECT COALESCE(o.tipo_venta, '')                 AS tipo,
+                    COALESCE(NULLIF(o.dest_provincia, ''), '(sin provincia)') AS provincia,
+                    COALESCE(SUM(o.m3_total), 0)               AS m3
+             FROM ordenes o" . $where . "
+             GROUP BY tipo, provincia
+             ORDER BY tipo ASC, provincia ASC"
+        );
+        $stmtD->execute($params);
+
+        $out = [];
+        foreach ($stmtD->fetchAll() as $r) {
+            $tipo = (string)$r['tipo'];
+            if (!isset($out[$tipo])) {
+                $out[$tipo] = ['destinos' => [], 'total_m3' => 0.0,
+                               'transportistas' => '', 'fechas' => '', 'hojas_ruta' => ''];
+            }
+            $m3 = (float)$r['m3'];
+            $out[$tipo]['destinos'][] = ['provincia' => (string)$r['provincia'], 'm3' => $m3];
+            $out[$tipo]['total_m3']  += $m3;
+        }
+
+        $stmtF = $db->prepare(
+            "SELECT COALESCE(o.tipo_venta, '') AS tipo,
+                    GROUP_CONCAT(DISTINCT u.nombre_completo ORDER BY u.nombre_completo SEPARATOR ', ') AS transportistas,
+                    GROUP_CONCAT(DISTINCT o.fecha_carga ORDER BY o.fecha_carga SEPARATOR ',')          AS fechas,
+                    GROUP_CONCAT(DISTINCT o.hoja_ruta ORDER BY o.hoja_ruta SEPARATOR ', ')             AS hojas_ruta
+             FROM ordenes o
+             LEFT JOIN usuarios u ON u.id = o.transportista_id" . $where . "
+             GROUP BY tipo"
+        );
+        $stmtF->execute($params);
+        foreach ($stmtF->fetchAll() as $r) {
+            $tipo = (string)$r['tipo'];
+            if (!isset($out[$tipo])) { continue; }
+            $out[$tipo]['transportistas'] = (string)($r['transportistas'] ?? '');
+            $out[$tipo]['fechas']         = (string)($r['fechas'] ?? '');
+            $out[$tipo]['hojas_ruta']     = (string)($r['hojas_ruta'] ?? '');
+        }
+
+        return $out;
+    }
+
+    /**
      * Detalle orden por orden para el respaldo de la factura, agrupado por
      * (marca/proveedor, tipo). Mismos filtros que facturacion().
      *

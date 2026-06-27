@@ -224,9 +224,11 @@ if (!function_exists('filtro_multi_dropdown')) {
             <div class="dropdown-menu p-2" style="max-height:260px;overflow:auto;min-width:230px">
               <?php if ($opciones === []): ?>
                 <div class="text-muted small px-1">Sin opciones aún</div>
-              <?php else: foreach ($opciones as [$val, $txt]):
+              <?php else: foreach ($opciones as $i => [$val, $txt]):
                 $val = (string)$val;
-                $id  = $campo . '_' . preg_replace('/[^A-Za-z0-9]/', '', $val);
+                // id único por índice: dos valores que difieren solo en signos/espacios
+                // colapsaban al mismo id y se pisaban al tildar (bug "marqué 6, quedaron 4").
+                $id  = $campo . '_' . $i;
               ?>
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="<?= h($campo) ?>[]" value="<?= h($val) ?>"

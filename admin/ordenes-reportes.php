@@ -13,8 +13,6 @@ require __DIR__ . '/../lib/bootstrap.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Trazock\Auth;
-use Trazock\Facturacion;
-use Trazock\Models\AfipEmisor;
 use Trazock\Models\Carga;
 use Trazock\Models\Categoria;
 use Trazock\Models\Orden;
@@ -96,14 +94,13 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     exit;
 }
 
-// --- Modo export Facturación: una factura por (marca, tipo) -------------------
-// Cada (marca/proveedor + tipo) es una hoja: ítems = m³ × tarifa por provincia =
-// importe, subtotal/IVA/total, encabezado emisor/receptor, pie con transportista(s)/
-// fecha(s)/hoja(s) de ruta y detalle orden por orden.
+// --- Modo export Facturación: una factura por tipo (m³ por destino) -----------
+// Cada tipo (online/local) es una hoja: ítems = m³ por provincia de destino y, al
+// pie, transportista(s), fecha(s) de carga y nº(s) de hoja de ruta del/los doc(s).
+// (Los importes/IVA/total están en la Pre-factura imprimible, botón aparte.)
 if (($_GET['export'] ?? '') === 'facturacion') {
-    $facturas = Facturacion::calcular($filtros);
-    $emisor   = AfipEmisor::get();
-    $MON      = '#,##0.00';
+    $facturas = Orden::facturacionPorTipo($filtros);
+    $tvLabel  = ['online' => 'Online', 'local' => 'Local', '' => 'Sin tipo'];
 
     $spreadsheet = new Spreadsheet();
 
@@ -113,74 +110,48 @@ if (($_GET['export'] ?? '') === 'facturacion') {
         $sheet->setCellValue('A1', 'No hay órdenes para los filtros seleccionados.');
     } else {
         $primera = true;
-        $n = 0;
-        foreach ($facturas as $f) {
-            $n++;
+        foreach ($facturas as $tipo => $f) {
+            $titulo = $tvLabel[$tipo] ?? 'Sin tipo';
             $sheet  = $primera ? $spreadsheet->getActiveSheet() : $spreadsheet->createSheet();
             $primera = false;
-            $rec = Facturacion::receptorNombre($f);
-            $sheet->setTitle(mb_substr($n . ' ' . $rec . ' ' . $f['tipo_label'], 0, 31));
+            $sheet->setTitle(mb_substr('Factura ' . $titulo, 0, 31));
 
-            $put  = static fn(string $c, $v) => $sheet->setCellValue($c, $v);
-            $putS = static fn(string $c, string $v) => $sheet->setCellValueExplicit($c, $v, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-            $bold = static fn(string $r) => $sheet->getStyle($r)->getFont()->setBold(true);
+            $sheet->setCellValue('A1', 'FACTURA — ' . $titulo);
+            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
 
-            $r = 1;
-            $put('A' . $r, 'PRE-FACTURA (BORRADOR · SIN VALOR FISCAL)'); $sheet->getStyle('A' . $r)->getFont()->setBold(true)->setSize(13); $r++;
-            $put('A' . $r, 'Comprobante: Factura ' . $f['tipo_comprobante'] . ' · Venta ' . $f['tipo_label']); $r++;
-            $put('A' . $r, 'Fecha:'); $putS('B' . $r, date('d/m/Y')); $r += 2;
+            $sheet->setCellValue('A3', 'Destino');
+            $sheet->setCellValue('B3', 'm³');
+            $sheet->getStyle('A3:B3')->getFont()->setBold(true);
 
-            $put('A' . $r, 'EMISOR'); $bold('A' . $r); $r++;
-            $putS('A' . $r, (string)($emisor['razon_social'] ?? '') ?: '—'); $r++;
-            $putS('A' . $r, 'CUIT: ' . (($emisor['cuit'] ?? '') ?: '—') . '   ·   ' . (($emisor['condicion_iva'] ?? '') ?: '—')); $r += 2;
-
-            $put('A' . $r, 'FACTURAR A'); $bold('A' . $r); $r++;
-            $putS('A' . $r, $rec); $r++;
-            $putS('A' . $r, 'CUIT: ' . (($f['receptor']['cuit'] ?? '') ?: '—') . '   ·   ' . (($f['receptor']['condicion_iva'] ?? '') ?: '—')); $r += 2;
-
-            $put('A' . $r, 'Destino'); $put('B' . $r, 'm³'); $put('C' . $r, 'Tarifa $/m³'); $put('D' . $r, 'Importe');
-            $bold('A' . $r . ':D' . $r); $r++;
+            $fila = 4;
             foreach ($f['destinos'] as $d) {
-                $put('A' . $r, (string)$d['provincia']);
-                $put('B' . $r, (float)$d['m3']);
-                $put('C' . $r, (float)$d['tarifa']);
-                $put('D' . $r, (float)$d['importe']);
-                $sheet->getStyle('B' . $r . ':D' . $r)->getNumberFormat()->setFormatCode($MON);
-                $r++;
+                $sheet->setCellValue('A' . $fila, (string)$d['provincia']);
+                $sheet->setCellValue('B' . $fila, (float)$d['m3']);
+                $fila++;
             }
-            $put('C' . $r, 'Subtotal'); $bold('C' . $r); $put('D' . $r, (float)$f['subtotal']);
-            $sheet->getStyle('D' . $r)->getNumberFormat()->setFormatCode($MON); $r++;
-            $put('C' . $r, 'IVA (' . rtrim(rtrim(number_format((float)$f['iva_alicuota'], 2, '.', ''), '0'), '.') . '%)'); $bold('C' . $r); $put('D' . $r, (float)$f['iva_monto']);
-            $sheet->getStyle('D' . $r)->getNumberFormat()->setFormatCode($MON); $r++;
-            $put('C' . $r, 'TOTAL'); $put('D' . $r, (float)$f['total']); $bold('C' . $r . ':D' . $r);
-            $sheet->getStyle('D' . $r)->getNumberFormat()->setFormatCode($MON); $r += 2;
+            $sheet->setCellValue('A' . $fila, 'TOTAL');
+            $sheet->setCellValue('B' . $fila, (float)$f['total_m3']);
+            $sheet->getStyle('A' . $fila . ':B' . $fila)->getFont()->setBold(true);
 
+            // Pie: transportista(s) / fecha(s) / hoja(s) de ruta.
             $fechasFmt = implode(', ', array_map(
                 static fn(string $x): string => date('d/m/Y', strtotime($x)),
                 array_values(array_filter(explode(',', (string)$f['fechas']), static fn($x) => trim($x) !== ''))
             ));
-            foreach ([
+            $pie = [
                 ['Transportista(s):', $f['transportistas'] !== '' ? $f['transportistas'] : '—'],
                 ['Fecha(s) de carga:', $fechasFmt !== '' ? $fechasFmt : '—'],
                 ['Hoja(s) de ruta:',  $f['hojas_ruta'] !== '' ? $f['hojas_ruta'] : '—'],
-            ] as [$lbl, $val]) {
-                $put('A' . $r, $lbl); $bold('A' . $r); $putS('B' . $r, (string)$val); $r++;
+            ];
+            $fila += 2;
+            foreach ($pie as [$lbl, $val]) {
+                $sheet->setCellValue('A' . $fila, $lbl);
+                $sheet->getStyle('A' . $fila)->getFont()->setBold(true);
+                $sheet->setCellValueExplicit('B' . $fila, (string)$val, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $fila++;
             }
-            $r += 2;
-
-            $put('A' . $r, 'DETALLE'); $bold('A' . $r); $r++;
-            $put('A' . $r, 'Nº orden'); $put('B' . $r, 'Nº remito'); $put('C' . $r, 'Cliente'); $put('D' . $r, 'Provincia'); $put('E' . $r, 'm³');
-            $bold('A' . $r . ':E' . $r); $r++;
-            foreach ($f['detalle'] as $o) {
-                $putS('A' . $r, (string)$o['nro_orden']);
-                $putS('B' . $r, (string)$o['nro_remito']);
-                $put('C' . $r, (string)$o['cliente']);
-                $put('D' . $r, (string)$o['provincia']);
-                $put('E' . $r, (float)$o['m3']);
-                $sheet->getStyle('E' . $r)->getNumberFormat()->setFormatCode($MON);
-                $r++;
-            }
-            foreach (range('A', 'E') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+            $sheet->getColumnDimension('A')->setAutoSize(true);
+            $sheet->getColumnDimension('B')->setAutoSize(true);
         }
         $spreadsheet->setActiveSheetIndex(0);
     }
