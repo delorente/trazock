@@ -492,3 +492,45 @@ CREATE TABLE IF NOT EXISTS `vehiculos` (
 -- =============================================================================
 -- END: 014_acompanantes_vehiculos.sql
 -- =============================================================================
+
+-- =============================================================================
+-- BEGIN: 016_facturacion_m1.sql — pre-factura por marca (categoria.proveedor_id,
+-- datos fiscales receptor/emisor, tarifario por provincia+tipo).
+-- =============================================================================
+ALTER TABLE `categorias`
+    ADD COLUMN `proveedor_id` INT UNSIGNED DEFAULT NULL AFTER `nombre`,
+    ADD CONSTRAINT `fk_categorias_proveedor`
+        FOREIGN KEY (`proveedor_id`) REFERENCES `proveedores` (`id`);
+
+ALTER TABLE `proveedores`
+    ADD COLUMN `razon_social`  VARCHAR(150) DEFAULT NULL AFTER `nombre`,
+    ADD COLUMN `cuit`          VARCHAR(13)  DEFAULT NULL AFTER `razon_social`,
+    ADD COLUMN `condicion_iva` VARCHAR(40)  DEFAULT NULL AFTER `cuit`,
+    ADD COLUMN `domicilio`     VARCHAR(200) DEFAULT NULL AFTER `condicion_iva`;
+
+CREATE TABLE IF NOT EXISTS `afip_emisor` (
+    `id`                 TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    `razon_social`       VARCHAR(150)  DEFAULT NULL,
+    `cuit`               VARCHAR(13)   DEFAULT NULL,
+    `condicion_iva`      VARCHAR(40)   DEFAULT 'Responsable Inscripto',
+    `domicilio`          VARCHAR(200)  DEFAULT NULL,
+    `iibb`               VARCHAR(40)   DEFAULT NULL,
+    `inicio_actividades` DATE          DEFAULT NULL,
+    `iva_alicuota`       DECIMAL(5,2)  NOT NULL DEFAULT 21.00,
+    `updated_at`         TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `tarifas` (
+    `id`         INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    `provincia`  VARCHAR(80)   NOT NULL,
+    `tipo_venta` ENUM('online','local') NOT NULL,
+    `precio_m3`  DECIMAL(12,2) NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_tarifa_prov_tipo` (`provincia`, `tipo_venta`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- END: 016_facturacion_m1.sql
+-- =============================================================================

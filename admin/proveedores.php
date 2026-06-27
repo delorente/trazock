@@ -32,15 +32,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nombre   = trim((string)($_POST['nombre'] ?? ''));
             $contacto = trim((string)($_POST['contacto'] ?? ''));
             $notas    = trim((string)($_POST['notas'] ?? ''));
+            $fiscal   = [
+                'razon_social'  => (string)($_POST['razon_social'] ?? ''),
+                'cuit'          => (string)($_POST['cuit'] ?? ''),
+                'condicion_iva' => (string)($_POST['condicion_iva'] ?? ''),
+                'domicilio'     => (string)($_POST['domicilio'] ?? ''),
+            ];
             $id       = (int)($_POST['id'] ?? 0);
 
             if ($nombre === '') {
                 flash_set('danger', 'El nombre es obligatorio.');
             } elseif ($id > 0) {
-                Proveedor::actualizar($id, $nombre, $contacto, $notas);
+                Proveedor::actualizar($id, $nombre, $contacto, $notas, $fiscal);
                 flash_set('success', 'Proveedor actualizado.');
             } else {
-                Proveedor::crear($nombre, $contacto, $notas);
+                Proveedor::crear($nombre, $contacto, $notas, $fiscal);
                 flash_set('success', 'Proveedor creado.');
             }
         }
@@ -66,15 +72,16 @@ panel_header('Proveedores', $user, 'proveedores', count($proveedores) . ' provee
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
-                <tr><th>Nombre</th><th>Contacto</th><th>Notas</th><th>Estado</th><th class="text-end">Acciones</th></tr>
+                <tr><th>Nombre</th><th>CUIT / IVA</th><th>Contacto</th><th>Notas</th><th>Estado</th><th class="text-end">Acciones</th></tr>
             </thead>
             <tbody>
             <?php if ($proveedores === []): ?>
-                <tr><td colspan="5" class="text-center text-muted py-4">No hay proveedores cargados.</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-4">No hay proveedores cargados.</td></tr>
             <?php endif; ?>
             <?php foreach ($proveedores as $p): ?>
                 <tr class="<?= $p['activo'] ? '' : 'table-secondary' ?>">
                     <td><?= h($p['nombre']) ?></td>
+                    <td class="small"><?php $cuit = (string)($p['cuit'] ?? ''); $civa = (string)($p['condicion_iva'] ?? ''); echo $cuit !== '' || $civa !== '' ? h(trim($cuit . ($cuit && $civa ? ' · ' : '') . $civa)) : '<span class="text-muted">—</span>'; ?></td>
                     <td class="small"><?= h($p['contacto'] ?? '') ?></td>
                     <td class="text-muted small"><?= h($p['notas'] ?? '') ?></td>
                     <td>
@@ -88,6 +95,8 @@ panel_header('Proveedores', $user, 'proveedores', count($proveedores) . ' provee
                                 onclick='provEditar(<?= json_encode([
                                     "id" => (int)$p["id"], "nombre" => $p["nombre"],
                                     "contacto" => $p["contacto"], "notas" => $p["notas"],
+                                    "razon_social" => $p["razon_social"], "cuit" => $p["cuit"],
+                                    "condicion_iva" => $p["condicion_iva"], "domicilio" => $p["domicilio"],
                                 ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'><i class="bi bi-pencil"></i></button>
                         <form method="post" class="d-inline">
                             <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
@@ -126,6 +135,34 @@ panel_header('Proveedores', $user, 'proveedores', count($proveedores) . ' provee
           <label class="form-label" for="prov_contacto">Contacto</label>
           <input class="form-control" id="prov_contacto" name="contacto" maxlength="150">
         </div>
+
+        <hr>
+        <p class="small text-muted mb-2"><i class="bi bi-receipt me-1"></i>Datos de facturación (a quién se factura esta marca)</p>
+        <div class="mb-3">
+          <label class="form-label" for="prov_razon">Razón social</label>
+          <input class="form-control" id="prov_razon" name="razon_social" maxlength="150" placeholder="Si difiere del nombre">
+        </div>
+        <div class="row g-2">
+          <div class="col-sm-6 mb-3">
+            <label class="form-label" for="prov_cuit">CUIT</label>
+            <input class="form-control" id="prov_cuit" name="cuit" maxlength="13" placeholder="30-12345678-9">
+          </div>
+          <div class="col-sm-6 mb-3">
+            <label class="form-label" for="prov_civa">Condición IVA</label>
+            <select class="form-select" id="prov_civa" name="condicion_iva">
+              <option value="">—</option>
+              <option>Responsable Inscripto</option>
+              <option>Monotributo</option>
+              <option>Exento</option>
+              <option>Consumidor Final</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="prov_domicilio">Domicilio</label>
+          <input class="form-control" id="prov_domicilio" name="domicilio" maxlength="200">
+        </div>
+
         <div class="mb-3">
           <label class="form-label" for="prov_notas">Notas</label>
           <textarea class="form-control" id="prov_notas" name="notas" rows="2"></textarea>
@@ -146,6 +183,10 @@ function provNuevo() {
     document.getElementById('prov_nombre').value = '';
     document.getElementById('prov_contacto').value = '';
     document.getElementById('prov_notas').value = '';
+    document.getElementById('prov_razon').value = '';
+    document.getElementById('prov_cuit').value = '';
+    document.getElementById('prov_civa').value = '';
+    document.getElementById('prov_domicilio').value = '';
 }
 function provEditar(d) {
     document.getElementById('prov_titulo').textContent = 'Editar proveedor';
@@ -153,6 +194,10 @@ function provEditar(d) {
     document.getElementById('prov_nombre').value = d.nombre || '';
     document.getElementById('prov_contacto').value = d.contacto || '';
     document.getElementById('prov_notas').value = d.notas || '';
+    document.getElementById('prov_razon').value = d.razon_social || '';
+    document.getElementById('prov_cuit').value = d.cuit || '';
+    document.getElementById('prov_civa').value = d.condicion_iva || '';
+    document.getElementById('prov_domicilio').value = d.domicilio || '';
 }
 </script>
 <?php

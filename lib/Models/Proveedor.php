@@ -13,7 +13,8 @@ final class Proveedor
     public static function todos(): array
     {
         return DB::getInstance()->query(
-            'SELECT id, nombre, contacto, notas, activo, created_at
+            'SELECT id, nombre, razon_social, cuit, condicion_iva, domicilio,
+                    contacto, notas, activo, created_at
              FROM proveedores
              ORDER BY activo DESC, nombre ASC'
         )->fetchAll();
@@ -49,33 +50,57 @@ final class Proveedor
         return (bool)$stmt->fetchColumn();
     }
 
-    public static function crear(string $nombre, ?string $contacto, ?string $notas): int
+    /**
+     * @param array<string, mixed> $fiscal Claves opcionales: razon_social, cuit,
+     *        condicion_iva, domicilio (datos del receptor para facturar).
+     */
+    public static function crear(string $nombre, ?string $contacto, ?string $notas, array $fiscal = []): int
     {
         $db   = DB::getInstance();
         $stmt = $db->prepare(
-            'INSERT INTO proveedores (nombre, contacto, notas, activo)
-             VALUES (:nombre, :contacto, :notas, 1)'
+            'INSERT INTO proveedores (nombre, razon_social, cuit, condicion_iva, domicilio, contacto, notas, activo)
+             VALUES (:nombre, :razon_social, :cuit, :condicion_iva, :domicilio, :contacto, :notas, 1)'
         );
         $stmt->execute([
-            ':nombre'   => $nombre,
-            ':contacto' => $contacto !== '' ? $contacto : null,
-            ':notas'    => $notas !== '' ? $notas : null,
+            ':nombre'        => $nombre,
+            ':razon_social'  => self::n($fiscal['razon_social'] ?? null),
+            ':cuit'          => self::n($fiscal['cuit'] ?? null),
+            ':condicion_iva' => self::n($fiscal['condicion_iva'] ?? null),
+            ':domicilio'     => self::n($fiscal['domicilio'] ?? null),
+            ':contacto'      => $contacto !== '' ? $contacto : null,
+            ':notas'         => $notas !== '' ? $notas : null,
         ]);
         return (int)$db->lastInsertId();
     }
 
-    public static function actualizar(int $id, string $nombre, ?string $contacto, ?string $notas): void
+    /**
+     * @param array<string, mixed> $fiscal Claves opcionales: razon_social, cuit,
+     *        condicion_iva, domicilio.
+     */
+    public static function actualizar(int $id, string $nombre, ?string $contacto, ?string $notas, array $fiscal = []): void
     {
         $stmt = DB::getInstance()->prepare(
-            'UPDATE proveedores SET nombre = :nombre, contacto = :contacto, notas = :notas
+            'UPDATE proveedores SET nombre = :nombre, razon_social = :razon_social, cuit = :cuit,
+                    condicion_iva = :condicion_iva, domicilio = :domicilio, contacto = :contacto, notas = :notas
              WHERE id = :id'
         );
         $stmt->execute([
-            ':nombre'   => $nombre,
-            ':contacto' => $contacto !== '' ? $contacto : null,
-            ':notas'    => $notas !== '' ? $notas : null,
-            ':id'       => $id,
+            ':nombre'        => $nombre,
+            ':razon_social'  => self::n($fiscal['razon_social'] ?? null),
+            ':cuit'          => self::n($fiscal['cuit'] ?? null),
+            ':condicion_iva' => self::n($fiscal['condicion_iva'] ?? null),
+            ':domicilio'     => self::n($fiscal['domicilio'] ?? null),
+            ':contacto'      => $contacto !== '' ? $contacto : null,
+            ':notas'         => $notas !== '' ? $notas : null,
+            ':id'            => $id,
         ]);
+    }
+
+    /** Normaliza string vacío/espacios a null. */
+    private static function n($v): ?string
+    {
+        $v = trim((string)($v ?? ''));
+        return $v !== '' ? $v : null;
     }
 
     public static function toggleActivo(int $id): void

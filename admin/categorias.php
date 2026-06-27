@@ -10,6 +10,7 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\Models\Categoria;
+use Trazock\Models\Proveedor;
 
 $user = Auth::requierePanel();
 Auth::requiereRol('admin');
@@ -31,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $nombre = trim((string)($_POST['nombre'] ?? ''));
             $notas  = trim((string)($_POST['notas'] ?? ''));
+            $prov   = (int)($_POST['proveedor_id'] ?? 0) ?: null;
             $id     = (int)($_POST['id'] ?? 0);
 
             if ($nombre === '') {
@@ -38,10 +40,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif (Categoria::nombreEnUso($nombre, $id > 0 ? $id : null)) {
                 flash_set('danger', 'Ya existe una categoría con ese nombre.');
             } elseif ($id > 0) {
-                Categoria::actualizar($id, $nombre, $notas);
+                Categoria::actualizar($id, $nombre, $notas, $prov);
                 flash_set('success', 'Categoría actualizada.');
             } else {
-                Categoria::crear($nombre, $notas);
+                Categoria::crear($nombre, $notas, $prov);
                 flash_set('success', 'Categoría creada.');
             }
         }
@@ -55,27 +57,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $categorias = Categoria::todas();
+$proveedores = Proveedor::activos();
 $csrf       = Auth::tokenCSRF();
 
 $acciones = '<button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCat" onclick="catNuevo()"><i class="bi bi-plus-lg me-1"></i>Nueva</button>';
 panel_header('Categorías', $user, 'categorias', count($categorias) . ' categoría(s)', $acciones);
 ?>
 <?php flash_render(); ?>
-<p class="text-muted small mb-3">Las categorías inactivas no aparecen en nuevos lotes, pero conservan su histórico.</p>
+<p class="text-muted small mb-3">Las categorías inactivas no aparecen en nuevos lotes, pero conservan su histórico. La <strong>marca/proveedor</strong> define a quién se factura cada orden de esa categoría.</p>
 
 <div class="card">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
-                <tr><th>Nombre</th><th>Notas</th><th>Estado</th><th class="text-end">Acciones</th></tr>
+                <tr><th>Nombre</th><th>Marca / Proveedor</th><th>Notas</th><th>Estado</th><th class="text-end">Acciones</th></tr>
             </thead>
             <tbody>
             <?php if ($categorias === []): ?>
-                <tr><td colspan="4" class="text-center text-muted py-4">No hay categorías cargadas.</td></tr>
+                <tr><td colspan="5" class="text-center text-muted py-4">No hay categorías cargadas.</td></tr>
             <?php endif; ?>
             <?php foreach ($categorias as $c): ?>
                 <tr class="<?= $c['activo'] ? '' : 'table-secondary' ?>">
                     <td><?= h($c['nombre']) ?></td>
+                    <td class="small"><?= ($c['proveedor_nombre'] ?? '') !== '' ? h($c['proveedor_nombre']) : '<span class="text-muted">— sin marca —</span>' ?></td>
                     <td class="text-muted small"><?= h($c['notas'] ?? '') ?></td>
                     <td>
                         <?php if ($c['activo']): ?>
@@ -89,6 +93,7 @@ panel_header('Categorías', $user, 'categorias', count($categorias) . ' categor�
                                 data-bs-toggle="modal" data-bs-target="#modalCat"
                                 onclick='catEditar(<?= json_encode([
                                     "id" => (int)$c["id"], "nombre" => $c["nombre"], "notas" => $c["notas"],
+                                    "proveedor_id" => $c["proveedor_id"] !== null ? (int)$c["proveedor_id"] : "",
                                 ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'><i class="bi bi-pencil"></i></button>
                         <form method="post" class="d-inline">
                             <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
@@ -125,6 +130,15 @@ panel_header('Categorías', $user, 'categorias', count($categorias) . ' categor�
           <input class="form-control" id="cat_nombre" name="nombre" maxlength="100" required>
         </div>
         <div class="mb-3">
+          <label class="form-label" for="cat_proveedor">Marca / Proveedor (para facturar)</label>
+          <select class="form-select" id="cat_proveedor" name="proveedor_id">
+            <option value="">— sin marca —</option>
+            <?php foreach ($proveedores as $p): ?>
+              <option value="<?= (int)$p['id'] ?>"><?= h($p['nombre']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+        <div class="mb-3">
           <label class="form-label" for="cat_notas">Notas</label>
           <textarea class="form-control" id="cat_notas" name="notas" rows="2"></textarea>
         </div>
@@ -143,12 +157,14 @@ function catNuevo() {
     document.getElementById('cat_id').value = '';
     document.getElementById('cat_nombre').value = '';
     document.getElementById('cat_notas').value = '';
+    document.getElementById('cat_proveedor').value = '';
 }
 function catEditar(d) {
     document.getElementById('cat_titulo').textContent = 'Editar categoría';
     document.getElementById('cat_id').value = d.id;
     document.getElementById('cat_nombre').value = d.nombre || '';
     document.getElementById('cat_notas').value = d.notas || '';
+    document.getElementById('cat_proveedor').value = d.proveedor_id || '';
 }
 </script>
 <?php

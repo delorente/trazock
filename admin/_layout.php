@@ -36,6 +36,8 @@ function panel_menu(): array
             'items'   => [
                 ['key' => 'captura',  'label' => 'Nueva carga', 'href' => 'ordenes-captura.php', 'icon' => 'cloud-upload-fill', 'roles' => ['admin']],
                 ['key' => 'reportes', 'label' => 'Reportes',    'href' => 'ordenes-reportes.php', 'icon' => 'bar-chart-fill', 'roles' => ['admin', 'gestor']],
+                ['key' => 'tarifas',  'label' => 'Tarifario',   'href' => 'tarifas.php',         'icon' => 'cash-stack', 'roles' => ['admin']],
+                ['key' => 'afip-emisor', 'label' => 'Datos del emisor', 'href' => 'afip-emisor.php', 'icon' => 'receipt', 'roles' => ['admin']],
                 ['key' => 'encuestas','label' => 'Encuestas',   'href' => 'encuestas.php',       'icon' => 'emoji-smile-fill', 'roles' => ['admin', 'gestor'], 'encuesta' => true],
             ],
         ],

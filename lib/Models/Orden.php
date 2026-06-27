@@ -632,64 +632,133 @@ final class Orden
     }
 
     /**
-     * Datos para el reporte de Facturación: una "factura" por tipo de venta
-     * (online/local). Por cada tipo, los m³ agregados por destino (provincia) como
-     * ítems, y al pie los datos de ingreso del/los documento(s): transportista(s),
-     * fecha(s) de carga y número(s) de hoja de ruta (puede haber varios por viaje).
+     * Datos para el reporte de Facturación: una "factura" por (marca/proveedor,
+     * tipo de venta). La marca de la orden surge de su categoría
+     * (orden → carga → categoría → proveedor). Por cada factura, los m³ agregados
+     * por destino (provincia) como ítems, y al pie transportista(s), fecha(s) de
+     * carga y número(s) de hoja de ruta.
      *
      * @param array<string, mixed> $filtros
      * @return array<string, array{
+     *     proveedor_id: int|null, proveedor: array<string,mixed>|null, tipo: string,
      *     destinos: array<int, array{provincia:string, m3:float}>,
      *     total_m3: float, transportistas: string, fechas: string, hojas_ruta: string
-     * }>  Clave = tipo de venta ('online'|'local'|''), solo los presentes.
+     * }>  Clave = "<proveedorId|0>|<tipo>".
      */
     public static function facturacion(array $filtros): array
     {
         [$where, $params] = self::whereFiltros($filtros);
         $db = DB::getInstance();
 
-        // Ítems: m³ por (tipo, provincia). Cada parámetro se ejecuta una sola vez.
+        $joinMarca = ' LEFT JOIN cargas cg ON cg.id = o.carga_id
+                       LEFT JOIN categorias cat ON cat.id = cg.categoria_id';
+
+        // Ítems: m³ por (proveedor, tipo, provincia).
         $stmtD = $db->prepare(
-            "SELECT COALESCE(o.tipo_venta, '')                 AS tipo,
+            "SELECT cat.proveedor_id AS prov_id,
+                    COALESCE(o.tipo_venta, '')                 AS tipo,
                     COALESCE(NULLIF(o.dest_provincia, ''), '(sin provincia)') AS provincia,
                     COALESCE(SUM(o.m3_total), 0)               AS m3
-             FROM ordenes o" . $where . "
-             GROUP BY tipo, provincia
-             ORDER BY tipo ASC, provincia ASC"
+             FROM ordenes o" . $joinMarca . $where . "
+             GROUP BY prov_id, tipo, provincia
+             ORDER BY prov_id ASC, tipo ASC, provincia ASC"
         );
         $stmtD->execute($params);
 
+        $key = static fn($provId, string $tipo): string => (($provId === null) ? '0' : (string)(int)$provId) . '|' . $tipo;
+
         $out = [];
         foreach ($stmtD->fetchAll() as $r) {
-            $tipo = (string)$r['tipo'];
-            if (!isset($out[$tipo])) {
-                $out[$tipo] = ['destinos' => [], 'total_m3' => 0.0,
-                               'transportistas' => '', 'fechas' => '', 'hojas_ruta' => ''];
+            $provId = $r['prov_id'] !== null ? (int)$r['prov_id'] : null;
+            $tipo   = (string)$r['tipo'];
+            $k      = $key($provId, $tipo);
+            if (!isset($out[$k])) {
+                $out[$k] = ['proveedor_id' => $provId, 'proveedor' => null, 'tipo' => $tipo,
+                            'destinos' => [], 'total_m3' => 0.0,
+                            'transportistas' => '', 'fechas' => '', 'hojas_ruta' => ''];
             }
             $m3 = (float)$r['m3'];
-            $out[$tipo]['destinos'][] = ['provincia' => (string)$r['provincia'], 'm3' => $m3];
-            $out[$tipo]['total_m3']  += $m3;
+            $out[$k]['destinos'][] = ['provincia' => (string)$r['provincia'], 'm3' => $m3];
+            $out[$k]['total_m3']  += $m3;
         }
 
-        // Pie por tipo: transportista(s), fecha(s) y hoja(s) de ruta distintos.
+        // Pie por (proveedor, tipo): transportista(s), fecha(s), hoja(s) de ruta.
         $stmtF = $db->prepare(
-            "SELECT COALESCE(o.tipo_venta, '') AS tipo,
+            "SELECT cat.proveedor_id AS prov_id, COALESCE(o.tipo_venta, '') AS tipo,
                     GROUP_CONCAT(DISTINCT u.nombre_completo ORDER BY u.nombre_completo SEPARATOR ', ') AS transportistas,
                     GROUP_CONCAT(DISTINCT o.fecha_carga ORDER BY o.fecha_carga SEPARATOR ',')          AS fechas,
                     GROUP_CONCAT(DISTINCT o.hoja_ruta ORDER BY o.hoja_ruta SEPARATOR ', ')             AS hojas_ruta
-             FROM ordenes o
+             FROM ordenes o" . $joinMarca . "
              LEFT JOIN usuarios u ON u.id = o.transportista_id" . $where . "
-             GROUP BY tipo"
+             GROUP BY prov_id, tipo"
         );
         $stmtF->execute($params);
         foreach ($stmtF->fetchAll() as $r) {
-            $tipo = (string)$r['tipo'];
-            if (!isset($out[$tipo])) { continue; }
-            $out[$tipo]['transportistas'] = (string)($r['transportistas'] ?? '');
-            $out[$tipo]['fechas']         = (string)($r['fechas'] ?? '');
-            $out[$tipo]['hojas_ruta']     = (string)($r['hojas_ruta'] ?? '');
+            $provId = $r['prov_id'] !== null ? (int)$r['prov_id'] : null;
+            $k = $key($provId, (string)$r['tipo']);
+            if (!isset($out[$k])) { continue; }
+            $out[$k]['transportistas'] = (string)($r['transportistas'] ?? '');
+            $out[$k]['fechas']         = (string)($r['fechas'] ?? '');
+            $out[$k]['hojas_ruta']     = (string)($r['hojas_ruta'] ?? '');
         }
 
+        // Datos fiscales de cada proveedor presente.
+        $ids = array_values(array_filter(array_map(static fn($f) => $f['proveedor_id'], $out), static fn($v) => $v !== null));
+        if ($ids !== []) {
+            $in = [];
+            foreach (array_unique($ids) as $i => $id) { $ph = ':pid' . $i; $in[] = $ph; $params2[$ph] = $id; }
+            $stmtP = $db->prepare(
+                'SELECT id, nombre, razon_social, cuit, condicion_iva, domicilio
+                 FROM proveedores WHERE id IN (' . implode(',', $in) . ')'
+            );
+            $stmtP->execute($params2 ?? []);
+            $prov = [];
+            foreach ($stmtP->fetchAll() as $p) { $prov[(int)$p['id']] = $p; }
+            foreach ($out as $k => $f) {
+                if ($f['proveedor_id'] !== null && isset($prov[$f['proveedor_id']])) {
+                    $out[$k]['proveedor'] = $prov[$f['proveedor_id']];
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Detalle orden por orden para el respaldo de la factura, agrupado por
+     * (marca/proveedor, tipo). Mismos filtros que facturacion().
+     *
+     * @param array<string, mixed> $filtros
+     * @return array<string, array<int, array{nro_orden:string, nro_remito:string,
+     *     cliente:string, provincia:string, m3:float}>>  Clave = "<proveedorId|0>|<tipo>".
+     */
+    public static function facturacionDetalle(array $filtros): array
+    {
+        [$where, $params] = self::whereFiltros($filtros);
+        $stmt = DB::getInstance()->prepare(
+            "SELECT cat.proveedor_id AS prov_id, COALESCE(o.tipo_venta, '') AS tipo,
+                    o.nro_orden, o.nro_remito, o.cliente,
+                    COALESCE(NULLIF(o.dest_provincia, ''), '(sin provincia)') AS provincia,
+                    COALESCE(o.m3_total, 0) AS m3
+             FROM ordenes o
+             LEFT JOIN cargas cg ON cg.id = o.carga_id
+             LEFT JOIN categorias cat ON cat.id = cg.categoria_id" . $where . "
+             ORDER BY prov_id ASC, tipo ASC, provincia ASC, o.nro_orden ASC"
+        );
+        $stmt->execute($params);
+
+        $out = [];
+        foreach ($stmt->fetchAll() as $r) {
+            $provId = $r['prov_id'] !== null ? (int)$r['prov_id'] : null;
+            $k = (($provId === null) ? '0' : (string)$provId) . '|' . (string)$r['tipo'];
+            $out[$k][] = [
+                'nro_orden'  => (string)$r['nro_orden'],
+                'nro_remito' => (string)($r['nro_remito'] ?? ''),
+                'cliente'    => (string)($r['cliente'] ?? ''),
+                'provincia'  => (string)$r['provincia'],
+                'm3'         => (float)$r['m3'],
+            ];
+        }
         return $out;
     }
 

@@ -15,9 +15,11 @@ final class Categoria
     public static function todas(): array
     {
         return DB::getInstance()->query(
-            'SELECT id, nombre, notas, activo, created_at
-             FROM categorias
-             ORDER BY activo DESC, nombre ASC'
+            'SELECT c.id, c.nombre, c.proveedor_id, c.notas, c.activo, c.created_at,
+                    p.nombre AS proveedor_nombre
+             FROM categorias c
+             LEFT JOIN proveedores p ON p.id = c.proveedor_id
+             ORDER BY c.activo DESC, c.nombre ASC'
         )->fetchAll();
     }
 
@@ -69,26 +71,29 @@ final class Categoria
         return (bool)$stmt->fetchColumn();
     }
 
-    public static function crear(string $nombre, ?string $notas): int
+    public static function crear(string $nombre, ?string $notas, ?int $proveedorId = null): int
     {
         $db   = DB::getInstance();
         $stmt = $db->prepare(
-            'INSERT INTO categorias (nombre, notas, activo) VALUES (:nombre, :notas, 1)'
+            'INSERT INTO categorias (nombre, proveedor_id, notas, activo) VALUES (:nombre, :prov, :notas, 1)'
         );
-        $stmt->execute([':nombre' => $nombre, ':notas' => $notas !== '' ? $notas : null]);
+        $stmt->bindValue(':nombre', $nombre);
+        $stmt->bindValue(':prov', $proveedorId, $proveedorId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+        $stmt->bindValue(':notas', $notas !== '' ? $notas : null, $notas !== '' && $notas !== null ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
+        $stmt->execute();
         return (int)$db->lastInsertId();
     }
 
-    public static function actualizar(int $id, string $nombre, ?string $notas): void
+    public static function actualizar(int $id, string $nombre, ?string $notas, ?int $proveedorId = null): void
     {
         $stmt = DB::getInstance()->prepare(
-            'UPDATE categorias SET nombre = :nombre, notas = :notas WHERE id = :id'
+            'UPDATE categorias SET nombre = :nombre, proveedor_id = :prov, notas = :notas WHERE id = :id'
         );
-        $stmt->execute([
-            ':nombre' => $nombre,
-            ':notas'  => $notas !== '' ? $notas : null,
-            ':id'     => $id,
-        ]);
+        $stmt->bindValue(':nombre', $nombre);
+        $stmt->bindValue(':prov', $proveedorId, $proveedorId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+        $stmt->bindValue(':notas', $notas !== '' ? $notas : null, $notas !== '' && $notas !== null ? \PDO::PARAM_STR : \PDO::PARAM_NULL);
+        $stmt->bindValue(':id', $id, \PDO::PARAM_INT);
+        $stmt->execute();
     }
 
     /** Alterna el flag activo (soft-delete / reactivación). */
