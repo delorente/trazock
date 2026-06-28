@@ -628,3 +628,24 @@ CREATE TABLE IF NOT EXISTS `cliente_tarifa_destino` (
 -- =============================================================================
 -- END: 019_facturacion_cliente.sql
 -- =============================================================================
+
+-- =============================================================================
+-- BEGIN: 020_cliente_precio_vigencia.sql — precio por cliente con vigencia por
+-- fecha (provincia = '' → precio único). Reemplaza el uso de precio_unico /
+-- cliente_tarifa_destino (que quedan sin uso).
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `cliente_precio` (
+    `id`            INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    `proveedor_id`  INT UNSIGNED  NOT NULL,
+    `provincia`     VARCHAR(80)   NOT NULL DEFAULT '',
+    `precio`        DECIMAL(12,2) NOT NULL,
+    `vigente_desde` DATE          NOT NULL,
+    `created_at`    TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_cp` (`proveedor_id`, `provincia`, `vigente_desde`),
+    INDEX `idx_cp_lookup` (`proveedor_id`, `provincia`, `vigente_desde`),
+    CONSTRAINT `fk_cp_proveedor` FOREIGN KEY (`proveedor_id`) REFERENCES `proveedores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- END: 020_cliente_precio_vigencia.sql
+-- =============================================================================

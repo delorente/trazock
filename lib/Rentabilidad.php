@@ -69,32 +69,43 @@ final class Rentabilidad
      */
     public static function ingresosPorCliente(string $desde, string $hasta): array
     {
-        $configs  = ClienteFacturacion::configsActivas();        // proveedor_id => config
-        $tarifas  = ClienteFacturacion::mapaTarifasDestino();    // [prov][provincia] => precio
-        $cant     = Orden::cantidadesPorProveedorProvincia($desde, $hasta);
+        $configs = ClienteFacturacion::configsActivas();  // proveedor_id => config (unidad, por_destino)
+        $precios = ClienteFacturacion::mapaPrecios();      // [prov][provincia] => [[vigente_desde, precio], ...]
+        $cant    = Orden::cantidadesPorProveedorProvinciaFecha($desde, $hasta);
 
+        $det = []; // [pid][provincia] => [cantidad, importe]
         $out = [];
         foreach ($cant as $row) {
             $pid = $row['proveedor_id'];
-            if (!isset($configs[$pid])) { continue; } // sin config de facturación → no se calcula ingreso
+            if (!isset($configs[$pid])) { continue; } // sin config → no se calcula ingreso
             $cfg = $configs[$pid];
             $unidad = (string)$cfg['unidad'];
             $cantidad = $unidad === 'm3' ? (float)$row['m3'] : ($unidad === 'bulto' ? (float)$row['bultos'] : 0.0); // peso: sin dato aún
-            $precio = ((int)$cfg['por_destino'] === 1)
-                ? (float)($tarifas[$pid][$row['provincia']] ?? 0)
-                : (float)($cfg['precio_unico'] ?? 0);
+            // Clave de precio: por destino → provincia; único → ''.
+            $clave = ((int)$cfg['por_destino'] === 1) ? $row['provincia'] : '';
+            $lista = $precios[$pid][$clave] ?? [];
+            $precio = ClienteFacturacion::precioVigente($lista, (string)$row['fecha']); // vigente a la fecha de la HR
             $importe = $cantidad * $precio;
 
             if (!isset($out[$pid])) {
                 $out[$pid] = ['nombre' => (string)$cfg['nombre'], 'unidad' => $unidad, 'ingresos' => 0.0, 'detalle' => []];
             }
             $out[$pid]['ingresos'] += $importe;
-            $out[$pid]['detalle'][] = [
-                'provincia' => $row['provincia'],
-                'cantidad'  => $cantidad,
-                'precio'    => $precio,
-                'importe'   => $importe,
-            ];
+            $k = $row['provincia'];
+            if (!isset($det[$pid][$k])) { $det[$pid][$k] = ['cantidad' => 0.0, 'importe' => 0.0]; }
+            $det[$pid][$k]['cantidad'] += $cantidad;
+            $det[$pid][$k]['importe']  += $importe;
+        }
+        // Detalle por destino (agregado en el período; precio = promedio ponderado).
+        foreach ($det as $pid => $porProv) {
+            foreach ($porProv as $prov => $v) {
+                $out[$pid]['detalle'][] = [
+                    'provincia' => $prov,
+                    'cantidad'  => $v['cantidad'],
+                    'precio'    => $v['cantidad'] > 0 ? $v['importe'] / $v['cantidad'] : 0.0,
+                    'importe'   => $v['importe'],
+                ];
+            }
         }
         return $out;
     }
