@@ -71,11 +71,11 @@ foreach ($lotesAyu as $l) {
 echo "Vehículos enganchados: $vehOk\n";
 if ($vehMiss !== []) {
     echo "  Sin match (revisar / crear en ABM Vehículos):\n";
-    foreach ($vehMiss as $n => $c) { echo "   - «$n» ($c lote/s)\n"; }
+    foreach ($vehMiss as $n => $c) { echo "   - «{$n}» ({$c} lote/s)\n"; }
 }
 echo "Ayudantes enganchados: $ayuOk\n";
 if ($ayuMiss !== []) {
     echo "  Sin match (revisar / crear en ABM Acompañantes):\n";
-    foreach ($ayuMiss as $n => $c) { echo "   - «$n» ($c vez/veces)\n"; }
+    foreach ($ayuMiss as $n => $c) { echo "   - «{$n}» ({$c} vez/veces)\n"; }
 }
 echo "Listo.\n";
