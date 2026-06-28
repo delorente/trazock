@@ -58,7 +58,7 @@ foreach ($tabla as $f) {
 
 <!-- Tabla cruzada categoría × estado -->
 <div class="card mb-3">
-    <div class="card-header" style="padding:.6rem 1rem">Stock por categoría &amp; estado</div>
+    <div class="card-header" style="padding:.6rem 1rem">Stock por categoría &amp; estado <span class="text-muted" style="font-weight:400;font-size:12px">· mes en curso</span></div>
     <div style="overflow-x:auto">
         <table class="table table-hover cross mb-0">
             <thead><tr>

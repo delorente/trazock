@@ -53,7 +53,9 @@ final class Stats
     }
 
     /**
-     * Tabla cruzada categoría × estado. Cada fila: nombre + conteos por estado + total.
+     * Tabla cruzada categoría × estado, acotada a los productos con movimiento en
+     * el MES EN CURSO (updated_at dentro del mes), para que el dashboard no pierda
+     * sentido a medida que crece el histórico. Cada fila: nombre + conteos + total.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -65,6 +67,7 @@ final class Stats
                     COUNT(*) AS n
              FROM productos p
              LEFT JOIN categorias c ON c.id = p.categoria_id
+             WHERE p.updated_at >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
              GROUP BY categoria, p.estado_actual
              ORDER BY categoria ASC"
         )->fetchAll();
