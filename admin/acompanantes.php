@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         if ($accion === 'toggle') {
             Acompanante::toggleActivo((int)($_POST['id'] ?? 0));
-            flash_set('success', 'Estado del acompañante actualizado.');
+            flash_set('success', 'Estado del empleado actualizado.');
         } else {
             $nombre = trim((string)($_POST['nombre'] ?? ''));
             $obs    = trim((string)($_POST['observacion'] ?? ''));
@@ -37,10 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 flash_set('danger', 'El nombre es obligatorio.');
             } elseif ($id > 0) {
                 Acompanante::actualizar($id, $nombre, $obs);
-                flash_set('success', 'Acompañante actualizado.');
+                flash_set('success', 'Empleado actualizado.');
             } else {
                 Acompanante::crear($nombre, $obs);
-                flash_set('success', 'Acompañante creado.');
+                flash_set('success', 'Empleado creado.');
             }
         }
     } catch (Throwable $e) {
@@ -56,10 +56,10 @@ $acompanantes = Acompanante::todos();
 $csrf         = Auth::tokenCSRF();
 
 $acciones = '<button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAcomp" onclick="acompNuevo()"><i class="bi bi-plus-lg me-1"></i>Nuevo</button>';
-panel_header('Acompañantes', $user, 'acompanantes', count($acompanantes) . ' acompañante(s)', $acciones);
+panel_header('Empleados', $user, 'acompanantes', count($acompanantes) . ' empleado(s)', $acciones);
 ?>
 <?php flash_render(); ?>
-<p class="text-muted small mb-3">Son los ayudantes que pueden salir al reparto. Aparecen en el desplegable de la app de escaneo al iniciar una salida a reparto. Los inactivos conservan su histórico pero no se ofrecen en nuevos repartos.</p>
+<p class="text-muted small mb-3">Padrón único de empleados que salen al reparto: conductores y ayudantes (una misma persona puede cumplir ambos roles). Aparecen en el desplegable de la app de escaneo. Los inactivos conservan su histórico pero no se ofrecen en nuevos repartos. <span class="text-muted">(El encargado de depósito usa el rol Operador; los conductores que entran al sistema se administran además en Usuarios.)</span></p>
 
 <div class="card">
     <div class="table-responsive">
@@ -69,7 +69,7 @@ panel_header('Acompañantes', $user, 'acompanantes', count($acompanantes) . ' ac
             </thead>
             <tbody>
             <?php if ($acompanantes === []): ?>
-                <tr><td colspan="4" class="text-center text-muted py-4">No hay acompañantes cargados.</td></tr>
+                <tr><td colspan="4" class="text-center text-muted py-4">No hay empleados cargados.</td></tr>
             <?php endif; ?>
             <?php foreach ($acompanantes as $a): ?>
                 <tr class="<?= $a['activo'] ? '' : 'table-secondary' ?>">
@@ -112,7 +112,7 @@ panel_header('Acompañantes', $user, 'acompanantes', count($acompanantes) . ' ac
       <input type="hidden" name="accion" value="guardar">
       <input type="hidden" name="id" id="acomp_id" value="">
       <div class="modal-header">
-        <h5 class="modal-title" id="acomp_titulo">Nuevo acompañante</h5>
+        <h5 class="modal-title" id="acomp_titulo">Nuevo empleado</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
@@ -135,13 +135,13 @@ panel_header('Acompañantes', $user, 'acompanantes', count($acompanantes) . ' ac
 
 <script>
 function acompNuevo() {
-    document.getElementById('acomp_titulo').textContent = 'Nuevo acompañante';
+    document.getElementById('acomp_titulo').textContent = 'Nuevo empleado';
     document.getElementById('acomp_id').value = '';
     document.getElementById('acomp_nombre').value = '';
     document.getElementById('acomp_obs').value = '';
 }
 function acompEditar(d) {
-    document.getElementById('acomp_titulo').textContent = 'Editar acompañante';
+    document.getElementById('acomp_titulo').textContent = 'Editar empleado';
     document.getElementById('acomp_id').value = d.id;
     document.getElementById('acomp_nombre').value = d.nombre || '';
     document.getElementById('acomp_obs').value = d.observacion || '';

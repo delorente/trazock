@@ -47,7 +47,7 @@ function panel_menu(): array
                 ['key' => 'proveedores',  'label' => 'Proveedores',      'href' => 'proveedores.php',  'icon' => 'truck',            'roles' => ['admin']],
                 ['key' => 'zonas',        'label' => 'Zonas',            'href' => 'zonas.php',        'icon' => 'map-fill',         'roles' => ['admin']],
                 ['key' => 'vehiculos',    'label' => 'Vehículos',        'href' => 'vehiculos.php',    'icon' => 'truck-front-fill', 'roles' => ['admin']],
-                ['key' => 'acompanantes', 'label' => 'Acompañantes',     'href' => 'acompanantes.php', 'icon' => 'person-badge-fill','roles' => ['admin']],
+                ['key' => 'acompanantes', 'label' => 'Empleados',        'href' => 'acompanantes.php', 'icon' => 'people-fill',     'roles' => ['admin']],
                 ['key' => 'motivos',      'label' => 'Motivos',          'href' => 'motivos.php',      'icon' => 'chat-text-fill',   'roles' => ['admin']],
                 ['key' => 'facturacion-clientes', 'label' => 'Facturación x cliente', 'href' => 'facturacion-clientes.php', 'icon' => 'cash-coin', 'roles' => ['admin']],
                 ['key' => 'afip-emisor',  'label' => 'Datos del emisor', 'href' => 'afip-emisor.php',  'icon' => 'receipt',          'roles' => ['admin']],
