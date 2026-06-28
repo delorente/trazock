@@ -9,7 +9,7 @@ use Trazock\DB;
 final class Usuario
 {
     /** @var string[] */
-    public const ROLES_VALIDOS = ['admin', 'gestor', 'operador', 'transportista'];
+    public const ROLES_VALIDOS = ['admin', 'gestor', 'operador', 'transportista', 'logistica', 'contable'];
 
     /**
      * Find an active user by username. Returns null if not found or inactive.

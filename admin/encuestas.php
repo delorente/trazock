@@ -16,7 +16,7 @@ require __DIR__ . '/_layout.php';
 use Trazock\Auth;
 use Trazock\Models\Encuesta;
 
-$user    = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor
+$user    = Auth::requierePanel(['admin', 'gestor', 'logistica']); // gestor = Supervisor
 $esAdmin = $user['rol'] === 'admin';
 
 // POST: eliminar encuesta (solo admin; patrón PRG + CSRF). Conserva los filtros.

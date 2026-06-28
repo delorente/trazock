@@ -12,12 +12,14 @@ require __DIR__ . '/_layout.php';
 use Trazock\Auth;
 use Trazock\Models\CostoFijo;
 
-$user = Auth::requierePanel(['admin', 'gestor']);
+$user = Auth::requierePanel(['admin', 'gestor', 'contable']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $qs = trim((string)($_POST['qs'] ?? ''));
     if (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
         flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
+    } elseif (!in_array($user['rol'], ['admin', 'contable'], true)) {
+        flash_set('danger', 'No tenés permiso para editar costos fijos.');
     } else {
         $accion = (string)($_POST['accion'] ?? '');
         if ($accion === 'add') {
@@ -48,6 +50,7 @@ $prr   = CostoFijo::prorrateoPorTipo($desde, $hasta);
 $nf    = static fn($n) => '$ ' . number_format((float)$n, 2, ',', '.');
 $qs    = http_build_query(['desde' => $desde, 'hasta' => $hasta]);
 $csrf  = Auth::tokenCSRF();
+$puedeEditar = in_array($user['rol'], ['admin', 'contable'], true); // gestor: solo lectura
 
 panel_header('Costos fijos', $user, 'costos-fijos', 'Alquileres, sueldos y otros (mensuales)');
 flash_render();
@@ -75,6 +78,7 @@ flash_render();
 
 <div class="card">
   <div class="card-header">Costos fijos cargados</div>
+  <?php if ($puedeEditar): ?>
   <div style="padding:.6rem 1rem;border-bottom:1px solid var(--border)">
     <form method="post" class="row g-2 align-items-end">
       <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
@@ -105,6 +109,7 @@ flash_render();
       <div class="col-3 col-md-1"><button class="btn btn-primary btn-sm w-100" type="submit"><i class="bi bi-plus-lg"></i></button></div>
     </form>
   </div>
+  <?php endif; ?>
   <div style="overflow-x:auto">
     <table class="table table-hover align-middle mb-0">
       <thead><tr><th>Mes</th><th>Tipo</th><th>Concepto</th><th class="text-end">Importe</th><th>Observación</th><th></th></tr></thead>
@@ -118,6 +123,7 @@ flash_render();
           <td class="text-end"><?= $nf($c['importe']) ?></td>
           <td style="font-size:13px"><?= h((string)($c['observacion'] ?? '')) ?></td>
           <td class="text-end">
+            <?php if ($puedeEditar): ?>
             <form method="post" class="d-inline">
               <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
               <input type="hidden" name="accion" value="del">
@@ -125,6 +131,7 @@ flash_render();
               <input type="hidden" name="id" value="<?= (int)$c['id'] ?>">
               <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Eliminar" onclick="tzConfirm(this.closest('form'), '¿Eliminar este costo fijo?')"><i class="bi bi-trash"></i></button>
             </form>
+            <?php endif; ?>
           </td>
         </tr>
       <?php endforeach; ?>

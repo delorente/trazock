@@ -15,7 +15,7 @@ use Trazock\Models\ClienteFacturacion;
 use Trazock\Models\Orden;
 use Trazock\Models\Proveedor;
 
-$user = Auth::requierePanel(['admin', 'gestor']);
+$user = Auth::requierePanel(['admin']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pid    = (int)($_POST['proveedor_id'] ?? 0);

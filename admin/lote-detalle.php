@@ -14,8 +14,9 @@ use Trazock\Models\Lote;
 use Trazock\Models\Orden;
 use Trazock\Models\Usuario;
 
-$user    = Auth::requierePanel();
+$user    = Auth::requierePanel(['admin', 'gestor', 'logistica', 'contable']);
 $esAdmin = $user['rol'] === 'admin';
+$puedeCostos = in_array($user['rol'], ['admin', 'contable'], true); // costos del viaje: admin/contable
 
 // POST: edición de carga (admin) o alta/baja de costos del viaje (admin/gestor). PRG+CSRF.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -23,6 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = (string)($_POST['accion'] ?? 'carga');
     if (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
         flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
+    } elseif (($accion === 'costo_add' || $accion === 'costo_del') && !$puedeCostos) {
+        flash_set('danger', 'No tenés permiso para editar costos.');
     } elseif ($accion === 'costo_add') {
         $tipo  = (string)($_POST['costo_tipo'] ?? 'otro');
         $imp   = (float)str_replace(',', '.', (string)($_POST['costo_importe'] ?? '0'));
@@ -171,6 +174,7 @@ flash_render();
                     <td style="font-size:13px"><?= h((string)($c['observacion'] ?? '')) ?></td>
                     <td class="text-muted" style="font-size:12px"><?= h((string)($c['creador'] ?? '')) ?></td>
                     <td class="text-end">
+                        <?php if ($puedeCostos): ?>
                         <form method="post" class="d-inline" action="<?= h($accUrl) ?>">
                             <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
                             <input type="hidden" name="accion" value="costo_del">
@@ -179,12 +183,14 @@ flash_render();
                             <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Eliminar"
                                     onclick="tzConfirm(this.closest('form'), '¿Eliminar este costo?')"><i class="bi bi-trash"></i></button>
                         </form>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
         </table>
     </div>
+    <?php if ($puedeCostos): ?>
     <div style="border-top:1px solid var(--border);padding:.6rem 1rem">
         <form method="post" class="row g-2 align-items-end" action="<?= h($accUrl) ?>">
             <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
@@ -215,6 +221,7 @@ flash_render();
             </div>
         </form>
     </div>
+    <?php endif; ?>
 </div>
 <?php endif; ?>
 

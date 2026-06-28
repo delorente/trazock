@@ -16,7 +16,7 @@ use Trazock\Models\Carga;
 use Trazock\Models\Orden;
 use Trazock\Models\Producto;
 
-$user = Auth::requierePanel(); // admin o gestor
+$user = Auth::requierePanel(['admin', 'logistica']);
 
 $cargaId = (int)($_GET['carga'] ?? 0);
 $carga   = $cargaId > 0 ? Carga::find($cargaId) : null;

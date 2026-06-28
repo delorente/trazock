@@ -14,7 +14,7 @@ use Trazock\Auth;
 use Trazock\Models\Categoria;
 use Trazock\Models\Usuario;
 
-$user = Auth::requierePanel(); // admin o gestor
+$user = Auth::requierePanel(['admin', 'logistica']);
 $csrf = Auth::tokenCSRF();
 $categorias     = Categoria::activas();
 $transportistas = Usuario::transportistasActivos();

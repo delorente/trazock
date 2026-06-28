@@ -17,13 +17,15 @@ use Trazock\Models\CostoVehiculo;
 use Trazock\Models\CostoViaje;
 use Trazock\Models\Vehiculo;
 
-$user = Auth::requierePanel(['admin', 'gestor']);
+$user = Auth::requierePanel(['admin', 'gestor', 'contable']);
 
 // POST: alta/baja de costos de vehículo (PRG + CSRF).
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $qs = trim((string)($_POST['qs'] ?? ''));
     if (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
         flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
+    } elseif (!in_array($user['rol'], ['admin', 'contable'], true)) {
+        flash_set('danger', 'No tenés permiso para editar costos.');
     } else {
         $accion = (string)($_POST['accion'] ?? '');
         if ($accion === 'veh_add') {
@@ -97,6 +99,7 @@ require __DIR__ . '/_layout.php';
 $qs   = http_build_query(['desde' => $desde, 'hasta' => $hasta]);
 $csrf = Auth::tokenCSRF();
 $vehiculos = Vehiculo::activos();
+$puedeEditar = in_array($user['rol'], ['admin', 'contable'], true); // gestor/logística: solo lectura
 
 $acciones = '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/costos.php') . '?' . $qs . '&export=xlsx') . '"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>';
 panel_header('Costos', $user, 'costos', 'Costos de viajes y de vehículos', $acciones);
@@ -158,6 +161,7 @@ flash_render();
   <div class="col-lg-7">
     <div class="card">
       <div class="card-header">Costos de vehículos (mantenimiento)</div>
+      <?php if ($puedeEditar): ?>
       <div style="padding:.6rem 1rem;border-bottom:1px solid var(--border)">
         <form method="post" class="row g-2 align-items-end">
           <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
@@ -191,6 +195,7 @@ flash_render();
           <div class="col-3 col-md-1"><button class="btn btn-primary btn-sm w-100" type="submit"><i class="bi bi-plus-lg"></i></button></div>
         </form>
       </div>
+      <?php endif; ?>
       <div style="overflow-x:auto">
         <table class="table table-hover align-middle mb-0">
           <thead><tr><th>Fecha</th><th>Vehículo</th><th>Tipo</th><th class="text-end">Importe</th><th>Observación</th><th></th></tr></thead>
@@ -204,6 +209,7 @@ flash_render();
               <td class="text-end"><?= $nf($c['importe']) ?></td>
               <td style="font-size:13px"><?= h((string)($c['observacion'] ?? '')) ?></td>
               <td class="text-end">
+                <?php if ($puedeEditar): ?>
                 <form method="post" class="d-inline">
                   <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
                   <input type="hidden" name="accion" value="veh_del">
@@ -211,6 +217,7 @@ flash_render();
                   <input type="hidden" name="costo_id" value="<?= (int)$c['id'] ?>">
                   <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Eliminar" onclick="tzConfirm(this.closest('form'), '¿Eliminar este costo?')"><i class="bi bi-trash"></i></button>
                 </form>
+                <?php endif; ?>
               </td>
             </tr>
           <?php endforeach; ?>

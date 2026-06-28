@@ -14,7 +14,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Trazock\Auth;
 use Trazock\Models\Movimiento;
 
-$user = Auth::requierePanel(['admin', 'gestor']);
+$user = Auth::requierePanel(['admin', 'gestor', 'logistica']);
 
 // Período: por defecto, mes en curso.
 $desde = trim((string)($_GET['desde'] ?? '')) ?: date('Y-m-01');

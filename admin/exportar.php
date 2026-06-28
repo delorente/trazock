@@ -15,7 +15,7 @@ use Trazock\Models\Categoria;
 use Trazock\Models\Producto;
 use Trazock\Models\Stats;
 
-$user = Auth::requierePanel();
+$user = Auth::requierePanel(['admin', 'gestor', 'logistica']);
 
 $filtros = [
     'codigo'          => trim((string)($_GET['codigo'] ?? '')),

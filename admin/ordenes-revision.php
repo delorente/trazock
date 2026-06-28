@@ -13,7 +13,7 @@ require __DIR__ . '/_layout.php';
 use Trazock\Auth;
 use Trazock\Models\Carga;
 
-$user = Auth::requierePanel();
+$user = Auth::requierePanel(['admin', 'logistica']);
 $csrf = Auth::tokenCSRF();
 
 $cargaId = (int)($_GET['carga'] ?? 0);

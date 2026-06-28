@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
     `usuario`         VARCHAR(50)     NOT NULL,
     `password_hash`   VARCHAR(255)    NOT NULL,
     `nombre_completo` VARCHAR(150)    NOT NULL,
-    `rol`             ENUM('admin','gestor','operador','transportista') NOT NULL,
+    `rol`             ENUM('admin','gestor','operador','transportista','logistica','contable') NOT NULL,
     `activo`          TINYINT(1)      NOT NULL DEFAULT 1,
     `created_at`      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),

@@ -17,7 +17,7 @@ use Trazock\Models\Producto;
 
 Api::exigirMetodo('POST');
 $data = Api::leerJson();
-$user = Api::usuarioConRol(['admin', 'gestor']);
+$user = Api::usuarioConRol(['admin', 'logistica']);
 Api::exigirCSRF($data);
 
 $conflictoId = (int)($data['conflicto_id'] ?? 0);

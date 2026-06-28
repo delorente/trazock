@@ -15,7 +15,8 @@ use Trazock\Models\Producto;
 use Trazock\Models\Stats;
 use Trazock\Models\Transicion;
 
-$user = Auth::requierePanel();
+$user = Auth::requierePanel(['admin', 'gestor', 'logistica']);
+$puedeEditar = in_array($user['rol'], ['admin', 'logistica'], true); // gestor = solo lectura
 
 $codigo = trim((string)($_GET['codigo'] ?? ''));
 $prod   = $codigo !== '' ? Producto::findByCodigo($codigo) : null;
@@ -75,12 +76,14 @@ panel_header('Detalle de producto', $user, 'productos', '', $volver);
                 <?php endif; ?>
             </div>
         </div>
+        <?php if ($puedeEditar): ?>
         <div class="d-flex gap-2 flex-wrap">
             <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalAjuste"><i class="bi bi-pencil-fill me-1"></i>Ajuste manual</button>
             <?php if ($conflictos !== []): ?>
                 <button class="btn btn-sm btn-warning fw-bold" data-bs-toggle="modal" data-bs-target="#modalConflictos"><i class="bi bi-check-circle me-1"></i>Marcar revisados (<?= count($conflictos) ?>)</button>
             <?php endif; ?>
         </div>
+        <?php endif; ?>
     </div>
 </div>
 

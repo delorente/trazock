@@ -15,7 +15,7 @@ use Trazock\Models\Orden;
 
 Api::exigirMetodo('POST');
 $data = Api::leerJson();
-Api::usuarioConRol(['admin', 'gestor']);
+Api::usuarioConRol(['admin', 'logistica']);
 Api::exigirCSRF($data);
 
 $id = (int)($data['id'] ?? 0);

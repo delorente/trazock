@@ -19,7 +19,7 @@ use Trazock\Models\Categoria;
 use Trazock\Models\Usuario;
 
 Api::exigirMetodo('POST');
-$user = Api::usuarioConRol(['admin', 'gestor']);
+$user = Api::usuarioConRol(['admin', 'logistica']);
 
 if (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
     Api::error('Token CSRF inválido. Recargá la página.', 403);

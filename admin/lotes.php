@@ -12,7 +12,7 @@ use Trazock\Auth;
 use Trazock\Models\Lote;
 use Trazock\Models\Usuario;
 
-$user = Auth::requierePanel();
+$user = Auth::requierePanel(['admin', 'gestor', 'logistica', 'contable']);
 
 $filtros = [
     'tipo'           => (string)($_GET['tipo'] ?? ''),

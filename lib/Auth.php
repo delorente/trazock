@@ -240,12 +240,32 @@ final class Auth
 
         if (!in_array($rol, $roles, true)) {
             // Rol de panel sin permiso para ESTA página → a su pantalla inicial.
-            $home = $rol === 'gestor' ? 'admin/ordenes-reportes.php' : 'admin/index.php';
+            $home = self::homeDe($rol);
             header('Location: ' . APP_BASE . '/' . $home);
             exit;
         }
 
         return $user;
+    }
+
+    /** Pantalla inicial del panel según el rol (a la que tiene acceso). */
+    public static function homeDe(string $rol): string
+    {
+        return match ($rol) {
+            'gestor'   => 'admin/ordenes-reportes.php',
+            'contable' => 'admin/costos.php',
+            default    => 'admin/index.php', // admin, logistica
+        };
+    }
+
+    /**
+     * El supervisor (rol gestor) ve todo pero NO edita: solo lectura en el panel.
+     *
+     * @param array<string, mixed> $user
+     */
+    public static function esSoloLectura(array $user): bool
+    {
+        return (string)($user['rol'] ?? '') === 'gestor';
     }
 
     /**

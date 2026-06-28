@@ -16,8 +16,8 @@ use Trazock\Models\Orden;
 use Trazock\Models\Producto;
 use Trazock\Models\Usuario;
 
-$user    = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo lectura)
-$esAdmin = $user['rol'] === 'admin';
+$user    = Auth::requierePanel(['admin', 'gestor', 'logistica']); // gestor = Supervisor (solo lectura)
+$puedeEditar = in_array($user['rol'], ['admin', 'logistica'], true); // gestor = solo lectura
 
 // --- POST: editar / agregar ítem / quitar ítem / eliminar (PRG + CSRF) -------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $accion = (string)($_POST['accion'] ?? 'guardar');
     $volverA = url('admin/ordenes-detalle.php') . '?id=' . $oid;
 
-    if (!$esAdmin) {
+    if (!$puedeEditar) {
         flash_set('danger', 'No tenés permiso para modificar órdenes.');
     } elseif (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
         flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
@@ -173,7 +173,7 @@ foreach ($items as $it) {
 }
 
 $acciones = $volver;
-if ($esAdmin) {
+if ($puedeEditar) {
     $acciones .= '<button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalEditar"><i class="bi bi-pencil me-1"></i>Editar</button>'
         . '<button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalCorregirEstado"><i class="bi bi-arrow-repeat me-1"></i>Corregir estado</button>'
         . '<a class="btn btn-sm btn-outline-secondary" href="' . h($urlEti) . '"><i class="bi bi-tag me-1"></i>Re-imprimir etiquetas</a>';
@@ -250,13 +250,13 @@ $campo = static function (string $label, string $valor): void {
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;border-bottom:1px solid var(--border)">
       <span style="font-weight:600;font-size:13px">Ítems (<?= count($items) ?>)</span>
-      <?php if ($esAdmin): ?>
+      <?php if ($puedeEditar): ?>
         <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalAgregarItem"><i class="bi bi-plus-lg me-1"></i>Agregar ítem</button>
       <?php endif; ?>
     </div>
     <div style="overflow-x:auto">
       <table class="table table-hover mb-0">
-        <thead><tr><th>Código</th><th>Descripción</th><th>Dimensiones</th><th>m³</th><th>Ítem</th><th>Estado</th><?php if ($esAdmin): ?><th></th><?php endif; ?></tr></thead>
+        <thead><tr><th>Código</th><th>Descripción</th><th>Dimensiones</th><th>m³</th><th>Ítem</th><th>Estado</th><?php if ($puedeEditar): ?><th></th><?php endif; ?></tr></thead>
         <tbody>
         <?php foreach ($items as $it): ?>
           <tr>
@@ -266,7 +266,7 @@ $campo = static function (string $label, string $valor): void {
             <td><?= $it['m3'] !== null ? number_format((float)$it['m3'], 3, ',', '.') : '—' ?></td>
             <td style="color:var(--muted)"><?= (int)($it['posicion'] ?? $it['secuencia']) ?> de <?= (int)$it['total_items'] ?></td>
             <td><?= estado_badge(item_estado($it)) ?></td>
-            <?php if ($esAdmin): ?>
+            <?php if ($puedeEditar): ?>
             <td style="text-align:right">
               <?php if ((string)($it['estado_actual'] ?? '') === 'INGRESADO'): ?>
               <form method="post" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>" style="display:inline" onsubmit="return confirm('¿Quitar este ítem de la orden? Se borra el producto y su etiqueta.')">
@@ -302,7 +302,7 @@ $campo = static function (string $label, string $valor): void {
         <div class="lc"><span><?= h((string)$m['codigo']) ?></span><span class="lqty"><?= (int)($m['posicion'] ?? $m['secuencia']) ?> de <?= (int)$m['total_items'] ?></span></div>
       </div>
     </div>
-    <?php if ($esAdmin): ?><a class="btn btn-outline-secondary btn-sm w-100 mt-2" href="<?= h($urlEti) ?>"><i class="bi bi-printer me-1"></i>Re-imprimir etiquetas</a><?php endif; ?>
+    <?php if ($puedeEditar): ?><a class="btn btn-outline-secondary btn-sm w-100 mt-2" href="<?= h($urlEti) ?>"><i class="bi bi-printer me-1"></i>Re-imprimir etiquetas</a><?php endif; ?>
     <?php else: ?>
     <div class="text-muted" style="font-size:13px">La orden no tiene ítems.</div>
     <?php endif; ?>
@@ -329,7 +329,7 @@ $campo = static function (string $label, string $valor): void {
 
 <style>@media(max-width:768px){.tz-detalle-grid{grid-template-columns:1fr!important}}</style>
 
-<?php if ($esAdmin): ?>
+<?php if ($puedeEditar): ?>
 <!-- Modal: editar datos de la orden -->
 <div class="modal fade" id="modalEditar" tabindex="-1">
   <div class="modal-dialog modal-lg">

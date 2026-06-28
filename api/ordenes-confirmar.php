@@ -16,7 +16,7 @@ use Trazock\ProcesadorCarga;
 
 Api::exigirMetodo('POST');
 $data = Api::leerJson();
-Api::usuarioConRol(['admin', 'gestor']);
+Api::usuarioConRol(['admin', 'logistica']);
 Api::exigirCSRF($data);
 
 $cargaId = (int)($data['carga_id'] ?? 0);

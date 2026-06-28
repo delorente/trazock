@@ -13,7 +13,8 @@ use Trazock\Auth;
 use Trazock\Models\Categoria;
 use Trazock\Models\Conflicto;
 
-$user = Auth::requierePanel();
+$user = Auth::requierePanel(['admin', 'gestor', 'logistica']);
+$puedeEditar = in_array($user['rol'], ['admin', 'logistica'], true); // gestor = solo lectura
 
 $verResueltos = ($_GET['resueltos'] ?? '') === '1';
 $filtros = [
@@ -85,12 +86,14 @@ panel_header('Conflictos', $user, 'conflictos', '', $acciones);
                     <td class="small"><?= h($c['descripcion']) ?></td>
                     <td class="small text-muted"><?= h(fmt_fecha($c['fecha_generacion'])) ?></td>
                     <td class="text-end">
-                        <?php if ($c['revisado_at'] === null): ?>
+                        <?php if ($c['revisado_at'] === null && $puedeEditar): ?>
                             <div class="input-group input-group-sm" style="min-width:260px">
                                 <input class="form-control" placeholder="Nota (opcional)" data-nota="<?= (int)$c['id'] ?>">
                                 <button class="btn btn-outline-success" onclick="resolver(<?= (int)$c['id'] ?>)">Revisado</button>
                                 <a class="btn btn-outline-secondary" href="<?= h(url('admin/producto-detalle.php?codigo=' . urlencode($c['producto_codigo']))) ?>">Ajustar</a>
                             </div>
+                        <?php elseif ($c['revisado_at'] === null): ?>
+                            <span class="badge b-PENDIENTE">Pendiente</span>
                         <?php else: ?>
                             <span class="badge b-resolved">✓ Revisado</span>
                             <div class="small text-muted">

@@ -18,7 +18,8 @@ use Trazock\Models\Categoria;
 use Trazock\Models\Orden;
 use Trazock\Models\Zona;
 
-$user = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo reportes)
+$user = Auth::requierePanel(['admin', 'gestor', 'logistica']); // gestor = Supervisor (solo reportes)
+$puedeMarcar = in_array($user['rol'], ['admin', 'logistica'], true); // marcas/edición: gestor solo lectura
 
 $filtros = [
     'q'            => trim((string)($_GET['q'] ?? '')),
@@ -294,8 +295,12 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
           <?php $marca = (string)($o['marca'] ?? ''); $obs = trim((string)($o['observaciones'] ?? '')); ?>
           <tr>
             <td style="white-space:nowrap">
+              <?php if ($puedeMarcar): ?>
               <button type="button" class="tz-marca-btn <?= $marca === 'no_entregar' ? 'on-ne' : '' ?>" data-id="<?= (int)$o['id'] ?>" data-marca="no_entregar" title="No entregar"><i class="bi bi-x-octagon-fill"></i></button>
               <button type="button" class="tz-marca-btn <?= $marca === 'prioridad' ? 'on-pr' : '' ?>" data-id="<?= (int)$o['id'] ?>" data-marca="prioridad" title="Prioridad"><i class="bi bi-lightning-charge-fill"></i></button>
+              <?php else: ?>
+              <?php if ($marca === 'no_entregar'): ?><i class="bi bi-x-octagon-fill" style="color:#f87171" title="No entregar"></i><?php elseif ($marca === 'prioridad'): ?><i class="bi bi-lightning-charge-fill" style="color:#fbbf24" title="Prioridad"></i><?php endif; ?>
+              <?php endif; ?>
               <?php if ($obs !== ''): ?><i class="bi bi-chat-left-text-fill tz-obs-ic" title="<?= h($obs) ?>"></i><?php endif; ?>
             </td>
             <td class="mono" style="font-size:12px;color:var(--muted)"><?= h(rep_lote($o)) ?></td>

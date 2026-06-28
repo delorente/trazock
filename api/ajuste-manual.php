@@ -17,7 +17,7 @@ use Trazock\Models\Transicion;
 
 Api::exigirMetodo('POST');
 $data = Api::leerJson();
-$user = Api::usuarioConRol(['admin', 'gestor']);
+$user = Api::usuarioConRol(['admin', 'logistica']);
 Api::exigirCSRF($data);
 
 $codigo  = trim((string)($data['codigo'] ?? ''));

@@ -18,7 +18,7 @@ use Trazock\Models\Categoria;
 use Trazock\Models\Producto;
 use Trazock\Models\Zona;
 
-$user = Auth::requierePanel(['admin', 'gestor']); // gestor = Supervisor (solo reportes)
+$user = Auth::requierePanel(['admin', 'gestor', 'logistica']); // gestor = Supervisor (solo reportes)
 
 $filtros = [
     'q'            => trim((string)($_GET['q'] ?? '')),

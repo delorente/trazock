@@ -16,7 +16,7 @@ use Trazock\Auth;
 use Trazock\Models\ClienteFacturacion;
 use Trazock\Rentabilidad;
 
-$user = Auth::requierePanel(['admin', 'gestor']);
+$user = Auth::requierePanel(['admin', 'gestor', 'contable']);
 
 $desde = trim((string)($_GET['desde'] ?? '')) ?: date('Y-m-01');
 $hasta = trim((string)($_GET['hasta'] ?? '')) ?: date('Y-m-d');

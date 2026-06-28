@@ -11,7 +11,7 @@ require __DIR__ . '/../lib/bootstrap.php';
 use Trazock\Auth;
 use Trazock\Models\Stats;
 
-$user = Auth::requierePanel();
+$user = Auth::requierePanel(['admin', 'gestor', 'logistica']);
 
 $kpis  = Stats::kpis();
 $tabla = Stats::tablaCategoriaEstado();

@@ -14,7 +14,7 @@ use Trazock\Models\Producto;
 use Trazock\Models\Transicion;
 
 Api::exigirMetodo('GET');
-Api::usuarioConRol(['admin', 'gestor']);
+Api::usuarioConRol(['admin', 'gestor', 'logistica']);
 
 $codigo = trim((string)($_GET['codigo'] ?? ''));
 if ($codigo === '') {

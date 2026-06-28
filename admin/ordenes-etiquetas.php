@@ -20,7 +20,7 @@ use Trazock\Models\Lote;
 use Trazock\Models\Orden;
 use Trazock\Models\Producto;
 
-$user = Auth::requierePanel(); // admin o gestor
+$user = Auth::requierePanel(['admin', 'logistica']);
 
 $cargaId = (int)($_GET['carga'] ?? 0);
 $ordenId = (int)($_GET['orden'] ?? 0);
