@@ -97,7 +97,6 @@ if (($_GET['export'] ?? '') === 'xlsx') {
 // --- Modo export Facturación: una factura por tipo (m³ por destino) -----------
 // Cada tipo (online/local) es una hoja: ítems = m³ por provincia de destino y, al
 // pie, transportista(s), fecha(s) de carga y nº(s) de hoja de ruta del/los doc(s).
-// (Los importes/IVA/total están en la Pre-factura imprimible, botón aparte.)
 if (($_GET['export'] ?? '') === 'facturacion') {
     $facturas = Orden::facturacionPorTipo($filtros);
     $tvLabel  = ['online' => 'Online', 'local' => 'Local', '' => 'Sin tipo'];
@@ -190,7 +189,6 @@ $qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== '' && 
 $acciones =
     '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-productos.php') . ($qsBase ? '?' . $qsBase : '')) . '"><i class="bi bi-box-seam me-1"></i>Por productos</a>'
     . '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?') . 'export=xlsx') . '"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>'
-    . '<a class="btn btn-sm btn-outline-primary" href="' . h(url('admin/factura-imprimir.php') . ($qsBase ? '?' . $qsBase : '')) . '" target="_blank"><i class="bi bi-receipt me-1"></i>Pre-factura</a>'
     . '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?') . 'export=facturacion') . '"><i class="bi bi-cash-coin me-1"></i>Facturación (Excel)</a>'
     . '<button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>';
 

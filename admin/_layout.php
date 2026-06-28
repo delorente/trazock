@@ -49,7 +49,6 @@ function panel_menu(): array
                 ['key' => 'vehiculos',    'label' => 'Vehículos',        'href' => 'vehiculos.php',    'icon' => 'truck-front-fill', 'roles' => ['admin']],
                 ['key' => 'acompanantes', 'label' => 'Acompañantes',     'href' => 'acompanantes.php', 'icon' => 'person-badge-fill','roles' => ['admin']],
                 ['key' => 'motivos',      'label' => 'Motivos',          'href' => 'motivos.php',      'icon' => 'chat-text-fill',   'roles' => ['admin']],
-                ['key' => 'tarifas',      'label' => 'Tarifario',        'href' => 'tarifas.php',      'icon' => 'cash-stack',       'roles' => ['admin']],
                 ['key' => 'facturacion-clientes', 'label' => 'Facturación x cliente', 'href' => 'facturacion-clientes.php', 'icon' => 'cash-coin', 'roles' => ['admin', 'gestor']],
                 ['key' => 'afip-emisor',  'label' => 'Datos del emisor', 'href' => 'afip-emisor.php',  'icon' => 'receipt',          'roles' => ['admin']],
                 ['key' => 'seguimiento',  'label' => 'Seguimiento',      'href' => 'seguimiento.php',  'icon' => 'geo-alt-fill',     'roles' => ['admin']],
