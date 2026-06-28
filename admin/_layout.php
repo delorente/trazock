@@ -35,7 +35,6 @@ function panel_menu(): array
                 ['key' => 'costos-fijos','label' => 'Costos fijos','href' => 'costos-fijos.php',     'icon' => 'building',                  'roles' => ['admin', 'gestor']],
                 ['key' => 'rentabilidad','label' => 'Resultados', 'href' => 'rentabilidad.php',     'icon' => 'graph-up-arrow',           'roles' => ['admin', 'gestor']],
                 ['key' => 'encuestas',  'label' => 'Encuestas',   'href' => 'encuestas.php',        'icon' => 'emoji-smile-fill',         'roles' => ['admin', 'gestor'], 'encuesta' => true],
-                ['key' => 'exportar',   'label' => 'Exportar',    'href' => 'exportar.php',         'icon' => 'download',                 'roles' => ['admin']],
             ],
         ],
         [
