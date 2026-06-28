@@ -784,6 +784,37 @@ final class Orden
     }
 
     /**
+     * Cantidades facturables por (proveedor/marca, provincia de destino) en un
+     * período (sobre fecha_carga): m³ y bultos. Para el reporte de resultados.
+     * Solo órdenes cuyo proveedor (vía categoría de la carga) esté definido.
+     *
+     * @return array<int, array{proveedor_id:int, provincia:string, m3:float, bultos:int}>
+     */
+    public static function cantidadesPorProveedorProvincia(string $desde, string $hasta): array
+    {
+        $stmt = DB::getInstance()->prepare(
+            "SELECT cat.proveedor_id AS proveedor_id,
+                    COALESCE(NULLIF(o.dest_provincia, ''), '(sin provincia)') AS provincia,
+                    COALESCE(SUM(o.m3_total), 0) AS m3,
+                    COALESCE(SUM((SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id)), 0) AS bultos
+             FROM ordenes o
+             JOIN cargas cg ON cg.id = o.carga_id
+             JOIN categorias cat ON cat.id = cg.categoria_id
+             WHERE cat.proveedor_id IS NOT NULL
+               AND o.fecha_carga BETWEEN :d AND :h
+             GROUP BY cat.proveedor_id, provincia
+             ORDER BY cat.proveedor_id, provincia"
+        );
+        $stmt->execute([':d' => $desde, ':h' => $hasta]);
+        return array_map(static fn($r) => [
+            'proveedor_id' => (int)$r['proveedor_id'],
+            'provincia'    => (string)$r['provincia'],
+            'm3'           => (float)$r['m3'],
+            'bultos'       => (int)$r['bultos'],
+        ], $stmt->fetchAll());
+    }
+
+    /**
      * Detalle orden por orden para el respaldo de la factura, agrupado por
      * (marca/proveedor, tipo). Mismos filtros que facturacion().
      *
