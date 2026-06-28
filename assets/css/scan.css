@@ -120,14 +120,14 @@ html, body.tz-scan-body {
 #colaLista .tz-cola-item { padding: 12px 16px; border-bottom: 1px solid var(--border); }
 
 /* ── Tipografía ampliada (legibilidad en depósito, a distancia) ─────────────── */
-.tz-scan-body .form-label { font-size: 15px; font-weight: 600; margin-bottom: .35rem; }
+.tz-scan-body .form-label { font-size: 17px; font-weight: 600; margin-bottom: .35rem; }
 .tz-scan-body .form-control,
-.tz-scan-body .form-select { font-size: 16px; padding: .55rem .7rem; }
-.tz-scan-body textarea.form-control { font-size: 15px; }
-.tz-scan-body .btn { font-size: 16px; }
-.tz-scan-body .badge { font-size: 13px; padding: 4px 9px; }
-.tz-scan-body .si { font-size: 15px; }
-.tz-scan-feedback { font-size: 1.1rem; height: 46px; }
+.tz-scan-body .form-select { font-size: 18px; padding: .6rem .75rem; }
+.tz-scan-body textarea.form-control { font-size: 17px; }
+.tz-scan-body .btn { font-size: 18px; }
+.tz-scan-body .badge { font-size: 15px; padding: 5px 10px; }
+.tz-scan-body .si { font-size: 17px; }
+.tz-scan-feedback { font-size: 1.2rem; height: 48px; }
 /* Indicador de operación (Ingreso / Salida a reparto / Entrega…): bien grande. */
-#scanTipo { font-size: 1.3rem; font-weight: 800; padding: 6px 16px; border-radius: 9px; }
-#scanContador { font-size: 16px; }
+#scanTipo { font-size: 1.45rem; font-weight: 800; padding: 6px 16px; border-radius: 9px; }
+#scanContador { font-size: 18px; }

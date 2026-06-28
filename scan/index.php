@@ -87,16 +87,16 @@ if ($user !== null) {
         </div>
     </header>
     <div class="px-3 py-2" style="border-bottom:1px solid var(--border)">
-        <div style="font-size:15px;font-weight:600" id="selUsuario"></div>
-        <div class="text-muted" id="catalogInfo" style="font-size:13px"></div>
+        <div style="font-size:17px;font-weight:600" id="selUsuario"></div>
+        <div class="text-muted" id="catalogInfo" style="font-size:15px"></div>
     </div>
     <div class="flex-grow-1 d-flex flex-column justify-content-start gap-3 p-4">
         <button class="btn btn-primary w-100" id="btnNuevoLote" style="padding:1.1rem;font-size:1.1rem;font-weight:700;border-radius:12px"><i class="bi bi-plus-circle-fill me-2"></i>Nuevo lote</button>
         <div class="d-flex align-items-center gap-2">
             <div class="card flex-grow-1 d-flex flex-row align-items-center justify-content-between" style="padding:.6rem .75rem">
                 <div>
-                    <div style="font-size:14px;font-weight:600">Cola de envío</div>
-                    <div class="text-muted" style="font-size:13px"><span id="colaResumen">Sin pendientes</span></div>
+                    <div style="font-size:16px;font-weight:600">Cola de envío</div>
+                    <div class="text-muted" style="font-size:15px"><span id="colaResumen">Sin pendientes</span></div>
                 </div>
                 <span class="badge d-none" id="colaBadge" style="background:var(--yellow);color:#000;font-size:12px">0</span>
             </div>
@@ -135,10 +135,10 @@ if ($user !== null) {
             </div>
             <div class="d-flex align-items-center gap-2">
                 <span class="conn online" id="scanConn"><span class="dot online"></span></span>
-                <button class="btn btn-sm btn-danger py-0 px-2" id="btnCancelarLote" style="font-size:14px"><i class="bi bi-x-circle me-1"></i>Cancelar</button>
+                <button class="btn btn-sm btn-danger py-0 px-2" id="btnCancelarLote" style="font-size:16px"><i class="bi bi-x-circle me-1"></i>Cancelar</button>
             </div>
         </div>
-        <div class="text-muted" style="font-size:14px" id="scanResumen"></div>
+        <div class="text-muted" style="font-size:16px" id="scanResumen"></div>
     </header>
 
     <div class="tz-cam-wrap">
