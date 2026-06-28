@@ -53,12 +53,12 @@ final class Lote
         $stmt = $db->prepare(
             'INSERT INTO lotes
                 (uuid, tipo, categoria_id, proveedor_id, transportista_id,
-                 vehiculo, chofer, ayudantes, motivo_id,
+                 vehiculo, vehiculo_id, chofer, ayudantes, motivo_id,
                  motivo_libre, responsable_id, observaciones, numero_remito,
                  timestamp_apertura, timestamp_cierre, timestamp_sync, dispositivo_info)
              VALUES
                 (:uuid, :tipo, :categoria_id, :proveedor_id, :transportista_id,
-                 :vehiculo, :chofer, :ayudantes, :motivo_id,
+                 :vehiculo, :vehiculo_id, :chofer, :ayudantes, :motivo_id,
                  :motivo_libre, :responsable_id, :observaciones, :numero_remito,
                  :ts_apertura, :ts_cierre, NOW(), :dispositivo)'
         );
@@ -75,6 +75,7 @@ final class Lote
         $bindNullableInt(':proveedor_id', $d['proveedor_id']);
         $bindNullableInt(':transportista_id', $d['transportista_id']);
         $bindNullableStr(':vehiculo', $d['vehiculo'] ?? null);
+        $bindNullableInt(':vehiculo_id', $d['vehiculo_id'] ?? null);
         $bindNullableStr(':chofer', $d['chofer'] ?? null);
         $bindNullableStr(':ayudantes', $d['ayudantes'] ?? null);
         $bindNullableInt(':motivo_id', $d['motivo_id']);
@@ -86,8 +87,22 @@ final class Lote
         $bindNullableStr(':ts_cierre', $d['timestamp_cierre']);
         $bindNullableStr(':dispositivo', $d['dispositivo_info']);
         $stmt->execute();
+        $loteId = (int)$db->lastInsertId();
 
-        return (int)$db->lastInsertId();
+        // Pivote de ayudantes (acompañantes por id), si vinieron.
+        $ayudanteIds = $d['ayudante_ids'] ?? [];
+        if (is_array($ayudanteIds) && $ayudanteIds !== []) {
+            $ins = $db->prepare(
+                'INSERT IGNORE INTO lote_ayudantes (lote_id, acompanante_id) VALUES (:lote, :acomp)'
+            );
+            foreach ($ayudanteIds as $aid) {
+                $aid = (int)$aid;
+                if ($aid <= 0) { continue; }
+                $ins->execute([':lote' => $loteId, ':acomp' => $aid]);
+            }
+        }
+
+        return $loteId;
     }
 
     /**

@@ -281,8 +281,12 @@
         if (tipo === 'INGRESO') {
             html += campoSelect('cfgCategoria', 'Categoría', optionList(c.categorias, 'id', 'nombre'), true);
             html += campoSelect('cfgProveedor', 'Proveedor (opcional)', '<option value="">—</option>' + optionList(c.proveedores, 'id', 'nombre'), false);
-            html += campoSelect('cfgTransportista', 'Transportista (opcional)', '<option value="">—</option>' + optionList(c.transportistas, 'id', 'nombre_completo'), false);
+            html += campoSelect('cfgTransportista', 'Conductor / transportista (opcional)', '<option value="">—</option>' + optionList(c.transportistas, 'id', 'nombre_completo'), false);
             html += campoTexto('cfgRemito', 'N° remito (opcional)');
+            // Datos del viaje que trajo la mercadería (opcionales).
+            html += campoSelect('cfgVehiculo', 'Vehículo (opcional)', '<option value="">—</option>' + optionList(c.vehiculos, 'id', 'nombre'), false);
+            html += campoChecks('cfgAyudantes', 'Acompañante(s) (opcional)', c.acompanantes,
+                'No hay acompañantes cargados. Pedí al admin que los cargue (panel → Acompañantes).');
         } else if (tipo === 'SALIDA_REPARTO') {
             html += campoSelect('cfgTransportista', 'Chofer / transportista', optionList(c.transportistas, 'id', 'nombre_completo'), true);
             const zonas = c.zonas || [];
@@ -292,8 +296,7 @@
                 html += '<div class="alert alert-warning py-2 small">No hay zonas de reparto cargadas. Pedí al admin que cree al menos una (panel → Zonas).</div>';
             }
             // Datos del viaje para la hoja de ruta: se eligen del desplegable (sin escribir).
-            html += campoSelectNombre('cfgVehiculo', 'Vehículo / unidad (hoja de ruta)', c.vehiculos,
-                'No hay vehículos cargados. Pedí al admin que los cargue (panel → Vehículos).');
+            html += campoSelect('cfgVehiculo', 'Vehículo / unidad (hoja de ruta)', '<option value="">—</option>' + optionList(c.vehiculos, 'id', 'nombre'), false);
             html += campoChecks('cfgAyudantes', 'Acompañante(s) (hoja de ruta)', c.acompanantes,
                 'No hay acompañantes cargados. Pedí al admin que los cargue (panel → Acompañantes).');
         } else if (tipo === 'ENTREGA') {
@@ -306,6 +309,11 @@
             html += campoSelect('cfgMotivo', 'Motivo', optionList(c.motivos.devolucion, 'id', 'nombre'), true);
             html += campoTexto('cfgRemito', 'N° remito (opcional)');
             html += campoTexto('cfgMotivoLibre', 'Aclaración', true);
+            // Datos del viaje (opcionales).
+            html += campoSelect('cfgTransportista', 'Conductor / transportista (opcional)', '<option value="">—</option>' + optionList(c.transportistas, 'id', 'nombre_completo'), false);
+            html += campoSelect('cfgVehiculo', 'Vehículo (opcional)', '<option value="">—</option>' + optionList(c.vehiculos, 'id', 'nombre'), false);
+            html += campoChecks('cfgAyudantes', 'Acompañante(s) (opcional)', c.acompanantes,
+                'No hay acompañantes cargados. Pedí al admin que los cargue (panel → Acompañantes).');
         } else if (tipo === 'BAJA') {
             html += campoSelect('cfgMotivo', 'Motivo', optionList(c.motivos.baja, 'id', 'nombre'), true);
             html += campoTexto('cfgMotivoLibre', 'Aclaración', true);
@@ -330,20 +338,7 @@
         return '<div class="mb-3"><label class="form-label" for="' + id + '">' + esc(label) +
             '</label><input class="form-control" id="' + id + '"' + (required ? ' required' : '') + '></div>';
     }
-    // Select cuyo VALUE es el nombre (no el id): se guarda el texto tal cual en el lote.
-    function campoSelectNombre(id, label, arr, vacioMsg) {
-        if (!arr || !arr.length) {
-            return '<div class="mb-3"><label class="form-label">' + esc(label) +
-                '</label><div class="form-text">' + esc(vacioMsg || 'Sin opciones.') + '</div></div>';
-        }
-        let opts = '<option value="">—</option>';
-        arr.forEach(x => {
-            const obs = x.observacion ? ' · ' + x.observacion : '';
-            opts += '<option value="' + esc(x.nombre) + '">' + esc(x.nombre + obs) + '</option>';
-        });
-        return campoSelect(id, label, opts, false);
-    }
-    // Lista de checkboxes (selección múltiple) cuyo VALUE es el nombre.
+    // Lista de checkboxes (selección múltiple) cuyo VALUE es el ID.
     function campoChecks(id, label, arr, vacioMsg) {
         if (!arr || !arr.length) {
             return '<div class="mb-3"><label class="form-label">' + esc(label) +
@@ -353,18 +348,17 @@
             const obs = x.observacion ? ' <span class="text-muted">· ' + esc(x.observacion) + '</span>' : '';
             const cid = id + '_' + x.id;
             return '<div class="form-check"><input class="form-check-input" type="checkbox" name="' + id +
-                '" value="' + esc(x.nombre) + '" id="' + cid + '">' +
+                '" value="' + esc(x.id) + '" id="' + cid + '">' +
                 '<label class="form-check-label" for="' + cid + '">' + esc(x.nombre) + obs + '</label></div>';
         }).join('');
         return '<div class="mb-3"><label class="form-label">' + esc(label) +
             '</label><div style="max-height:170px;overflow-y:auto;border:1px solid #d4d9e0;border-radius:8px;padding:.5rem .75rem">' +
             items + '</div></div>';
     }
-    // Nombres tildados en una lista de checkboxes, unidos por coma (o null si ninguno).
-    function checksOf(name) {
+    // IDs tildados en una lista de checkboxes (array de enteros; vacío si ninguno).
+    function checkIdsOf(name) {
         const els = document.querySelectorAll('input[name="' + name + '"]:checked');
-        const v = Array.from(els).map(e => e.value.trim()).filter(Boolean);
-        return v.length ? v.join(', ') : null;
+        return Array.from(els).map(e => parseInt(e.value, 10)).filter(n => !isNaN(n));
     }
 
     $('configForm').addEventListener('submit', async function (e) {
@@ -377,7 +371,7 @@
             categoria_id: valOf('cfgCategoria'), proveedor_id: valOf('cfgProveedor'),
             transportista_id: valOf('cfgTransportista'), motivo_id: valOf('cfgMotivo'),
             motivo_libre: textOf('cfgMotivoLibre'), numero_remito: textOf('cfgRemito'),
-            vehiculo: textOf('cfgVehiculo'), chofer: null, ayudantes: checksOf('cfgAyudantes'),
+            vehiculo_id: valOf('cfgVehiculo'), ayudante_ids: checkIdsOf('cfgAyudantes'),
             observaciones: $('cfgObs').value.trim() || null,
             timestamp_apertura: nowISO(), timestamp_cierre: null,
             dispositivo_info: navigator.userAgent, items: []
@@ -389,9 +383,6 @@
             const z = ((estado.catalogos && estado.catalogos.zonas) || []).find(x => +x.id === +lote.zona_id);
             lote.zona_nombre = z ? z.nombre : null;
             lote.zona_localidades = z ? (z.localidades || []) : [];
-            // Chofer de la hoja de ruta = nombre del transportista elegido (desnormalizado).
-            const tr = ((estado.catalogos && estado.catalogos.transportistas) || []).find(x => +x.id === +lote.transportista_id);
-            lote.chofer = tr ? tr.nombre_completo : null;
         }
         const faltante = validarConfig(tipo, lote);
         if (faltante) { err.textContent = faltante; err.classList.remove('d-none'); return; }

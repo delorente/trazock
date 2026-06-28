@@ -534,3 +534,26 @@ CREATE TABLE IF NOT EXISTS `tarifas` (
 -- =============================================================================
 -- END: 016_facturacion_m1.sql
 -- =============================================================================
+
+-- =============================================================================
+-- BEGIN: 017_viaje_links.sql — lote.vehiculo_id + pivote lote_ayudantes (para
+-- reportar movimientos por vehículo/persona). Nombres quedan como snapshot.
+-- =============================================================================
+ALTER TABLE `lotes`
+    ADD COLUMN `vehiculo_id` INT UNSIGNED DEFAULT NULL AFTER `vehiculo`,
+    ADD CONSTRAINT `fk_lotes_vehiculo`
+        FOREIGN KEY (`vehiculo_id`) REFERENCES `vehiculos` (`id`);
+
+CREATE TABLE IF NOT EXISTS `lote_ayudantes` (
+    `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `lote_id`        INT UNSIGNED NOT NULL,
+    `acompanante_id` INT UNSIGNED NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_lote_acomp` (`lote_id`, `acompanante_id`),
+    INDEX `idx_la_acomp` (`acompanante_id`),
+    CONSTRAINT `fk_la_lote`  FOREIGN KEY (`lote_id`) REFERENCES `lotes` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_la_acomp` FOREIGN KEY (`acompanante_id`) REFERENCES `acompanantes` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- END: 017_viaje_links.sql
+-- =============================================================================

@@ -6,6 +6,7 @@ namespace Trazock;
 use DateTimeImmutable;
 use DateTimeZone;
 use Throwable;
+use Trazock\Models\Acompanante;
 use Trazock\Models\Categoria;
 use Trazock\Models\Conflicto;
 use Trazock\Models\Lote;
@@ -15,6 +16,7 @@ use Trazock\Models\Producto;
 use Trazock\Models\Proveedor;
 use Trazock\Models\Transicion;
 use Trazock\Models\Usuario;
+use Trazock\Models\Vehiculo;
 
 /**
  * ProcesadorLote — aplica un lote completo siguiendo las reglas R1-R10 de la spec.
@@ -233,10 +235,13 @@ final class ProcesadorLote
         $motivoLibre     = trim((string)($loteData['motivo_libre'] ?? '')) ?: null;
         $numeroRemito    = trim((string)($loteData['numero_remito'] ?? '')) ?: null;
         $observaciones   = trim((string)($loteData['observaciones'] ?? '')) ?: null;
-        // Datos del viaje para la hoja de ruta (solo SALIDA_REPARTO).
-        $vehiculo        = trim((string)($loteData['vehiculo'] ?? '')) ?: null;
-        $chofer          = trim((string)($loteData['chofer'] ?? '')) ?: null;
-        $ayudantes       = trim((string)($loteData['ayudantes'] ?? '')) ?: null;
+        // Datos del viaje: ids (formato nuevo) + nombres legacy (lotes viejos en cola).
+        $vehiculoId      = $intOrNull($loteData['vehiculo_id'] ?? null);
+        $ayudanteIds     = is_array($loteData['ayudante_ids'] ?? null)
+            ? array_map('intval', $loteData['ayudante_ids']) : [];
+        $vehiculoLegacy  = trim((string)($loteData['vehiculo'] ?? '')) ?: null;
+        $choferLegacy    = trim((string)($loteData['chofer'] ?? '')) ?: null;
+        $ayudantesLegacy = trim((string)($loteData['ayudantes'] ?? '')) ?: null;
 
         // Base: todo en null; cada tipo rellena lo suyo.
         $d = [
@@ -246,8 +251,10 @@ final class ProcesadorLote
             'proveedor_id'       => null,
             'transportista_id'   => null,
             'vehiculo'           => null,
+            'vehiculo_id'        => null,
             'chofer'             => null,
             'ayudantes'          => null,
+            'ayudante_ids'       => [],
             'motivo_id'          => null,
             'motivo_libre'       => null,
             'responsable_id'     => (int)$usuario['id'],
@@ -281,6 +288,8 @@ final class ProcesadorLote
                     $d['transportista_id'] = $transportistaId;
                 }
                 $d['numero_remito'] = $numeroRemito;
+                // Datos del viaje (quién/qué trajo la mercadería) — todo opcional.
+                self::resolverViaje($d, $vehiculoId, $ayudanteIds, $d['transportista_id'], $vehiculoLegacy, $ayudantesLegacy, $choferLegacy);
                 break;
 
             case TipoLote::SALIDA_REPARTO:
@@ -291,9 +300,7 @@ final class ProcesadorLote
                     throw new LoteException('El transportista indicado no existe, está inactivo o no tiene ese rol.', 400);
                 }
                 $d['transportista_id'] = $transportistaId;
-                $d['vehiculo']  = $vehiculo;
-                $d['chofer']    = $chofer;
-                $d['ayudantes'] = $ayudantes;
+                self::resolverViaje($d, $vehiculoId, $ayudanteIds, $transportistaId, $vehiculoLegacy, $ayudantesLegacy, $choferLegacy);
                 break;
 
             case TipoLote::ENTREGA:
@@ -317,6 +324,14 @@ final class ProcesadorLote
                 $d['motivo_id']    = self::validarMotivo($motivoId, 'devolucion', $motivoLibre);
                 $d['motivo_libre'] = $motivoLibre;
                 $d['numero_remito'] = $numeroRemito;
+                // Conductor (opcional) + datos del viaje.
+                if ($transportistaId !== null) {
+                    if (!Usuario::existeActivoConRol($transportistaId, 'transportista')) {
+                        throw new LoteException('El transportista indicado no existe, está inactivo o no tiene ese rol.', 400);
+                    }
+                    $d['transportista_id'] = $transportistaId;
+                }
+                self::resolverViaje($d, $vehiculoId, $ayudanteIds, $d['transportista_id'], $vehiculoLegacy, $ayudantesLegacy, $choferLegacy);
                 break;
 
             case TipoLote::BAJA:
@@ -350,6 +365,60 @@ final class ProcesadorLote
             throw new LoteException('Este motivo requiere una aclaración por texto libre.', 400);
         }
         return $motivoId;
+    }
+
+    /**
+     * Resuelve los datos del viaje (vehículo, ayudantes, chofer) sobre $d:
+     *   - vehiculo_id → valida activo y guarda id + nombre (snapshot).
+     *   - ayudante_ids → valida activos, guarda lista de ids + nombres (snapshot).
+     *   - chofer = nombre del conductor (transportista) si se indicó.
+     * Acepta nombres legacy (lotes viejos en cola, sin ids). Todo opcional.
+     *
+     * @param array<string, mixed> $d
+     * @param array<int, int> $ayudanteIds
+     * @throws LoteException 400 si un id no existe/está inactivo.
+     */
+    private static function resolverViaje(
+        array &$d,
+        ?int $vehiculoId,
+        array $ayudanteIds,
+        ?int $transportistaId,
+        ?string $vehiculoLegacy,
+        ?string $ayudantesLegacy,
+        ?string $choferLegacy
+    ): void {
+        // Vehículo
+        if ($vehiculoId !== null) {
+            $v = Vehiculo::findActivo($vehiculoId);
+            if ($v === null) {
+                throw new LoteException('El vehículo indicado no existe o está inactivo.', 400);
+            }
+            $d['vehiculo_id'] = (int)$v['id'];
+            $d['vehiculo']    = (string)$v['nombre'];
+        } elseif ($vehiculoLegacy !== null) {
+            $d['vehiculo'] = $vehiculoLegacy;
+        }
+
+        // Ayudantes (varios o ninguno)
+        if ($ayudanteIds !== []) {
+            $map = Acompanante::activosPorIds($ayudanteIds);
+            if ($map !== []) {
+                $d['ayudante_ids'] = array_keys($map);
+                $d['ayudantes']    = implode(', ', array_values($map));
+            }
+        } elseif ($ayudantesLegacy !== null) {
+            $d['ayudantes'] = $ayudantesLegacy;
+        }
+
+        // Chofer = nombre del conductor (transportista) — snapshot para la hoja de ruta.
+        if ($transportistaId !== null) {
+            $u = Usuario::findById($transportistaId);
+            if ($u !== null) {
+                $d['chofer'] = (string)$u['nombre_completo'];
+            }
+        } elseif ($choferLegacy !== null) {
+            $d['chofer'] = $choferLegacy;
+        }
     }
 
     /**
