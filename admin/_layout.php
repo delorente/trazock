@@ -88,11 +88,13 @@ function panel_header(string $titulo, array $user, string $activo = '', string $
 <div id="sidebar-overlay" onclick="tzCloseSidebar()"></div>
 
 <nav id="sidebar">
-    <div class="sb-head d-flex align-items-center gap-2" style="padding:.7rem 1rem;border-bottom:1px solid var(--border)">
+    <div class="sb-head" style="padding:.7rem 1rem;border-bottom:1px solid var(--border);text-align:center">
         <img class="brand-img" src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios S.A." style="max-width:140px;width:100%;height:auto;border-radius:8px;background:#fff;padding:4px">
-        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 ms-auto tz-userbox" onclick="tzToggleRail()" title="Replegar / expandir menú"><i class="bi bi-chevron-double-left"></i></button>
     </div>
     <div style="flex:1;overflow-y:auto;padding:.5rem 0">
+        <button type="button" class="ni" onclick="tzToggleRail()" title="Replegar / expandir menú">
+            <i class="bi bi-chevron-double-left ni-railicon"></i><span class="ni-label">Replegar menú</span>
+        </button>
         <?php foreach (panel_menu() as $grupo): ?>
             <?php
             $visibles = array_filter($grupo['items'], static fn(array $it): bool => in_array($rol, $it['roles'], true));

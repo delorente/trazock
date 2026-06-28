@@ -90,8 +90,10 @@ a { color: var(--blue); }
 }
 #sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 199; }
 
+/* Botones que actúan como ítems de navegación (toggle rail, acordeón config) */
+button.ni { width: calc(100% - 16px); background: none; border: 0; text-align: left; font: inherit; }
+
 /* Submenú colapsable (Configuración) */
-.ni-group { width: calc(100% - 16px); background: none; border: 0; text-align: left; }
 .ni-caret { font-size: 12px; transition: transform .18s ease; }
 .ni-group.open .ni-caret { transform: rotate(180deg); }
 .subnav { max-height: 0; overflow: hidden; transition: max-height .22s ease; }
@@ -99,20 +101,27 @@ a { color: var(--blue); }
 .subnav .ni { padding-left: 30px; font-size: 12.5px; }
 .brand-img { transition: max-width .2s ease; }
 
+.ni-railicon { transition: transform .18s ease; }
+
 /* Rail: sidebar replegado a íconos (solo desktop; en mobile sigue el off-canvas) */
 @media (min-width: 769px) {
-    html.rail { --sw: 66px; }
-    html.rail #sidebar:hover { width: 240px; box-shadow: 6px 0 22px rgba(0,0,0,.45); }
-    html.rail #sidebar:not(:hover) .ni-label,
-    html.rail #sidebar:not(:hover) .ni-caret,
-    html.rail #sidebar:not(:hover) .nd,
-    html.rail #sidebar:not(:hover) .subnav,
-    html.rail #sidebar:not(:hover) .badge,
-    html.rail #sidebar:not(:hover) .tz-userbox,
-    html.rail #sidebar:not(:hover) .tz-powered { display: none; }
-    html.rail #sidebar:not(:hover) .ni { justify-content: center; margin: 1px 6px; padding-left: 0; padding-right: 0; }
-    html.rail #sidebar:not(:hover) .brand-img { max-width: 44px; }
-    html.rail #sidebar:not(:hover) .sb-head { padding-left: 0; padding-right: 0; }
+    html.rail { --sw: 64px; }
+    /* Ocultar textos, separadores y badges → quedan solo los íconos. */
+    html.rail #sidebar .ni-label,
+    html.rail #sidebar .ni-caret,
+    html.rail #sidebar .nd,
+    html.rail #sidebar .badge,
+    html.rail #sidebar .tz-userbox,
+    html.rail #sidebar .tz-powered { display: none; }
+    /* El botón "Configuración" (acordeón) no aplica en rail: sus hijos se ven
+       aplanados como íconos. */
+    html.rail #sidebar .ni-group { display: none; }
+    html.rail #sidebar .subnav { max-height: none; overflow: visible; }
+    html.rail #sidebar .subnav .ni { padding-left: 0; }
+    /* Centrar los íconos. */
+    html.rail #sidebar .ni { justify-content: center; margin: 1px 6px; padding-left: 0; padding-right: 0; }
+    html.rail #sidebar .brand-img { max-width: 40px; }
+    html.rail #sidebar .ni-railicon { transform: rotate(180deg); }
 }
 
 /* ── CARDS & TABLES ───────────────────────────────────────────────────────── */
