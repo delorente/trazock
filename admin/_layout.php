@@ -33,6 +33,7 @@ function panel_menu(): array
                 ['key' => 'movimientos','label' => 'Movimientos', 'href' => 'movimientos.php',      'icon' => 'truck',                    'roles' => ['admin', 'gestor', 'logistica']],
                 ['key' => 'costos',     'label' => 'Costos',      'href' => 'costos.php',           'icon' => 'cash-coin',                'roles' => ['admin', 'gestor', 'contable']],
                 ['key' => 'costos-fijos','label' => 'Costos fijos','href' => 'costos-fijos.php',     'icon' => 'building',                  'roles' => ['admin', 'gestor', 'contable']],
+                ['key' => 'caja-chica', 'label' => 'Caja chica',  'href' => 'caja-chica.php',       'icon' => 'wallet2',                  'roles' => ['admin', 'gestor', 'contable']],
                 ['key' => 'rentabilidad','label' => 'Resultados', 'href' => 'rentabilidad.php',     'icon' => 'graph-up-arrow',           'roles' => ['admin', 'gestor', 'contable']],
                 ['key' => 'encuestas',  'label' => 'Encuestas',   'href' => 'encuestas.php',        'icon' => 'emoji-smile-fill',         'roles' => ['admin', 'gestor', 'logistica'], 'encuesta' => true],
             ],

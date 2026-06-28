@@ -660,3 +660,26 @@ CREATE TABLE IF NOT EXISTS `costos_fijos` (
 -- =============================================================================
 -- END: 021_costos_fijos.sql
 -- =============================================================================
+-- (022 dropea `tarifas`; 023 amplía el enum usuarios.rol — reflejados arriba.)
+
+-- =============================================================================
+-- BEGIN: 024_caja_chica.sql — caja chica (contable): ingresos/egresos/adelantos.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `caja_chica` (
+    `id`          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    `tipo`        ENUM('ingreso','egreso','adelanto_chofer','rendicion') NOT NULL,
+    `monto`       DECIMAL(12,2) NOT NULL,
+    `fecha`       DATE          NOT NULL,
+    `concepto`    VARCHAR(150)  NOT NULL,
+    `chofer_id`   INT UNSIGNED  DEFAULT NULL,
+    `observacion` VARCHAR(255)  DEFAULT NULL,
+    `creado_por`  INT UNSIGNED  DEFAULT NULL,
+    `created_at`  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_cc_fecha` (`fecha`),
+    CONSTRAINT `fk_cc_chofer`  FOREIGN KEY (`chofer_id`)  REFERENCES `usuarios` (`id`),
+    CONSTRAINT `fk_cc_usuario` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- END: 024_caja_chica.sql
+-- =============================================================================
