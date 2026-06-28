@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Trazock;
 
 use Trazock\Models\ClienteFacturacion;
+use Trazock\Models\CostoFijo;
 use Trazock\Models\CostoViaje;
 use Trazock\Models\Orden;
 use Trazock\Models\Proveedor;
@@ -22,7 +23,8 @@ final class Rentabilidad
      * @return array{
      *   clientes: array<int, array<string,mixed>>,
      *   sin_asignar_costos: float,
-     *   totales: array{ingresos:float, costos:float, margen:float}
+     *   costos_fijos: array{alquiler:float, sueldo:float, otro:float, total:float},
+     *   totales: array{ingresos:float, costos:float, margen:float, costos_fijos:float, resultado_neto:float}
      * }
      */
     public static function resultados(string $desde, string $hasta): array
@@ -56,10 +58,20 @@ final class Rentabilidad
         uasort($clientes, static fn($a, $b) => $b['margen'] <=> $a['margen']);
 
         $totCos += $sinAsignar;
+        $margen = $totIng - $totCos;
+        $fijos  = CostoFijo::prorrateoPorTipo($desde, $hasta);
+
         return [
             'clientes'           => $clientes,
             'sin_asignar_costos' => $sinAsignar,
-            'totales'            => ['ingresos' => $totIng, 'costos' => $totCos, 'margen' => $totIng - $totCos],
+            'costos_fijos'       => $fijos,
+            'totales'            => [
+                'ingresos'       => $totIng,
+                'costos'         => $totCos,
+                'margen'         => $margen,
+                'costos_fijos'   => $fijos['total'],
+                'resultado_neto' => $margen - $fijos['total'],
+            ],
         ];
     }
 

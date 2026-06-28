@@ -53,6 +53,17 @@ if (($_GET['export'] ?? '') === 'xlsx') {
         }
     }
     $hoja('Detalle ingresos', ['Cliente', 'Destino', 'Unidad', 'Cantidad', 'Precio', 'Importe'], $detalle);
+    $cf = $res['costos_fijos'];
+    $hoja('Resumen', ['Concepto', 'Monto'], [
+        ['Ingresos (facturado)', (float)$res['totales']['ingresos']],
+        ['Costos variables', -(float)$res['totales']['costos']],
+        ['Margen de contribución', (float)$res['totales']['margen']],
+        ['Costos fijos: alquileres', -(float)$cf['alquiler']],
+        ['Costos fijos: sueldos', -(float)$cf['sueldo']],
+        ['Costos fijos: otros', -(float)$cf['otro']],
+        ['Costos fijos (total prorrateado)', -(float)$res['totales']['costos_fijos']],
+        ['RESULTADO NETO', (float)$res['totales']['resultado_neto']],
+    ]);
     $ss->setActiveSheetIndex(0);
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -85,6 +96,8 @@ panel_header('Resultados', $user, 'rentabilidad', 'Ingresos − costos variables
   <div><div class="sumbar-n" style="color:#fbbf24"><?= $nf($res['totales']['costos']) ?></div><div class="sumbar-l">Costos variables</div></div>
   <div class="sumbar-div"></div>
   <div><div class="sumbar-n"><?= $nf($res['totales']['margen']) ?></div><div class="sumbar-l">Margen de contribución</div></div>
+  <div class="sumbar-div"></div>
+  <div><div class="sumbar-n" style="color:<?= $res['totales']['resultado_neto'] >= 0 ? '#34d399' : '#f87171' ?>"><?= $nf($res['totales']['resultado_neto']) ?></div><div class="sumbar-l">Resultado neto</div></div>
   <div style="margin-left:auto;font-size:12px;color:var(--muted)"><?= h(date('d/m/Y', strtotime($desde))) ?> – <?= h(date('d/m/Y', strtotime($hasta))) ?></div>
 </div>
 
@@ -125,6 +138,27 @@ panel_header('Resultados', $user, 'rentabilidad', 'Ingresos − costos variables
   <div class="card-footer text-muted small">Costos de viaje sin cliente atribuible (sin m³ por orden): <?= $nf($res['sin_asignar_costos']) ?> — incluidos en el total de costos.</div>
   <?php endif; ?>
 </div>
-<p class="text-muted small mt-2">Cálculo interno (no es un comprobante). Ingresos = cantidad facturable × precio configurado por cliente. Costos variables = costos de viaje del período, repartidos entre clientes por su % de m³. El detalle por destino está en el Excel.</p>
+<?php $cf = $res['costos_fijos']; $t = $res['totales']; ?>
+<div class="row g-3 mt-1">
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">Resultado del período</div>
+      <div style="overflow-x:auto">
+        <table class="table mb-0">
+          <tbody>
+            <tr><td>Margen de contribución</td><td class="text-end"><?= $nf($t['margen']) ?></td></tr>
+            <tr><td class="ps-4 text-muted">Costos fijos: alquileres</td><td class="text-end text-muted">−<?= $nf($cf['alquiler']) ?></td></tr>
+            <tr><td class="ps-4 text-muted">Costos fijos: sueldos</td><td class="text-end text-muted">−<?= $nf($cf['sueldo']) ?></td></tr>
+            <tr><td class="ps-4 text-muted">Costos fijos: otros</td><td class="text-end text-muted">−<?= $nf($cf['otro']) ?></td></tr>
+            <tr><td>Costos fijos (prorrateados)</td><td class="text-end">−<?= $nf($t['costos_fijos']) ?></td></tr>
+            <tr class="table-light" style="font-weight:700"><td>Resultado neto</td><td class="text-end" style="color:<?= $t['resultado_neto'] >= 0 ? '#34d399' : '#f87171' ?>"><?= $nf($t['resultado_neto']) ?></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer text-muted small">Los costos fijos se cargan en <a href="<?= h(url('admin/costos-fijos.php')) ?>">Costos fijos</a> (mensuales) y se prorratean por días al período.</div>
+    </div>
+  </div>
+</div>
+<p class="text-muted small mt-2">Cálculo interno (no es un comprobante). Ingresos = cantidad × precio vigente a la fecha de cada hoja de ruta. Costos variables = costos de viaje del período, repartidos entre clientes por su % de m³. Costos fijos prorrateados por días. El detalle por destino está en el Excel.</p>
 <?php
 panel_footer();

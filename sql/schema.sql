@@ -649,3 +649,24 @@ CREATE TABLE IF NOT EXISTS `cliente_precio` (
 -- =============================================================================
 -- END: 020_cliente_precio_vigencia.sql
 -- =============================================================================
+
+-- =============================================================================
+-- BEGIN: 021_costos_fijos.sql — costos fijos mensuales (alquiler/sueldo/otro),
+-- prorrateados por días al período del reporte de Resultados.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `costos_fijos` (
+    `id`          INT UNSIGNED  NOT NULL AUTO_INCREMENT,
+    `tipo`        ENUM('alquiler','sueldo','otro') NOT NULL,
+    `concepto`    VARCHAR(150)  NOT NULL,
+    `importe`     DECIMAL(12,2) NOT NULL,
+    `periodo`     CHAR(7)       NOT NULL,
+    `observacion` VARCHAR(255)  DEFAULT NULL,
+    `creado_por`  INT UNSIGNED  DEFAULT NULL,
+    `created_at`  TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_cfij_periodo` (`periodo`),
+    CONSTRAINT `fk_cfij_usuario` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- END: 021_costos_fijos.sql
+-- =============================================================================
