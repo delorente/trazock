@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 // =============================================================================
-// admin/usuarios.php — ABM de usuarios (solo admin). Los 4 roles. Soft-delete.
+// admin/usuarios.php — ABM de usuarios (solo admin). Soft-delete.
 // =============================================================================
 
 require __DIR__ . '/../lib/bootstrap.php';
@@ -16,7 +16,9 @@ Auth::requiereRol('admin');
 
 $rolesLabel = [
     'admin'         => 'Administrador',
-    'gestor'        => 'Supervisor',   // solo Reportes
+    'gestor'        => 'Supervisor',   // ve todo, solo lectura
+    'logistica'     => 'Logística',    // carga hojas de ruta / órdenes / reportes
+    'contable'      => 'Contable',     // costos, caja chica
     'operador'      => 'Operador',
     'transportista' => 'Transportista',
 ];
@@ -172,7 +174,9 @@ panel_header('Usuarios', $user, 'usuarios', count($usuarios) . ' usuario(s)', $a
           <label class="form-label" for="usr_rol">Rol *</label>
           <select class="form-select" id="usr_rol" name="rol" required>
             <option value="admin">Administrador (acceso total)</option>
-            <option value="gestor">Supervisor (solo Reportes)</option>
+            <option value="gestor">Supervisor (ve todo, solo lectura)</option>
+            <option value="logistica">Logística (hojas de ruta, órdenes, reportes)</option>
+            <option value="contable">Contable (costos, caja chica)</option>
             <option value="operador">Operador (escáner)</option>
             <option value="transportista">Transportista (escáner)</option>
           </select>
