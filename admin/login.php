@@ -22,9 +22,11 @@ if ($actual !== null) {
 /** Pantalla a la que va cada rol tras autenticarse. */
 function login_destino(string $rol): string
 {
-    if ($rol === 'admin')  { return url('admin/index.php'); }
-    if ($rol === 'gestor') { return url('admin/ordenes-reportes.php'); } // Supervisor: solo reportes
-    return url('scan/'); // operador / transportista
+    // Roles de escaneo: a la PWA. El resto (admin/gestor/logistica/contable): al panel.
+    if (in_array($rol, ['operador', 'transportista'], true)) {
+        return url('scan/');
+    }
+    return url(\Trazock\Auth::homeDe($rol));
 }
 
 $error = null;
