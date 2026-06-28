@@ -31,6 +31,7 @@ function panel_menu(): array
                 ['key' => 'conflictos', 'label' => 'Conflictos',  'href' => 'conflictos.php',       'icon' => 'exclamation-triangle-fill','roles' => ['admin'], 'conflicto' => true],
                 ['key' => 'reportes',   'label' => 'Reportes',    'href' => 'ordenes-reportes.php', 'icon' => 'bar-chart-fill',           'roles' => ['admin', 'gestor']],
                 ['key' => 'movimientos','label' => 'Movimientos', 'href' => 'movimientos.php',      'icon' => 'truck',                    'roles' => ['admin', 'gestor']],
+                ['key' => 'costos',     'label' => 'Costos',      'href' => 'costos.php',           'icon' => 'cash-coin',                'roles' => ['admin', 'gestor']],
                 ['key' => 'encuestas',  'label' => 'Encuestas',   'href' => 'encuestas.php',        'icon' => 'emoji-smile-fill',         'roles' => ['admin', 'gestor'], 'encuesta' => true],
                 ['key' => 'exportar',   'label' => 'Exportar',    'href' => 'exportar.php',         'icon' => 'download',                 'roles' => ['admin']],
             ],

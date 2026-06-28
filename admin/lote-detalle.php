@@ -9,6 +9,7 @@ require __DIR__ . '/../lib/bootstrap.php';
 require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
+use Trazock\Models\CostoViaje;
 use Trazock\Models\Lote;
 use Trazock\Models\Orden;
 use Trazock\Models\Usuario;
@@ -16,13 +17,33 @@ use Trazock\Models\Usuario;
 $user    = Auth::requierePanel();
 $esAdmin = $user['rol'] === 'admin';
 
-// POST: edición en bloque de los datos de ingreso de la carga (solo admin, PRG+CSRF).
+// POST: edición de carga (admin) o alta/baja de costos del viaje (admin/gestor). PRG+CSRF.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $lid = (int)($_POST['id'] ?? 0);
-    if (!$esAdmin) {
-        flash_set('danger', 'No tenés permiso para editar la carga.');
-    } elseif (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
+    $lid    = (int)($_POST['id'] ?? 0);
+    $accion = (string)($_POST['accion'] ?? 'carga');
+    if (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
         flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
+    } elseif ($accion === 'costo_add') {
+        $tipo  = (string)($_POST['costo_tipo'] ?? 'otro');
+        $imp   = (float)str_replace(',', '.', (string)($_POST['costo_importe'] ?? '0'));
+        $fecha = trim((string)($_POST['costo_fecha'] ?? '')) ?: date('Y-m-d');
+        $obs   = trim((string)($_POST['costo_obs'] ?? ''));
+        if ($imp <= 0) {
+            flash_set('danger', 'El importe del costo debe ser mayor a 0.');
+        } else {
+            CostoViaje::crear($lid, $tipo, $imp, $fecha, $obs, (int)$user['id']);
+            flash_set('success', 'Costo agregado al viaje.');
+        }
+    } elseif ($accion === 'costo_del') {
+        $cid = (int)($_POST['costo_id'] ?? 0);
+        if ($cid > 0 && CostoViaje::loteDe($cid) === $lid) {
+            CostoViaje::eliminar($cid);
+            flash_set('success', 'Costo eliminado.');
+        } else {
+            flash_set('danger', 'Costo inválido.');
+        }
+    } elseif (!$esAdmin) {
+        flash_set('danger', 'No tenés permiso para editar la carga.');
     } else {
         $cargaId  = (int)($_POST['carga_id'] ?? 0);
         $transpId = (int)($_POST['transportista_id'] ?? 0);
@@ -64,12 +85,16 @@ $ordenes = Lote::ordenes($id); // vacío en lotes legacy sin orden
 $cargaId    = $ordenes !== [] ? (int)($ordenes[0]['carga_id'] ?? 0) : 0;
 $cargaDatos = null;
 $transportistasAll = [];
-$csrf = '';
+$csrf = Auth::tokenCSRF();
 if ($lote['tipo'] === 'INGRESO' && $cargaId > 0) {
     $cargaDatos = Orden::datosCarga($cargaId);
     $transportistasAll = Usuario::transportistasActivos();
-    $csrf = Auth::tokenCSRF();
 }
+
+// Costos del viaje (lotes con vehículo: ingreso, reparto, devolución).
+$esViaje = in_array($lote['tipo'], ['INGRESO', 'SALIDA_REPARTO', 'SALIDA_DEVOLUCION'], true);
+$costos      = $esViaje ? CostoViaje::porLote($id) : [];
+$totalCostos = $esViaje ? CostoViaje::totalLote($id) : 0.0;
 
 // Los lotes de INGRESO agrupan los productos de una carga: se pueden reimprimir
 // todas sus etiquetas juntas (por si no salieron bien al cargar).
@@ -124,6 +149,74 @@ flash_render();
         <?php endif; ?>
     </div>
 </div>
+
+<?php if ($esViaje): $accUrl = url('admin/lote-detalle.php') . '?id=' . $id; ?>
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center" style="padding:.6rem 1rem">
+        <span><i class="bi bi-cash-stack me-1"></i>Costos del viaje</span>
+        <strong>Total: $ <?= number_format($totalCostos, 2, ',', '.') ?></strong>
+    </div>
+    <div style="overflow-x:auto">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>Tipo</th><th class="text-end">Importe</th><th>Fecha</th><th>Observación</th><th>Cargó</th><th></th></tr></thead>
+            <tbody>
+            <?php if ($costos === []): ?>
+                <tr><td colspan="6" class="text-muted text-center py-3">Sin costos cargados.</td></tr>
+            <?php endif; ?>
+            <?php foreach ($costos as $c): ?>
+                <tr>
+                    <td><?= h(CostoViaje::TIPOS[$c['tipo']] ?? (string)$c['tipo']) ?></td>
+                    <td class="text-end">$ <?= number_format((float)$c['importe'], 2, ',', '.') ?></td>
+                    <td class="text-muted" style="font-size:12px"><?= h(($c['fecha'] ?? '') ? date('d/m/Y', strtotime((string)$c['fecha'])) : '—') ?></td>
+                    <td style="font-size:13px"><?= h((string)($c['observacion'] ?? '')) ?></td>
+                    <td class="text-muted" style="font-size:12px"><?= h((string)($c['creador'] ?? '')) ?></td>
+                    <td class="text-end">
+                        <form method="post" class="d-inline" action="<?= h($accUrl) ?>">
+                            <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
+                            <input type="hidden" name="accion" value="costo_del">
+                            <input type="hidden" name="id" value="<?= $id ?>">
+                            <input type="hidden" name="costo_id" value="<?= (int)$c['id'] ?>">
+                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" title="Eliminar"
+                                    onclick="tzConfirm(this.closest('form'), '¿Eliminar este costo?')"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <div style="border-top:1px solid var(--border);padding:.6rem 1rem">
+        <form method="post" class="row g-2 align-items-end" action="<?= h($accUrl) ?>">
+            <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
+            <input type="hidden" name="accion" value="costo_add">
+            <input type="hidden" name="id" value="<?= $id ?>">
+            <div class="col-6 col-md-3">
+                <label class="form-label" style="font-size:12px">Tipo</label>
+                <select class="form-select form-select-sm" name="costo_tipo">
+                    <?php foreach (CostoViaje::TIPOS as $k => $v): ?><option value="<?= h($k) ?>"><?= h($v) ?></option><?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" style="font-size:12px">Importe</label>
+                <div class="input-group input-group-sm"><span class="input-group-text">$</span>
+                    <input type="number" step="0.01" min="0" class="form-control" name="costo_importe" required>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label" style="font-size:12px">Fecha</label>
+                <input type="date" class="form-control form-control-sm" name="costo_fecha" value="<?= h(date('Y-m-d')) ?>" max="<?= h(date('Y-m-d')) ?>">
+            </div>
+            <div class="col-6 col-md-4">
+                <label class="form-label" style="font-size:12px">Observación</label>
+                <input type="text" class="form-control form-control-sm" name="costo_obs" maxlength="255" placeholder="Opcional">
+            </div>
+            <div class="col-md-1">
+                <button class="btn btn-primary btn-sm w-100" type="submit"><i class="bi bi-plus-lg"></i></button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php if ($ordenes !== []): ?>
 <div class="card mb-3">
