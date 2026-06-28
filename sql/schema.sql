@@ -520,17 +520,7 @@ CREATE TABLE IF NOT EXISTS `afip_emisor` (
     `updated_at`         TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `tarifas` (
-    `id`         INT UNSIGNED  NOT NULL AUTO_INCREMENT,
-    `provincia`  VARCHAR(80)   NOT NULL,
-    `tipo_venta` ENUM('online','local') NOT NULL,
-    `precio_m3`  DECIMAL(12,2) NOT NULL DEFAULT 0,
-    `created_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_tarifa_prov_tipo` (`provincia`, `tipo_venta`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- (La tabla `tarifas` se creó en 016 y se eliminó en 022; no se incluye acá.)
 -- =============================================================================
 -- END: 016_facturacion_m1.sql
 -- =============================================================================
