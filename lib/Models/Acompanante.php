@@ -62,6 +62,19 @@ final class Acompanante
         return $out;
     }
 
+    /**
+     * @return array<string, mixed>|null  Empleado activo (id, nombre) o null.
+     */
+    public static function findActivo(int $id): ?array
+    {
+        $stmt = DB::getInstance()->prepare(
+            'SELECT id, nombre FROM acompanantes WHERE id = :id AND activo = 1 LIMIT 1'
+        );
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch();
+        return $row === false ? null : $row;
+    }
+
     public static function crear(string $nombre, ?string $observacion): int
     {
         $db   = DB::getInstance();

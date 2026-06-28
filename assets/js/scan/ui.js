@@ -281,14 +281,14 @@
         if (tipo === 'INGRESO') {
             html += campoSelect('cfgCategoria', 'Categoría', optionList(c.categorias, 'id', 'nombre'), true);
             html += campoSelect('cfgProveedor', 'Proveedor (opcional)', '<option value="">—</option>' + optionList(c.proveedores, 'id', 'nombre'), false);
-            html += campoSelect('cfgTransportista', 'Conductor / transportista (opcional)', '<option value="">—</option>' + optionList(c.transportistas, 'id', 'nombre_completo'), false);
+            html += campoSelect('cfgConductor', 'Conductor (opcional)', '<option value="">—</option>' + optionList(c.acompanantes, 'id', 'nombre'), false);
             html += campoTexto('cfgRemito', 'N° remito (opcional)');
             // Datos del viaje que trajo la mercadería (opcionales).
             html += campoSelect('cfgVehiculo', 'Vehículo (opcional)', '<option value="">—</option>' + optionList(c.vehiculos, 'id', 'nombre'), false);
-            html += campoChecks('cfgAyudantes', 'Acompañante(s) (opcional)', c.acompanantes,
-                'No hay acompañantes cargados. Pedí al admin que los cargue (panel → Acompañantes).');
+            html += campoChecks('cfgAyudantes', 'Ayudante(s) (opcional)', c.acompanantes,
+                'No hay empleados cargados. Pedí al admin que los cargue (panel → Empleados).');
         } else if (tipo === 'SALIDA_REPARTO') {
-            html += campoSelect('cfgTransportista', 'Chofer / transportista', optionList(c.transportistas, 'id', 'nombre_completo'), true);
+            html += campoSelect('cfgConductor', 'Conductor', '<option value="">— elegí —</option>' + optionList(c.acompanantes, 'id', 'nombre'), true);
             const zonas = c.zonas || [];
             if (zonas.length) {
                 html += campoSelect('cfgZona', 'Zona de reparto', optionList(zonas, 'id', 'nombre'), true);
@@ -297,8 +297,8 @@
             }
             // Datos del viaje para la hoja de ruta: se eligen del desplegable (sin escribir).
             html += campoSelect('cfgVehiculo', 'Vehículo / unidad (hoja de ruta)', '<option value="">—</option>' + optionList(c.vehiculos, 'id', 'nombre'), false);
-            html += campoChecks('cfgAyudantes', 'Acompañante(s) (hoja de ruta)', c.acompanantes,
-                'No hay acompañantes cargados. Pedí al admin que los cargue (panel → Acompañantes).');
+            html += campoChecks('cfgAyudantes', 'Ayudante(s) (hoja de ruta)', c.acompanantes,
+                'No hay empleados cargados. Pedí al admin que los cargue (panel → Empleados).');
         } else if (tipo === 'ENTREGA') {
             html += '<div class="alert alert-info py-2 small">El transportista sos vos (' + esc(estado.usuario.nombre) + ').</div>';
         } else if (tipo === 'REINGRESO') {
@@ -310,10 +310,10 @@
             html += campoTexto('cfgRemito', 'N° remito (opcional)');
             html += campoTexto('cfgMotivoLibre', 'Aclaración', true);
             // Datos del viaje (opcionales).
-            html += campoSelect('cfgTransportista', 'Conductor / transportista (opcional)', '<option value="">—</option>' + optionList(c.transportistas, 'id', 'nombre_completo'), false);
+            html += campoSelect('cfgConductor', 'Conductor (opcional)', '<option value="">—</option>' + optionList(c.acompanantes, 'id', 'nombre'), false);
             html += campoSelect('cfgVehiculo', 'Vehículo (opcional)', '<option value="">—</option>' + optionList(c.vehiculos, 'id', 'nombre'), false);
-            html += campoChecks('cfgAyudantes', 'Acompañante(s) (opcional)', c.acompanantes,
-                'No hay acompañantes cargados. Pedí al admin que los cargue (panel → Acompañantes).');
+            html += campoChecks('cfgAyudantes', 'Ayudante(s) (opcional)', c.acompanantes,
+                'No hay empleados cargados. Pedí al admin que los cargue (panel → Empleados).');
         } else if (tipo === 'BAJA') {
             html += campoSelect('cfgMotivo', 'Motivo', optionList(c.motivos.baja, 'id', 'nombre'), true);
             html += campoTexto('cfgMotivoLibre', 'Aclaración', true);
@@ -369,7 +369,7 @@
         const lote = {
             uuid: uuid(), tipo: tipo,
             categoria_id: valOf('cfgCategoria'), proveedor_id: valOf('cfgProveedor'),
-            transportista_id: valOf('cfgTransportista'), motivo_id: valOf('cfgMotivo'),
+            conductor_empleado_id: valOf('cfgConductor'), motivo_id: valOf('cfgMotivo'),
             motivo_libre: textOf('cfgMotivoLibre'), numero_remito: textOf('cfgRemito'),
             vehiculo_id: valOf('cfgVehiculo'), ayudante_ids: checkIdsOf('cfgAyudantes'),
             observaciones: $('cfgObs').value.trim() || null,
@@ -399,7 +399,7 @@
     function textOf(id) { const el = $(id); return el && el.value.trim() ? el.value.trim() : null; }
     function validarConfig(tipo, l) {
         if (tipo === 'INGRESO' && !l.categoria_id) return 'Elegí una categoría.';
-        if (tipo === 'SALIDA_REPARTO' && !l.transportista_id) return 'Elegí un transportista.';
+        if (tipo === 'SALIDA_REPARTO' && !l.conductor_empleado_id) return 'Elegí un conductor.';
         if (tipo === 'SALIDA_REPARTO' && !l.zona_id) return 'Elegí una zona de reparto.';
         if (tipo === 'SALIDA_REPARTO' && (!l.zona_localidades || l.zona_localidades.length === 0)) return 'La zona elegida no tiene localidades cargadas.';
         if ((tipo === 'REINGRESO' || tipo === 'BAJA') && !l.motivo_id) return 'Elegí un motivo.';
@@ -432,7 +432,7 @@
         const nombreDe = (arr, id, k) => { const x = (arr || []).find(o => +o.id === +id); return x ? x[k] : ''; };
         if (l.tipo === 'INGRESO') return nombreDe(c.categorias, l.categoria_id, 'nombre');
         if (l.tipo === 'SALIDA_REPARTO') {
-            const t = nombreDe(c.transportistas, l.transportista_id, 'nombre_completo');
+            const t = nombreDe(c.acompanantes, l.conductor_empleado_id, 'nombre');
             return l.zona_nombre ? (t + ' · Zona ' + l.zona_nombre) : t;
         }
         return '';

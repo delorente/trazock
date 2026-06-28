@@ -139,6 +139,8 @@ flash_render();
         tz_campo('Categoría', $lote['categoria_nombre']);
         tz_campo('Proveedor', $lote['proveedor_nombre']);
         tz_campo('Transportista', $lote['transportista_nombre']);
+        tz_campo('Conductor', $lote['chofer'] ?? null);
+        tz_campo('Ayudante(s)', $lote['ayudantes'] ?? null);
         tz_campo('Motivo', $lote['motivo_nombre'] !== null && $lote['motivo_libre']
             ? $lote['motivo_nombre'] . ' (' . $lote['motivo_libre'] . ')' : $lote['motivo_nombre']);
         tz_campo('N° remito', $lote['numero_remito'], true);

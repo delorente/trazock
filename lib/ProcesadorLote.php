@@ -237,11 +237,18 @@ final class ProcesadorLote
         $observaciones   = trim((string)($loteData['observaciones'] ?? '')) ?: null;
         // Datos del viaje: ids (formato nuevo) + nombres legacy (lotes viejos en cola).
         $vehiculoId      = $intOrNull($loteData['vehiculo_id'] ?? null);
+        $conductorEmpId  = $intOrNull($loteData['conductor_empleado_id'] ?? null); // padrón de empleados
         $ayudanteIds     = is_array($loteData['ayudante_ids'] ?? null)
             ? array_map('intval', $loteData['ayudante_ids']) : [];
         $vehiculoLegacy  = trim((string)($loteData['vehiculo'] ?? '')) ?: null;
-        $choferLegacy    = trim((string)($loteData['chofer'] ?? '')) ?: null;
         $ayudantesLegacy = trim((string)($loteData['ayudantes'] ?? '')) ?: null;
+        // Chofer (snapshot) legacy: nombre explícito, o el del transportista usuario
+        // que mandaban los payloads viejos (cuando el conductor era un usuario).
+        $choferLegacy    = trim((string)($loteData['chofer'] ?? '')) ?: null;
+        if ($choferLegacy === null && $conductorEmpId === null && $transportistaId !== null) {
+            $u = Usuario::findById($transportistaId);
+            if ($u !== null) { $choferLegacy = (string)$u['nombre_completo']; }
+        }
 
         // Base: todo en null; cada tipo rellena lo suyo.
         $d = [
@@ -250,6 +257,7 @@ final class ProcesadorLote
             'categoria_id'       => null,
             'proveedor_id'       => null,
             'transportista_id'   => null,
+            'conductor_empleado_id' => null,
             'vehiculo'           => null,
             'vehiculo_id'        => null,
             'chofer'             => null,
@@ -280,27 +288,21 @@ final class ProcesadorLote
                     }
                     $d['proveedor_id'] = $proveedorId;
                 }
-                // Transportista opcional en INGRESO (quién trajo la mercadería).
-                if ($transportistaId !== null) {
-                    if (!Usuario::existeActivoConRol($transportistaId, 'transportista')) {
-                        throw new LoteException('El transportista indicado no existe, está inactivo o no tiene ese rol.', 400);
-                    }
-                    $d['transportista_id'] = $transportistaId;
-                }
                 $d['numero_remito'] = $numeroRemito;
-                // Datos del viaje (quién/qué trajo la mercadería) — todo opcional.
-                self::resolverViaje($d, $vehiculoId, $ayudanteIds, $d['transportista_id'], $vehiculoLegacy, $ayudantesLegacy, $choferLegacy);
+                // Datos del viaje que trajo la mercadería (conductor/vehículo/ayudantes), todo opcional.
+                self::resolverViaje($d, $vehiculoId, $ayudanteIds, $conductorEmpId, $vehiculoLegacy, $ayudantesLegacy, $choferLegacy);
                 break;
 
             case TipoLote::SALIDA_REPARTO:
-                if ($transportistaId === null) {
-                    throw new LoteException('Un lote de SALIDA_REPARTO requiere transportista.', 400);
+                // Requiere conductor (del padrón) o, para lotes viejos en cola, el
+                // transportista usuario que mandaba el formato anterior.
+                if ($conductorEmpId === null && $transportistaId === null) {
+                    throw new LoteException('Un lote de SALIDA_REPARTO requiere conductor.', 400);
                 }
-                if (!Usuario::existeActivoConRol($transportistaId, 'transportista')) {
-                    throw new LoteException('El transportista indicado no existe, está inactivo o no tiene ese rol.', 400);
+                self::resolverViaje($d, $vehiculoId, $ayudanteIds, $conductorEmpId, $vehiculoLegacy, $ayudantesLegacy, $choferLegacy);
+                if ($conductorEmpId !== null && $d['conductor_empleado_id'] === null) {
+                    throw new LoteException('El conductor indicado no existe o está inactivo.', 400);
                 }
-                $d['transportista_id'] = $transportistaId;
-                self::resolverViaje($d, $vehiculoId, $ayudanteIds, $transportistaId, $vehiculoLegacy, $ayudantesLegacy, $choferLegacy);
                 break;
 
             case TipoLote::ENTREGA:
@@ -324,14 +326,8 @@ final class ProcesadorLote
                 $d['motivo_id']    = self::validarMotivo($motivoId, 'devolucion', $motivoLibre);
                 $d['motivo_libre'] = $motivoLibre;
                 $d['numero_remito'] = $numeroRemito;
-                // Conductor (opcional) + datos del viaje.
-                if ($transportistaId !== null) {
-                    if (!Usuario::existeActivoConRol($transportistaId, 'transportista')) {
-                        throw new LoteException('El transportista indicado no existe, está inactivo o no tiene ese rol.', 400);
-                    }
-                    $d['transportista_id'] = $transportistaId;
-                }
-                self::resolverViaje($d, $vehiculoId, $ayudanteIds, $d['transportista_id'], $vehiculoLegacy, $ayudantesLegacy, $choferLegacy);
+                // Conductor/vehículo/ayudantes (opcionales) desde el padrón.
+                self::resolverViaje($d, $vehiculoId, $ayudanteIds, $conductorEmpId, $vehiculoLegacy, $ayudantesLegacy, $choferLegacy);
                 break;
 
             case TipoLote::BAJA:
@@ -368,10 +364,10 @@ final class ProcesadorLote
     }
 
     /**
-     * Resuelve los datos del viaje (vehículo, ayudantes, chofer) sobre $d:
+     * Resuelve los datos del viaje (vehículo, ayudantes, conductor) sobre $d:
      *   - vehiculo_id → valida activo y guarda id + nombre (snapshot).
      *   - ayudante_ids → valida activos, guarda lista de ids + nombres (snapshot).
-     *   - chofer = nombre del conductor (transportista) si se indicó.
+     *   - conductor (empleado del padrón) → guarda conductor_empleado_id + chofer (snapshot).
      * Acepta nombres legacy (lotes viejos en cola, sin ids). Todo opcional.
      *
      * @param array<string, mixed> $d
@@ -382,7 +378,7 @@ final class ProcesadorLote
         array &$d,
         ?int $vehiculoId,
         array $ayudanteIds,
-        ?int $transportistaId,
+        ?int $conductorEmpId,
         ?string $vehiculoLegacy,
         ?string $ayudantesLegacy,
         ?string $choferLegacy
@@ -410,11 +406,12 @@ final class ProcesadorLote
             $d['ayudantes'] = $ayudantesLegacy;
         }
 
-        // Chofer = nombre del conductor (transportista) — snapshot para la hoja de ruta.
-        if ($transportistaId !== null) {
-            $u = Usuario::findById($transportistaId);
-            if ($u !== null) {
-                $d['chofer'] = (string)$u['nombre_completo'];
+        // Conductor (empleado del padrón) → id + nombre (snapshot para la hoja de ruta).
+        if ($conductorEmpId !== null) {
+            $e = Acompanante::findActivo($conductorEmpId);
+            if ($e !== null) {
+                $d['conductor_empleado_id'] = (int)$e['id'];
+                $d['chofer'] = (string)$e['nombre'];
             }
         } elseif ($choferLegacy !== null) {
             $d['chofer'] = $choferLegacy;

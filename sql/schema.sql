@@ -683,3 +683,15 @@ CREATE TABLE IF NOT EXISTS `caja_chica` (
 -- =============================================================================
 -- END: 024_caja_chica.sql
 -- =============================================================================
+-- (025 suma conductores al padrón `acompanantes` — solo datos.)
+
+-- =============================================================================
+-- BEGIN: 026_lote_conductor_empleado.sql — conductor del viaje desde el padrón.
+-- =============================================================================
+ALTER TABLE `lotes`
+    ADD COLUMN `conductor_empleado_id` INT UNSIGNED DEFAULT NULL AFTER `transportista_id`,
+    ADD CONSTRAINT `fk_lotes_conductor_emp`
+        FOREIGN KEY (`conductor_empleado_id`) REFERENCES `acompanantes` (`id`);
+-- =============================================================================
+-- END: 026_lote_conductor_empleado.sql
+-- =============================================================================

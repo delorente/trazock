@@ -88,14 +88,14 @@ final class Movimiento
     {
         $params = [];
         $where = self::baseWhere($desde, $hasta, $tipos, $params);
-        $sql = 'SELECT u.id, u.nombre_completo AS nombre,
+        $sql = 'SELECT a.id, a.nombre AS nombre,
                        COUNT(DISTINCT l.id) AS viajes,
                        COALESCE(SUM(lm.m3), 0) AS m3,
                        COALESCE(SUM(lm.bultos), 0) AS bultos
                 FROM lotes l
-                JOIN usuarios u ON u.id = l.transportista_id' . self::LOTE_M3 . ' ' . $where . '
-                GROUP BY u.id, u.nombre_completo
-                ORDER BY viajes DESC, u.nombre_completo ASC';
+                JOIN acompanantes a ON a.id = l.conductor_empleado_id' . self::LOTE_M3 . ' ' . $where . '
+                GROUP BY a.id, a.nombre
+                ORDER BY viajes DESC, a.nombre ASC';
         $stmt = DB::getInstance()->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
