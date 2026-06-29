@@ -310,7 +310,7 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
 <div class="print-area">
   <div class="rep-print-title" style="display:none">Reportes de órdenes — <?= (int)$total ?> órdenes · <?= number_format($totales['m3'], 2, ',', '.') ?> m³</div>
   <div class="card">
-    <div style="overflow-x:auto">
+    <div class="tz-table-scroll" style="overflow:auto">
       <table class="table table-hover mb-0">
         <thead><tr>
           <?php if ($puedeMarcar): ?><th class="no-print" style="width:30px"><input type="checkbox" id="waChkAll" title="Seleccionar todas" class="form-check-input"></th><?php endif; ?>
@@ -378,6 +378,10 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
   </div>
 </div>
 <style>
+/* Encabezado de la tabla fijo al hacer scroll (la tabla scrollea dentro del alto disponible). */
+.tz-table-scroll{max-height:calc(100vh - 230px)}
+.tz-table-scroll thead th{position:sticky;top:0;z-index:3;background:var(--card,#fff);box-shadow:inset 0 -1px 0 var(--border,#dee2e6)}
+@media print{.tz-table-scroll{max-height:none!important;overflow:visible!important}.tz-table-scroll thead th{position:static!important;box-shadow:none!important}}
 @media print{.rep-print-title{display:block!important}}
 .tz-marca-btn{background:none;border:none;padding:0 3px;cursor:pointer;color:#475569;opacity:.45;font-size:15px;line-height:1}
 .tz-marca-btn:hover{opacity:.9}
