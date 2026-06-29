@@ -215,8 +215,15 @@ if (!function_exists('tel_e164')) {
         $d = preg_replace('/^9/',  '', $d);  // 9 de móvil (no hay áreas que empiecen en 9)
         $d = preg_replace('/^0/',  '', $d);  // 0 de larga distancia
         // Sacar el "15" de móvil intercalado tras el código de área (2-4 dígitos).
-        // El abonado nacional (área + número) siempre suma 10 dígitos; con el 15 son 12.
-        $d = preg_replace('/^(\d{2,4})15(\d{6,8})$/', '$1$2', $d, 1) ?? $d;
+        // El abonado nacional (área + número) siempre suma 10 dígitos; con el 15 son
+        // 11/12. OJO: solo si sobran dígitos — nunca tocar un número que ya quedó en
+        // 10, porque podría tener un "15" legítimo en el abonado (ej. 3815180324).
+        if (strlen($d) === 11 || strlen($d) === 12) {
+            $sin15 = preg_replace('/^(\d{2,4})15(\d{6,8})$/', '$1$2', $d, 1) ?? $d;
+            if (strlen($sin15) === 10) {
+                $d = $sin15;
+            }
+        }
 
         if (strlen($d) !== 10) {
             return null; // área + abonado debe ser 10 dígitos
