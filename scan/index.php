@@ -166,6 +166,12 @@ if ($user !== null) {
     <div class="tz-scan-list" id="scanLista"></div>
 
     <div class="tz-scan-footer p-2">
+        <!-- Foto del remito firmado: solo en ENTREGA (lo muestra/oculta ui.js). -->
+        <div id="remitoBox" class="d-none mb-2">
+            <input type="file" id="inputRemito" accept="image/*" capture="environment" class="d-none">
+            <button type="button" class="btn btn-outline-primary w-100" id="btnFotoRemito" style="padding:.7rem;font-weight:600;border-radius:10px"><i class="bi bi-camera-fill me-2"></i>Foto del remito firmado</button>
+            <div id="remitoThumbs" class="d-flex flex-wrap gap-2 mt-2"></div>
+        </div>
         <button class="btn btn-success w-100" id="btnEnviarLote" style="padding:.8rem;font-weight:700;border-radius:10px"><i class="bi bi-cloud-upload-fill me-2"></i>Cerrar y enviar lote</button>
     </div>
 </section>

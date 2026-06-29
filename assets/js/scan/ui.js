@@ -417,6 +417,13 @@
         tipoEl.textContent = TIPO_LABEL[l.tipo] || l.tipo;
         $('scanResumen').textContent = resumenLote(l);
         $('scanContador').textContent = l.items.length + ' items';
+        // Foto del remito: solo en ENTREGA.
+        const remitoBox = $('remitoBox');
+        if (remitoBox) {
+            const esEntrega = l.tipo === 'ENTREGA';
+            remitoBox.classList.toggle('d-none', !esEntrega);
+            if (esEntrega) renderRemitos(l);
+        }
         $('scanLista').innerHTML = '';
         if (resume) { l.items.slice(-5).reverse().forEach(i => agregarALista(i.codigo, i.fuera_zona)); }
         $('btnBeep').classList.toggle('active', estado.beep);
@@ -435,7 +442,83 @@
             const t = nombreDe(c.acompanantes, l.conductor_empleado_id, 'nombre');
             return l.zona_nombre ? (t + ' · Zona ' + l.zona_nombre) : t;
         }
+        if (l.tipo === 'ENTREGA') {
+            const n = (l.remitos || []).length;
+            return n ? (n + (n === 1 ? ' foto de remito' : ' fotos de remito')) : 'Sin foto de remito';
+        }
         return '';
+    }
+
+    // ----- REMITO (foto firmada de la entrega) --------------------------------
+    function renderRemitos(l) {
+        const cont = $('remitoThumbs'); if (!cont) return;
+        cont.innerHTML = '';
+        (l.remitos || []).forEach(function (r, idx) {
+            const url = URL.createObjectURL(r.blob);
+            const div = document.createElement('div');
+            div.style.position = 'relative';
+            div.innerHTML =
+                '<img src="' + url + '" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid #d4d9e0">' +
+                '<button type="button" class="btn btn-danger" style="position:absolute;top:-7px;right:-7px;border-radius:50%;width:22px;height:22px;padding:0;line-height:20px;font-size:14px">&times;</button>';
+            div.querySelector('button').addEventListener('click', async function () {
+                l.remitos.splice(idx, 1);
+                try { await TZDB.guardarLoteActual(l); } catch (e) {}
+                renderRemitos(l);
+                $('scanResumen').textContent = resumenLote(l);
+            });
+            cont.appendChild(div);
+        });
+    }
+
+    async function onRemitoElegido(e) {
+        const files = Array.from(e.target.files || []);
+        e.target.value = '';
+        const l = estado.lote; if (!l) return;
+        if (!l.remitos) l.remitos = [];
+        for (const file of files) {
+            if (!file.type || file.type.indexOf('image/') !== 0) continue;
+            overlay(true, 'Procesando foto…');
+            try {
+                const blob = await comprimirImagen(file);
+                l.remitos.push({ foto_uuid: uuid(), blob: blob, mime: 'image/jpeg', estado: 'pendiente' });
+            } catch (err) {
+                // Si falla la compresión, guardar el original (mejor eso que perder la foto).
+                l.remitos.push({ foto_uuid: uuid(), blob: file, mime: file.type || 'image/jpeg', estado: 'pendiente' });
+            } finally { overlay(false); }
+        }
+        try { await TZDB.guardarLoteActual(l); } catch (e) {}
+        renderRemitos(l);
+        $('scanResumen').textContent = resumenLote(l);
+    }
+
+    // Reescala a máx 1600px y comprime a JPEG ~70% para no inflar el almacenamiento.
+    async function comprimirImagen(file) {
+        const MAX = 1600, Q = 0.7;
+        let bitmap = null;
+        try { bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+        catch (e) { try { bitmap = await createImageBitmap(file); } catch (e2) { bitmap = null; } }
+
+        let source, w, h;
+        if (bitmap) { source = bitmap; w = bitmap.width; h = bitmap.height; }
+        else {
+            source = await new Promise(function (res, rej) {
+                const im = new Image();
+                im.onload = function () { res(im); };
+                im.onerror = rej;
+                im.src = URL.createObjectURL(file);
+            });
+            w = source.naturalWidth; h = source.naturalHeight;
+        }
+        let nw = w, nh = h;
+        if (w >= h && w > MAX) { nw = MAX; nh = Math.round(h * MAX / w); }
+        else if (h > w && h > MAX) { nh = MAX; nw = Math.round(w * MAX / h); }
+        const canvas = document.createElement('canvas');
+        canvas.width = nw; canvas.height = nh;
+        canvas.getContext('2d').drawImage(source, 0, 0, nw, nh);
+        if (bitmap && bitmap.close) bitmap.close();
+        return await new Promise(function (res) {
+            canvas.toBlob(function (b) { res(b || file); }, 'image/jpeg', Q);
+        });
     }
     let confirmandoZona = false; // evita procesar escaneos mientras se confirma fuera-de-zona
     async function onScan(raw) {
@@ -607,6 +690,15 @@
         TZScanner.stop().finally(async () => { estado.lote = null; try { await TZDB.borrarLoteActual(); } catch (e) {} irSelector(); });
     });
 
+    // ----- REMITO: cámara -----------------------------------------------------
+    (function () {
+        const btn = $('btnFotoRemito'), input = $('inputRemito');
+        if (btn && input) {
+            btn.addEventListener('click', function () { input.click(); });
+            input.addEventListener('change', onRemitoElegido);
+        }
+    })();
+
     // ----- CERRAR Y ENCOLAR ---------------------------------------------------
     $('btnEnviarLote').addEventListener('click', cerrarLote);
     async function cerrarLote() {
@@ -632,8 +724,14 @@
         const esReparto = l.tipo === 'SALIDA_REPARTO';
         const loteUuid  = l.uuid;
         overlay(true, 'Guardando lote…');
+        // El payload JSON del lote NO lleva las fotos (van por multipart aparte).
+        const payload = Object.assign({}, l);
+        delete payload.remitos;
+        const remitos = (l.remitos || []).map(function (r) {
+            return { foto_uuid: r.foto_uuid, blob: r.blob, mime: r.mime || 'image/jpeg', estado: 'pendiente' };
+        });
         const registro = {
-            uuid: l.uuid, tipo: l.tipo, payload: l, estado: 'pendiente_sync',
+            uuid: l.uuid, tipo: l.tipo, payload: payload, remitos: remitos, estado: 'pendiente_sync',
             creado_at: nowISO(), items_count: l.items.length
         };
         try {

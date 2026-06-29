@@ -65,6 +65,53 @@
         return 'server';
     }
 
+    // Sube una foto de remito (multipart). Devuelve 'ok'|'red'|'auth'|'datos'|'server'.
+    async function subirRemito(loteUuid, r) {
+        if (!r.blob) return 'ok';
+        const fd = new FormData();
+        fd.append('foto_uuid', r.foto_uuid);
+        fd.append('lote_uuid', loteUuid);
+        fd.append('foto', r.blob, 'remito.jpg');
+        let resp;
+        try {
+            resp = await fetch(cfg.apiBase + '/remito-subir.php', {
+                method: 'POST', credentials: 'same-origin', body: fd
+            });
+        } catch (e) {
+            return 'red';
+        }
+        let data = {};
+        try { data = await resp.json(); } catch (e) { data = {}; }
+        if (resp.ok && data.ok) return 'ok';
+        if (resp.status === 401) return 'auth';
+        if (resp.status >= 400 && resp.status < 500) return 'datos';
+        return 'server';
+    }
+
+    // Recorre la cola y sube las fotos pendientes (independiente del estado del lote;
+    // el server las vincula por uuid). Se corre después de enviar los lotes.
+    async function subirRemitosPendientes() {
+        const all = await TZDB.colaTodos();
+        for (const reg of all) {
+            if (!reg.remitos || !reg.remitos.length) continue;
+            let cambiado = false;
+            for (const r of reg.remitos) {
+                if (r.estado === 'subido') continue;
+                const res = await subirRemito(reg.uuid, r);
+                if (res === 'ok')        { r.estado = 'subido'; r.blob = null; cambiado = true; }
+                else if (res === 'datos') { r.estado = 'error'; cambiado = true; }
+                else if (res === 'auth')  {
+                    if (cambiado) await TZDB.actualizarLote(reg.uuid, { remitos: reg.remitos });
+                    cfg.onAuthError();
+                    return 'auth';
+                }
+                // 'red'/'server' → queda pendiente para el próximo ciclo
+            }
+            if (cambiado) { await TZDB.actualizarLote(reg.uuid, { remitos: reg.remitos }); cfg.onChange(); }
+        }
+        return 'ok';
+    }
+
     const TZSync = {
         init(opciones) {
             cfg = Object.assign(cfg, opciones || {});
@@ -88,10 +135,13 @@
             try {
                 await TZDB.purgarViejos();
                 const pendientes = await TZDB.colaPorEstado('pendiente_sync');
+                let auth = false;
                 for (const reg of pendientes) {
                     const res = await procesarUno(reg);
-                    if (res === 'auth') break; // sesión expirada: frenar el ciclo
+                    if (res === 'auth') { auth = true; break; } // sesión expirada: frenar el ciclo
                 }
+                // Subida de fotos de remito (entregas), tras enviar los lotes.
+                if (!auth) { await subirRemitosPendientes(); }
             } finally {
                 corriendo = false;
             }

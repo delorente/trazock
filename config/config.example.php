@@ -98,6 +98,17 @@ define('ANTHROPIC_MODEL', 'claude-sonnet-4-6');
 // define('ANTHROPIC_CA_BUNDLE', 'C:/wamp64/cacert.pem');
 
 // =============================================================================
+// Remitos firmados (fotos de entrega)
+// =============================================================================
+// Carpeta donde se guardan las fotos de remitos firmados que saca el
+// transportista al entregar. Una sola carpeta (sin subcarpetas) para ubicarlas a
+// mano fácil; los archivos llevan fecha + nº de orden en el nombre. En producción
+// conviene una ruta FUERA del webroot (que no sea accesible por URL). Debe existir
+// y ser escribible por el usuario web. Si se deja sin definir, usa
+// <proyecto>/storage/remitos (protegida por .htaccess).
+// define('REMITOS_DIR', '/home/intercongress.ar/storage/remitos');
+
+// =============================================================================
 // WhatsApp Business Cloud API (Meta) — aviso de entrega al cliente final
 // =============================================================================
 // Avisa al comprador antes de la entrega con la fecha/horario y dos botones

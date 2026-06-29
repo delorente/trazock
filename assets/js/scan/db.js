@@ -93,7 +93,8 @@
         },
         async contarPendientes() {
             return (await this.colaTodos()).filter(
-                r => r.estado === 'pendiente_sync' || r.estado === 'sincronizando'
+                r => r.estado === 'pendiente_sync' || r.estado === 'sincronizando' ||
+                     (r.remitos || []).some(x => x.estado !== 'subido' && x.estado !== 'error' && x.blob)
             ).length;
         },
         /** Reactiva lotes en error_auth → pendiente_sync (tras re-loguear). */
@@ -117,7 +118,9 @@
             const all = await tx.store.getAll();
             for (const r of all) {
                 if (r.estado === 'sincronizado' && r.sincronizado_at && new Date(r.sincronizado_at).getTime() < limite) {
-                    await tx.store.delete(r.uuid);
+                    // No purgar si todavía quedan fotos de remito sin subir.
+                    const fotosPend = (r.remitos || []).some(x => x.estado !== 'subido' && x.estado !== 'error' && x.blob);
+                    if (!fotosPend) { await tx.store.delete(r.uuid); }
                 }
             }
             await tx.done;

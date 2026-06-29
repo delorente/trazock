@@ -728,3 +728,30 @@ CREATE TABLE IF NOT EXISTS `confirmaciones_entrega` (
 -- END: 027_confirmaciones_entrega.sql
 -- =============================================================================
 -- (028 agrega ordenes.telefono_wa — ya incluido en la tabla `ordenes` de arriba.)
+
+-- =============================================================================
+-- BEGIN: 029_entrega_remitos.sql — fotos de remitos firmados de las entregas.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `entrega_remitos` (
+    `id`         INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `foto_uuid`  CHAR(36)     NOT NULL,
+    `lote_uuid`  CHAR(36)     NOT NULL,
+    `lote_id`    INT UNSIGNED DEFAULT NULL,
+    `archivo`    VARCHAR(160) NOT NULL,
+    `mime`       VARCHAR(40)  NOT NULL DEFAULT 'image/jpeg',
+    `bytes`      INT UNSIGNED NOT NULL DEFAULT 0,
+    `sha256`     CHAR(64)     DEFAULT NULL,
+    `subido_por` INT UNSIGNED DEFAULT NULL,
+    `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_remito_foto` (`foto_uuid`),
+    INDEX `idx_remito_lote_uuid` (`lote_uuid`),
+    INDEX `idx_remito_lote_id` (`lote_id`),
+    CONSTRAINT `fk_remito_lote`
+        FOREIGN KEY (`lote_id`) REFERENCES `lotes` (`id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_remito_usuario`
+        FOREIGN KEY (`subido_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- END: 029_entrega_remitos.sql
+-- =============================================================================

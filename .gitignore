@@ -13,3 +13,8 @@ codigo.jpg
 
 # Fuentes de Claude Design (no se versionan)
 design/
+
+# Fotos de remitos firmados (entregas): se acumulan, no van al repo.
+# Se conserva el .htaccess que bloquea el acceso web directo.
+/storage/remitos/*
+!/storage/remitos/.htaccess

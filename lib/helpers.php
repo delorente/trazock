@@ -184,6 +184,26 @@ if (!function_exists('seguimiento_orden_url')) {
     }
 }
 
+if (!function_exists('remitos_dir')) {
+    /**
+     * Carpeta (única, sin subcarpetas) donde se guardan las fotos de remitos
+     * firmados de las entregas. Configurable con REMITOS_DIR (conviene una ruta
+     * FUERA del webroot en producción); por defecto, storage/remitos del proyecto.
+     * Crea la carpeta si no existe. Devuelve la ruta absoluta sin barra final.
+     */
+    function remitos_dir(): string
+    {
+        $dir = defined('REMITOS_DIR') && REMITOS_DIR !== ''
+            ? (string)REMITOS_DIR
+            : dirname(__DIR__) . '/storage/remitos';
+        $dir = rtrim($dir, '/\\');
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        return $dir;
+    }
+}
+
 if (!function_exists('tel_e164')) {
     /**
      * Normaliza un teléfono argentino a E.164 (sin el '+'), apto para WhatsApp.

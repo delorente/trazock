@@ -10,6 +10,7 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\Models\CostoViaje;
+use Trazock\Models\EntregaRemito;
 use Trazock\Models\Lote;
 use Trazock\Models\Orden;
 use Trazock\Models\Usuario;
@@ -154,6 +155,22 @@ flash_render();
         <?php endif; ?>
     </div>
 </div>
+
+<?php
+// Remitos firmados (fotos de la entrega). Se muestran si los hay.
+$remitos = EntregaRemito::porLoteUuid((string)$lote['uuid']);
+if ($remitos !== []): ?>
+<div class="card mb-3">
+    <div class="card-header" style="padding:.6rem 1rem"><i class="bi bi-camera-fill me-1"></i>Remitos firmados (<?= count($remitos) ?>)</div>
+    <div class="d-flex flex-wrap gap-2" style="padding:1rem">
+        <?php foreach ($remitos as $r): $verUrl = url('api/remito-ver.php') . '?uuid=' . rawurlencode((string)$r['foto_uuid']); ?>
+            <a href="<?= h($verUrl) ?>" target="_blank" rel="noopener" title="<?= h((string)$r['archivo']) ?>">
+                <img src="<?= h($verUrl) ?>" style="width:120px;height:120px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">
+            </a>
+        <?php endforeach; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php if ($esViaje): $accUrl = url('admin/lote-detalle.php') . '?id=' . $id; ?>
 <div class="card mb-3">

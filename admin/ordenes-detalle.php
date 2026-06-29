@@ -12,6 +12,7 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\EtiquetaQr;
+use Trazock\Models\EntregaRemito;
 use Trazock\Models\Orden;
 use Trazock\Models\Producto;
 use Trazock\Models\Usuario;
@@ -149,6 +150,7 @@ $tv        = (string)($orden['tipo_venta'] ?? '');
 $urlEti    = url('admin/ordenes-etiquetas.php') . '?orden=' . $id;
 $csrf      = Auth::tokenCSRF();
 $historial = Orden::historial($id);
+$remitos   = EntregaRemito::porOrden($id);
 
 /** Destino "Localidad · Provincia". */
 $loc  = trim((string)($orden['dest_localidad'] ?? ''));
@@ -333,6 +335,19 @@ $campo = static function (string $label, string $valor): void {
   </div>
   <?php endif; ?>
 </div>
+
+<?php if ($remitos !== []): ?>
+<div class="card p-3 mt-3">
+  <div style="font-weight:600;font-size:13px;margin-bottom:.85rem"><i class="bi bi-camera-fill me-1"></i>Remitos firmados (<?= count($remitos) ?>)</div>
+  <div class="d-flex flex-wrap gap-2">
+    <?php foreach ($remitos as $r): $verUrl = url('api/remito-ver.php') . '?uuid=' . rawurlencode((string)$r['foto_uuid']); ?>
+      <a href="<?= h($verUrl) ?>" target="_blank" rel="noopener" title="<?= h((string)$r['archivo']) ?>">
+        <img src="<?= h($verUrl) ?>" style="width:110px;height:110px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">
+      </a>
+    <?php endforeach; ?>
+  </div>
+</div>
+<?php endif; ?>
 
 <style>@media(max-width:768px){.tz-detalle-grid{grid-template-columns:1fr!important}}</style>
 
