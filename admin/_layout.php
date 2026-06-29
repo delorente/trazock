@@ -31,6 +31,7 @@ function panel_menu(): array
                 ['key' => 'conflictos', 'label' => 'Conflictos',  'href' => 'conflictos.php',       'icon' => 'exclamation-triangle-fill','roles' => ['admin', 'gestor', 'logistica'], 'conflicto' => true],
                 ['key' => 'reportes',   'label' => 'Reportes',    'href' => 'ordenes-reportes.php', 'icon' => 'bar-chart-fill',           'roles' => ['admin', 'gestor', 'logistica']],
                 ['key' => 'movimientos','label' => 'Movimientos', 'href' => 'movimientos.php',      'icon' => 'truck',                    'roles' => ['admin', 'gestor', 'logistica']],
+                ['key' => 'estado-masivo','label' => 'Estado masivo','href' => 'estado-masivo.php', 'icon' => 'calendar-check',           'roles' => ['admin']],
                 ['key' => 'costos',     'label' => 'Costos',      'href' => 'costos.php',           'icon' => 'cash-coin',                'roles' => ['admin', 'gestor', 'contable']],
                 ['key' => 'costos-fijos','label' => 'Costos fijos','href' => 'costos-fijos.php',     'icon' => 'building',                  'roles' => ['admin', 'gestor', 'contable']],
                 ['key' => 'caja-chica', 'label' => 'Caja chica',  'href' => 'caja-chica.php',       'icon' => 'wallet2',                  'roles' => ['admin', 'gestor', 'contable']],

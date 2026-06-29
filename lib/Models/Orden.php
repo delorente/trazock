@@ -435,6 +435,63 @@ final class Orden
     }
 
     /**
+     * Backfill de estado con FECHA HISTÓRICA: fija el estado destino en TODOS los
+     * ítems de la orden, datando la transición en $timestampUtc (no "ahora"). A
+     * diferencia de corregirEstado(), fuerza el estado actual aunque exista una
+     * transición más reciente (sirve para cargar órdenes viejas ya entregadas:
+     * el ingreso quedó con fecha de hoy, pero el estado real es del pasado).
+     * Devuelve cuántos ítems cambió. $estadoProducto es del enum Estado.
+     *
+     * @throws \InvalidArgumentException|\RuntimeException
+     */
+    public static function fijarEstadoHistorico(int $ordenId, string $estadoProducto, string $timestampUtc, string $motivo, int $usuarioId): int
+    {
+        $estado = \Trazock\Estado::tryFrom($estadoProducto);
+        if ($estado === null) {
+            throw new \InvalidArgumentException('Estado destino inválido.');
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $timestampUtc)) {
+            throw new \InvalidArgumentException('Fecha/hora inválida.');
+        }
+        $motivo = trim($motivo);
+        if ($motivo === '') {
+            $motivo = 'Carga histórica';
+        }
+
+        $db   = DB::getInstance();
+        $stmt = $db->prepare('SELECT id, estado_actual FROM productos WHERE orden_id = :o');
+        $stmt->execute([':o' => $ordenId]);
+        $items = $stmt->fetchAll();
+        if ($items === []) {
+            throw new \RuntimeException('La orden no tiene ítems.');
+        }
+
+        $motivo50  = mb_substr($motivo, 0, 50);
+        $cambiados = 0;
+
+        $db->beginTransaction();
+        try {
+            foreach ($items as $it) {
+                $desde = (string)$it['estado_actual'];
+                if ($desde === $estado->value) {
+                    continue; // ya está en el estado destino
+                }
+                $pid = (int)$it['id'];
+                $tid = Transicion::insertar($pid, null, $desde, $estado->value, $timestampUtc, false, $motivo50, true, $usuarioId);
+                // Backfill: forzamos el estado actual (no se chequea existeMasReciente).
+                Producto::fijarEstadoActual($pid, $estado->value, $tid);
+                $cambiados++;
+            }
+            self::recalcularEstado($ordenId);
+            $db->commit();
+            return $cambiados;
+        } catch (\Throwable $e) {
+            $db->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
      * Resumen agregado de una carga confirmada (para la pantalla de confirmación
      * y la de etiquetas): nº de órdenes, ítems, m³ total y cuántos ítems ya tienen
      * su etiqueta impresa.
