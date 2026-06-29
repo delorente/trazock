@@ -65,9 +65,9 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     $sheet->setTitle('Productos');
 
     $encabezados = ['Lote', 'Nº orden', 'Categoría', 'Código', 'Descripción', 'Dimensiones', 'm³',
-                    'Ítem', 'Estado', 'Destino', 'Cliente', 'Tipo', 'F. ingreso'];
+                    'Ítem', 'Estado', 'Provincia', 'Localidad', 'Cliente', 'Tipo', 'F. ingreso'];
     $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:M1')->getFont()->setBold(true);
+    $sheet->getStyle('A1:N1')->getFont()->setBold(true);
 
     $fila = 2;
     foreach ($rows as $p) {
@@ -80,13 +80,14 @@ if (($_GET['export'] ?? '') === 'xlsx') {
         $sheet->setCellValue('G' . $fila, $p['m3'] !== null ? (float)$p['m3'] : null);
         $sheet->setCellValue('H' . $fila, (int)$p['secuencia']);
         $sheet->setCellValue('I' . $fila, prod_estado($p));
-        $sheet->setCellValue('J' . $fila, prod_destino($p));
-        $sheet->setCellValue('K' . $fila, (string)($p['cliente'] ?? ''));
-        $sheet->setCellValue('L' . $fila, (string)($p['tipo_venta'] ?? ''));
-        $sheet->setCellValue('M' . $fila, fmt_fecha((string)($p['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
+        $sheet->setCellValue('J' . $fila, trim((string)($p['dest_provincia'] ?? '')));
+        $sheet->setCellValue('K' . $fila, trim((string)($p['dest_localidad'] ?? '')));
+        $sheet->setCellValue('L' . $fila, (string)($p['cliente'] ?? ''));
+        $sheet->setCellValue('M' . $fila, (string)($p['tipo_venta'] ?? ''));
+        $sheet->setCellValue('N' . $fila, fmt_fecha((string)($p['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
         $fila++;
     }
-    foreach (range('A', 'M') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+    foreach (range('A', 'N') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -205,11 +206,11 @@ panel_header('Reporte por productos', $user, 'reportes', 'Un ítem físico por f
       <table class="table table-hover mb-0">
         <thead><tr>
           <th>Lote</th><th>Nº orden</th><th>Categoría</th><th>Código</th><th>Descripción</th><th>Dimensiones</th>
-          <th>m³</th><th>Ítem</th><th>Estado</th><th>Destino</th><th>F. ingreso</th>
+          <th>m³</th><th>Ítem</th><th>Estado</th><th>Provincia</th><th>Localidad</th><th>F. ingreso</th>
         </tr></thead>
         <tbody>
         <?php if ($rows === []): ?>
-          <tr><td colspan="11" class="text-muted" style="text-align:center;padding:1.5rem">No hay productos para los filtros seleccionados.</td></tr>
+          <tr><td colspan="12" class="text-muted" style="text-align:center;padding:1.5rem">No hay productos para los filtros seleccionados.</td></tr>
         <?php else: foreach ($rows as $p): ?>
           <tr>
             <td class="mono" style="font-size:12px;color:var(--muted)"><?= h(prod_lote($p)) ?></td>
@@ -221,7 +222,8 @@ panel_header('Reporte por productos', $user, 'reportes', 'Un ítem físico por f
             <td><?= $p['m3'] !== null ? number_format((float)$p['m3'], 3, ',', '.') : '—' ?></td>
             <td style="color:var(--muted)"><?= (int)$p['secuencia'] ?></td>
             <td><?= estado_badge(prod_estado($p)) ?></td>
-            <td style="font-size:13px"><?= h(prod_destino($p)) ?></td>
+            <td style="font-size:13px"><?= h((string)($p['dest_provincia'] ?? '') !== '' ? (string)$p['dest_provincia'] : '—') ?></td>
+            <td style="font-size:13px"><?= h((string)($p['dest_localidad'] ?? '') !== '' ? (string)$p['dest_localidad'] : '—') ?></td>
             <td style="color:var(--muted)"><?= h(fmt_fecha((string)($p['fecha_ingreso'] ?? ''), 'd/m/Y H:i')) ?></td>
           </tr>
         <?php endforeach; endif; ?>

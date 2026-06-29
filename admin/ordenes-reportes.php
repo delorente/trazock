@@ -59,10 +59,10 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     $sheet->setTitle('Órdenes');
 
     $encabezados = ['Lote', 'Nº orden', 'Categoría', 'Nº remito', 'Hoja ruta', 'Transportista', 'F. carga',
-                    'F. remito', 'Tipo', 'Cliente', 'Teléfono', 'Destino',
+                    'F. remito', 'Tipo', 'Cliente', 'Teléfono', 'Provincia', 'Localidad',
                     'm³', 'Valor declarado', 'Ítems', 'Estado', 'F. ingreso'];
     $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:Q1')->getFont()->setBold(true);
+    $sheet->getStyle('A1:R1')->getFont()->setBold(true);
 
     $fila = 2;
     foreach ($rows as $o) {
@@ -77,15 +77,16 @@ if (($_GET['export'] ?? '') === 'xlsx') {
         $sheet->setCellValue('I' . $fila, (string)($o['tipo_venta'] ?? ''));
         $sheet->setCellValue('J' . $fila, (string)($o['cliente'] ?? ''));
         $sheet->setCellValueExplicit('K' . $fila, (string)($o['telefonos'] ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-        $sheet->setCellValue('L' . $fila, rep_destino($o));
-        $sheet->setCellValue('M' . $fila, (float)($o['m3_total'] ?? 0));
-        $sheet->setCellValue('N' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
-        $sheet->setCellValue('O' . $fila, (int)($o['cant_items'] ?? 0));
-        $sheet->setCellValue('P' . $fila, (string)($o['estado'] ?? ''));
-        $sheet->setCellValue('Q' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
+        $sheet->setCellValue('L' . $fila, trim((string)($o['dest_provincia'] ?? '')));
+        $sheet->setCellValue('M' . $fila, trim((string)($o['dest_localidad'] ?? '')));
+        $sheet->setCellValue('N' . $fila, (float)($o['m3_total'] ?? 0));
+        $sheet->setCellValue('O' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
+        $sheet->setCellValue('P' . $fila, (int)($o['cant_items'] ?? 0));
+        $sheet->setCellValue('Q' . $fila, (string)($o['estado'] ?? ''));
+        $sheet->setCellValue('R' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
         $fila++;
     }
-    foreach (range('A', 'Q') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+    foreach (range('A', 'R') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -286,13 +287,13 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
         <thead><tr>
           <?php if ($puedeMarcar): ?><th class="no-print" style="width:30px"><input type="checkbox" id="waChkAll" title="Seleccionar todas" class="form-check-input"></th><?php endif; ?>
           <th style="width:58px">Marca</th>
-          <th>Lote</th><th>Nº orden</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Destino</th><th>Teléfono</th><th>m³</th>
+          <th>Lote</th><th>Nº orden</th><th>Cliente</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Provincia</th><th>Localidad</th><th>Teléfono</th><th>m³</th>
           <th>Tipo</th><th>F. remito</th><th>Nº remito</th><th>Hoja ruta</th><th>Transportista</th><th>F. carga</th><th>F. ingreso</th>
           <th>Estado</th><th class="no-print"></th>
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-          <tr><td colspan="<?= $puedeMarcar ? 18 : 17 ?>" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
+          <tr><td colspan="<?= $puedeMarcar ? 20 : 19 ?>" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
         <?php else: foreach ($ordenes as $o):
             $tv = (string)($o['tipo_venta'] ?? '');
         ?>
@@ -310,9 +311,11 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
             </td>
             <td class="mono" style="font-size:12px;color:var(--muted)"><?= h(rep_lote($o)) ?></td>
             <td class="mono" style="font-size:12px"><?= h((string)$o['nro_orden']) ?></td>
+            <td style="font-size:13px"><?= h((string)($o['cliente'] ?? '') !== '' ? (string)$o['cliente'] : '—') ?></td>
             <td style="font-size:13px"><?= h((string)($o['categoria'] ?? '—')) ?></td>
             <td style="text-align:center"><?= (int)($o['cant_items'] ?? 0) ?></td>
-            <td style="font-size:13px"><?= h(rep_destino($o)) ?></td>
+            <td style="font-size:13px"><?= h((string)($o['dest_provincia'] ?? '') !== '' ? (string)$o['dest_provincia'] : '—') ?></td>
+            <td style="font-size:13px"><?= h((string)($o['dest_localidad'] ?? '') !== '' ? (string)$o['dest_localidad'] : '—') ?></td>
             <td style="font-size:12px;color:var(--muted)">
               <?= h((string)($o['telefonos'] ?? '') !== '' ? (string)$o['telefonos'] : '—') ?>
               <?php if ((string)($o['telefono_wa'] ?? '') === ''): ?><i class="bi bi-whatsapp text-danger" title="Sin teléfono apto para WhatsApp"></i><?php endif; ?>
