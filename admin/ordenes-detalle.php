@@ -92,10 +92,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($fCarga !== '' && $fCarga > date('Y-m-d')) {
             flash_set('danger', 'La fecha de carga no puede ser posterior a hoy.');
         } else {
+            $telefonos = trim((string)($_POST['telefonos'] ?? ''));
+            // Teléfono WhatsApp: si lo dejan vacío, se re-deriva del literal; si lo
+            // escriben a mano, se respeta tal cual (corrección manual).
+            $telWaIn = trim((string)($_POST['telefono_wa'] ?? ''));
+            $telefonoWa = $telWaIn !== '' ? $telWaIn : (tel_e164($telefonos) ?? '');
             Orden::actualizarDatos($oid, [
                 'cliente'          => trim((string)($_POST['cliente'] ?? '')),
                 'cliente_apellido' => trim((string)($_POST['cliente_apellido'] ?? '')),
-                'telefonos'        => trim((string)($_POST['telefonos'] ?? '')),
+                'telefonos'        => $telefonos,
+                'telefono_wa'      => $telefonoWa,
                 'tipo_venta'       => in_array($tvIn, ['online', 'local'], true) ? $tvIn : null,
                 'transportista_id' => $transpId > 0 ? $transpId : '',
                 'fecha_carga'      => $fCarga,
@@ -212,6 +218,7 @@ $campo = static function (string $label, string $valor): void {
       $campo('Fecha de carga', ($orden['fecha_carga'] ?? '') ? date('d/m/Y', strtotime((string)$orden['fecha_carga'])) : '');
       $campo('Cliente', (string)($orden['cliente'] ?? ''));
       $campo('Teléfonos', (string)($orden['telefonos'] ?? ''));
+      $campo('WhatsApp', (string)($orden['telefono_wa'] ?? '') !== '' ? (string)$orden['telefono_wa'] : '— (no apto)');
       $campo('Destino', $destino);
       $campo('Domicilio', (string)($orden['dest_domicilio'] ?? ''));
       $campo('Fecha remito', ($orden['fecha_remito'] ?? '') ? date('d/m/Y', strtotime((string)$orden['fecha_remito'])) : '');
@@ -365,6 +372,13 @@ $campo = static function (string $label, string $valor): void {
           <div class="col-md-6"><label class="form-label">Cliente</label><input class="form-control form-control-sm" name="cliente" value="<?= h((string)($orden['cliente'] ?? '')) ?>"></div>
           <div class="col-md-3"><label class="form-label">Apellido</label><input class="form-control form-control-sm" name="cliente_apellido" value="<?= h((string)($orden['cliente_apellido'] ?? '')) ?>"></div>
           <div class="col-md-3"><label class="form-label">Teléfonos</label><input class="form-control form-control-sm" name="telefonos" value="<?= h((string)($orden['telefonos'] ?? '')) ?>"></div>
+          <?php $telWa = (string)($orden['telefono_wa'] ?? ''); ?>
+          <div class="col-md-3">
+            <label class="form-label">WhatsApp <i class="bi bi-whatsapp text-success"></i></label>
+            <input class="form-control form-control-sm <?= $telWa === '' ? 'is-invalid' : '' ?>" name="telefono_wa" value="<?= h($telWa) ?>" placeholder="vacío = auto del literal">
+            <?php if ($telWa === ''): ?><div class="form-text text-danger" style="font-size:11px">No apto para WhatsApp: revisá el teléfono. Vacío al guardar = se re-deriva.</div>
+            <?php else: ?><div class="form-text" style="font-size:11px">Formato E.164 (549…). Vacío al guardar = se re-deriva del literal.</div><?php endif; ?>
+          </div>
           <div class="col-md-4"><label class="form-label">Provincia</label><input class="form-control form-control-sm" name="dest_provincia" value="<?= h((string)($orden['dest_provincia'] ?? '')) ?>"></div>
           <div class="col-md-4"><label class="form-label">Localidad</label><input class="form-control form-control-sm" name="dest_localidad" value="<?= h((string)($orden['dest_localidad'] ?? '')) ?>"></div>
           <div class="col-md-2"><label class="form-label">CP</label><input class="form-control form-control-sm" name="dest_cp" value="<?= h((string)($orden['dest_cp'] ?? '')) ?>"></div>

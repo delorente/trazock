@@ -359,6 +359,7 @@ CREATE TABLE IF NOT EXISTS `ordenes` (
     `cliente`          VARCHAR(150)    NOT NULL,
     `cliente_apellido` VARCHAR(100)    DEFAULT NULL,
     `telefonos`        VARCHAR(120)    DEFAULT NULL,
+    `telefono_wa`      VARCHAR(20)     DEFAULT NULL,
     `dest_provincia`   VARCHAR(80)     DEFAULT NULL,
     `dest_localidad`   VARCHAR(120)    DEFAULT NULL,
     `dest_domicilio`   VARCHAR(200)    DEFAULT NULL,
@@ -726,3 +727,4 @@ CREATE TABLE IF NOT EXISTS `confirmaciones_entrega` (
 -- =============================================================================
 -- END: 027_confirmaciones_entrega.sql
 -- =============================================================================
+-- (028 agrega ordenes.telefono_wa — ya incluido en la tabla `ordenes` de arriba.)

@@ -24,7 +24,7 @@ final class Orden
     private const CAMPOS = [
         'carga_id', 'nro_orden', 'nro_remito', 'hoja_ruta', 'transportista_id', 'fecha_carga',
         'fecha_remito', 'tipo_venta',
-        'cliente', 'cliente_apellido', 'telefonos',
+        'cliente', 'cliente_apellido', 'telefonos', 'telefono_wa',
         'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
         'valor_declarado', 'observaciones', 'marca', 'm3_total', 'estado',
     ];
@@ -59,7 +59,7 @@ final class Orden
     private const EDITABLES = [
         'nro_remito', 'hoja_ruta', 'transportista_id', 'fecha_carga', 'fecha_remito', 'tipo_venta',
         'cliente', 'cliente_apellido',
-        'telefonos', 'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
+        'telefonos', 'telefono_wa', 'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
         'valor_declarado', 'observaciones', 'marca',
     ];
 
@@ -577,7 +577,7 @@ final class Orden
 
         $sql = 'SELECT o.id, o.carga_id, o.nro_orden, o.nro_remito, o.fecha_remito, o.tipo_venta,
                        o.hoja_ruta, o.transportista_id, o.fecha_carga,
-                       o.cliente, o.telefonos, o.dest_provincia, o.dest_localidad, o.m3_total,
+                       o.cliente, o.telefonos, o.telefono_wa, o.dest_provincia, o.dest_localidad, o.m3_total,
                        o.valor_declarado, o.observaciones, o.marca, o.estado, o.created_at AS fecha_ingreso,
                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items,
                        (SELECT u.nombre_completo FROM usuarios u WHERE u.id = o.transportista_id) AS transportista_nombre,

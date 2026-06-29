@@ -95,7 +95,14 @@ foreach ($ids as $id) {
         continue;
     }
     $nro = (string)$orden['nro_orden'];
-    $tel = tel_e164((string)($orden['telefonos'] ?? ''));
+    // Preferimos el teléfono ya normalizado (telefono_wa); respaldo: derivar del literal.
+    $tel = trim((string)($orden['telefono_wa'] ?? ''));
+    if ($tel === '') {
+        $tel = tel_e164((string)($orden['telefonos'] ?? ''));
+    }
+    if ($tel === null || $tel === '') {
+        $tel = null;
+    }
     if ($tel === null) {
         ConfirmacionEntrega::registrarEnviado($id, $fecha, $horario, null, null, 'Teléfono inválido o ausente', (int)$user['id']);
         $detalle[] = ['id' => $id, 'nro_orden' => $nro, 'ok' => false, 'error' => 'Teléfono inválido o ausente'];

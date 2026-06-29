@@ -69,6 +69,9 @@ final class ProcesadorCarga
 
                 $cliente  = trim((string)($o['cliente'] ?? ''));
                 $apellido = trim((string)($o['cliente_apellido'] ?? '')) ?: self::apellidoDe($cliente);
+                // Teléfono normalizado para WhatsApp (E.164), derivado del literal del OCR.
+                $telefonos  = self::s($o['telefonos'] ?? null);
+                $telefonoWa = $telefonos !== null ? tel_e164($telefonos) : null;
 
                 $ordenId = Orden::crear([
                     'carga_id'        => $cargaId,
@@ -81,7 +84,8 @@ final class ProcesadorCarga
                     'tipo_venta'      => self::s($o['tipo_venta'] ?? null),
                     'cliente'         => $cliente,
                     'cliente_apellido'=> $apellido,
-                    'telefonos'       => self::s($o['telefonos'] ?? null),
+                    'telefonos'       => $telefonos,
+                    'telefono_wa'     => $telefonoWa,
                     'dest_provincia'  => self::s($o['dest_provincia'] ?? null),
                     'dest_localidad'  => self::s($o['dest_localidad'] ?? null),
                     'dest_domicilio'  => self::s($o['dest_domicilio'] ?? null),

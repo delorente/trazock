@@ -313,7 +313,10 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
             <td style="font-size:13px"><?= h((string)($o['categoria'] ?? '—')) ?></td>
             <td style="text-align:center"><?= (int)($o['cant_items'] ?? 0) ?></td>
             <td style="font-size:13px"><?= h(rep_destino($o)) ?></td>
-            <td style="font-size:12px;color:var(--muted)"><?= h((string)($o['telefonos'] ?? '') !== '' ? (string)$o['telefonos'] : '—') ?></td>
+            <td style="font-size:12px;color:var(--muted)">
+              <?= h((string)($o['telefonos'] ?? '') !== '' ? (string)$o['telefonos'] : '—') ?>
+              <?php if ((string)($o['telefono_wa'] ?? '') === ''): ?><i class="bi bi-whatsapp text-danger" title="Sin teléfono apto para WhatsApp"></i><?php endif; ?>
+            </td>
             <td><?= number_format((float)($o['m3_total'] ?? 0), 2, ',', '.') ?></td>
             <td><?php if ($tv !== ''): ?><span class="badge b-<?= h(strtoupper($tv)) ?>"><?= h(ucfirst($tv)) ?></span><?php else: ?>—<?php endif; ?></td>
             <td style="color:var(--muted)"><?= h(($o['fecha_remito'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_remito'])) : '—') ?></td>
