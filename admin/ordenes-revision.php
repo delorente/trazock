@@ -12,6 +12,7 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\Models\Carga;
+use Trazock\Models\Destino;
 
 $user = Auth::requierePanel(['admin', 'logistica']);
 $csrf = Auth::tokenCSRF();
@@ -76,7 +77,12 @@ const TZ = {
   confirmacion: <?= json_encode(url('admin/ordenes-confirmacion.php')) ?>,
 };
 let ORD = <?= json_encode($ordenes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+// Provincias conocidas (zonas de reparto + historial) para avisar destinos raros.
+const PROV_OK = new Set(<?= json_encode(array_keys(Destino::provinciasConocidas()), JSON_UNESCAPED_UNICODE) ?>);
 const expandido = new Set();
+
+function normProv(s){ s=String(s||'').toLowerCase(); const m={'á':'a','à':'a','ä':'a','â':'a','ã':'a','é':'e','è':'e','ë':'e','ê':'e','í':'i','ì':'i','ï':'i','î':'i','ó':'o','ò':'o','ö':'o','ô':'o','õ':'o','ú':'u','ù':'u','ü':'u','û':'u','ñ':'n'}; s=s.replace(/[áàäâãéèëêíìïîóòöôõúùüûñ]/g,c=>m[c]||c); return s.replace(/\s+/g,' ').trim(); }
+function provSospechosa(p){ const v = String(p||'').trim(); return v !== '' && !PROV_OK.has(normProv(v)); }
 
 function num(v){ const n = parseFloat(String(v).replace(',','.')); return isFinite(n) ? n : 0; }
 function m3DeOrden(o){ return (o.items||[]).reduce((s,it)=> s + num(it.m3), 0); }
@@ -95,6 +101,7 @@ function render(){
     const errOrden = !String(o.nro_orden||'').trim();
     const errHR    = !String(o.hoja_ruta||'').trim();
     const warnDest = !String(o.dest_provincia||'').trim();
+    const provRara = provSospechosa(o.dest_provincia);
     const sinItems = (o.items||[]).length === 0;
 
     const tr = document.createElement('tr');
@@ -107,7 +114,7 @@ function render(){
       <td>${inp(i,'hoja_ruta',o.hoja_ruta||'', errHR?'cell-err':'')}</td>
       <td>${inp(i,'cliente',o.cliente||'')}</td>
       <td>${inp(i,'telefonos',o.telefonos||'')}</td>
-      <td><div class="d-flex flex-column gap-1">${inp(i,'dest_localidad',o.dest_localidad||'')}${inp(i,'dest_provincia',o.dest_provincia||'', warnDest?'cell-warn':'')}</div></td>
+      <td><div class="d-flex flex-column gap-1">${inp(i,'dest_localidad',o.dest_localidad||'')}${inp(i,'dest_provincia',o.dest_provincia||'', (warnDest||provRara)?'cell-warn':'')}${provRara?'<div class="text-warning" style="font-size:11px;line-height:1.2"><i class="bi bi-exclamation-triangle-fill me-1"></i>¿Vas a esta provincia? No está en tus zonas ni en envíos anteriores</div>':''}</div></td>
       <td><select class="cell-edit" data-i="${i}" data-f="tipo_venta">
           <option value="" ${tv===''?'selected':''}>—</option>
           <option value="online" ${tv==='online'?'selected':''}>Online</option>
@@ -141,11 +148,12 @@ function render(){
 }
 
 function resumen(){
-  let ord=ORD.length, items=0, m3=0, valor=0, sinOrden=0, sinHR=0;
+  let ord=ORD.length, items=0, m3=0, valor=0, sinOrden=0, sinHR=0, provRaras=0;
   ORD.forEach(o => {
     items += itemsDeOrden(o); m3 += m3DeOrden(o); valor += num(o.valor_declarado);
     if (!String(o.nro_orden||'').trim()) sinOrden++;
     if (!String(o.hoja_ruta||'').trim()) sinHR++;
+    if (provSospechosa(o.dest_provincia)) provRaras++;
   });
   const errs = sinOrden + sinHR;
   document.getElementById('sb-ord').textContent = ord;
@@ -155,9 +163,12 @@ function resumen(){
   const avisos = [];
   if (sinOrden) avisos.push(`${sinOrden} sin Nº de orden`);
   if (sinHR)    avisos.push(`${sinHR} sin hoja de ruta`);
+  const avisoRaras = provRaras
+    ? `<span style="color:#fbbf24"><i class="bi bi-geo-alt-fill me-1"></i>${provRaras} con destino fuera de tus zonas — revisá contra el remito</span>`
+    : '';
   document.getElementById('sb-alert').innerHTML = errs
-    ? `<i class="bi bi-exclamation-triangle-fill me-1"></i>${avisos.join(' · ')}`
-    : `<span style="color:#4ade80"><i class="bi bi-check-circle me-1"></i>Sin errores bloqueantes</span>`;
+    ? `<i class="bi bi-exclamation-triangle-fill me-1"></i>${avisos.join(' · ')}${avisoRaras ? ' · ' + avisoRaras : ''}`
+    : (avisoRaras || `<span style="color:#4ade80"><i class="bi bi-check-circle me-1"></i>Sin errores bloqueantes</span>`);
 
   const cta = document.getElementById('cta');
   cta.innerHTML = `<button class="btn btn-success fw-bold" id="btnConfirmar" ${errs?'disabled':''}>

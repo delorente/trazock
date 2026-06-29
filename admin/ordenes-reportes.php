@@ -15,6 +15,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Trazock\Auth;
 use Trazock\Models\Carga;
 use Trazock\Models\Categoria;
+use Trazock\Models\Destino;
 use Trazock\Models\Orden;
 use Trazock\Models\Zona;
 
@@ -184,6 +185,14 @@ $transportistas = Orden::transportistasUsados();
 $csrf        = Auth::tokenCSRF();
 $paginas     = (int)max(1, ceil($total / $porPagina));
 
+// Destinos sospechosos (fuera de zonas + sin historial): aviso antes de exportar/avisar.
+$conocidasProv = Destino::provinciasConocidas();
+$provSospechosas = [];
+foreach (Orden::conteoPorProvincia($filtros) as $prov => $n) {
+    if ($prov === '(sin provincia)') { continue; }
+    if (Destino::esSospechosa($prov, $conocidasProv)) { $provSospechosas[$prov] = $n; }
+}
+
 // Query string de los filtros (para paginación y export, sin 'pagina').
 // Se descartan vacíos y arrays vacíos; http_build_query serializa los arrays (carga[]=…).
 $qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== '' && $v !== []));
@@ -279,6 +288,16 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
   <div style="margin-left:auto;font-size:12px;color:var(--muted)">Actualizado <?= h(fmt_fecha(date('Y-m-d H:i:s'), 'd/m/Y · H:i')) ?></div>
 </div>
 
+<?php if ($provSospechosas !== []):
+  $partes = [];
+  foreach ($provSospechosas as $p => $n) { $partes[] = h($p) . ' (' . $n . ')'; }
+?>
+<div class="alert alert-warning no-print d-flex align-items-start gap-2" role="alert" style="font-size:13px">
+  <i class="bi bi-geo-alt-fill mt-1"></i>
+  <div><strong><?= array_sum($provSospechosas) ?> orden(es)</strong> con destino fuera de tus zonas de reparto y sin historial: <?= implode(', ', $partes) ?>. Revisá que no sea un error de carga antes de exportar facturación o avisar a los clientes.</div>
+</div>
+<?php endif; ?>
+
 <div class="print-area">
   <div class="rep-print-title" style="display:none">Reportes de órdenes — <?= (int)$total ?> órdenes · <?= number_format($totales['m3'], 2, ',', '.') ?> m³</div>
   <div class="card">
@@ -314,7 +333,7 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
             <td style="font-size:13px"><?= h((string)($o['cliente'] ?? '') !== '' ? (string)$o['cliente'] : '—') ?></td>
             <td style="font-size:13px"><?= h((string)($o['categoria'] ?? '—')) ?></td>
             <td style="text-align:center"><?= (int)($o['cant_items'] ?? 0) ?></td>
-            <td style="font-size:13px"><?= h((string)($o['dest_provincia'] ?? '') !== '' ? (string)$o['dest_provincia'] : '—') ?></td>
+            <td style="font-size:13px"><?= h((string)($o['dest_provincia'] ?? '') !== '' ? (string)$o['dest_provincia'] : '—') ?><?php if (Destino::esSospechosa((string)($o['dest_provincia'] ?? ''), $conocidasProv)): ?> <i class="bi bi-exclamation-triangle-fill text-warning" title="Destino fuera de tus zonas/envíos habituales — revisá"></i><?php endif; ?></td>
             <td style="font-size:13px"><?= h((string)($o['dest_localidad'] ?? '') !== '' ? (string)$o['dest_localidad'] : '—') ?></td>
             <td style="font-size:12px;color:var(--muted)">
               <?= h((string)($o['telefonos'] ?? '') !== '' ? (string)$o['telefonos'] : '—') ?>

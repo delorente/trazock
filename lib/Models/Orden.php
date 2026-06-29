@@ -900,6 +900,30 @@ final class Orden
         return array_map(static fn($r) => ['id' => (int)$r['id'], 'nombre' => (string)$r['nombre_completo']], $rows);
     }
 
+    /**
+     * Cantidad de órdenes por provincia de destino en el set filtrado (para el
+     * banner de "destino sospechoso" en Reportes). Clave = provincia (o
+     * '(sin provincia)'), valor = cantidad. Ordenado de mayor a menor.
+     *
+     * @param array<string, mixed> $filtros
+     * @return array<string, int>
+     */
+    public static function conteoPorProvincia(array $filtros): array
+    {
+        [$where, $params] = self::whereFiltros($filtros);
+        $stmt = DB::getInstance()->prepare(
+            "SELECT COALESCE(NULLIF(o.dest_provincia, ''), '(sin provincia)') AS prov, COUNT(*) AS n
+               FROM ordenes o" . $where . '
+              GROUP BY prov ORDER BY n DESC'
+        );
+        $stmt->execute($params);
+        $out = [];
+        foreach ($stmt->fetchAll() as $r) {
+            $out[(string)$r['prov']] = (int)$r['n'];
+        }
+        return $out;
+    }
+
     /** Fija (o limpia con null) la marca operativa de una orden. */
     public static function setMarca(int $id, ?string $marca): void
     {
