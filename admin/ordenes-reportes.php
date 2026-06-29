@@ -196,6 +196,15 @@ foreach (Orden::conteoPorProvincia($filtros) as $prov => $n) {
 // Query string de los filtros (para paginación y export, sin 'pagina').
 // Se descartan vacíos y arrays vacíos; http_build_query serializa los arrays (carga[]=…).
 $qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== '' && $v !== []));
+// Querystring de retorno (incluye la página) para volver desde el detalle con el filtro intacto.
+$volverQS = ($qsBase !== '' ? $qsBase . '&' : '') . 'pagina=' . $pagina;
+// Link del banner: filtra el reporte a las provincias sospechosas, conservando el resto de filtros.
+$bannerUrl = '';
+if ($provSospechosas !== []) {
+    $bannerFiltros = $filtros;
+    $bannerFiltros['provincia'] = array_keys($provSospechosas);
+    $bannerUrl = url('admin/ordenes-reportes.php') . '?' . http_build_query(array_filter($bannerFiltros, static fn($v) => $v !== '' && $v !== []));
+}
 
 $acciones =
     ($puedeMarcar
@@ -292,10 +301,10 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
   $partes = [];
   foreach ($provSospechosas as $p => $n) { $partes[] = h($p) . ' (' . $n . ')'; }
 ?>
-<div class="alert alert-warning no-print d-flex align-items-start gap-2" role="alert" style="font-size:13px">
+<a href="<?= h($bannerUrl) ?>" class="alert alert-warning no-print d-flex align-items-start gap-2 text-decoration-none" role="alert" style="font-size:13px" title="Ver solo estas órdenes">
   <i class="bi bi-geo-alt-fill mt-1"></i>
-  <div><strong><?= array_sum($provSospechosas) ?> orden(es)</strong> con destino fuera de tus zonas de reparto y sin historial: <?= implode(', ', $partes) ?>. Revisá que no sea un error de carga antes de exportar facturación o avisar a los clientes.</div>
-</div>
+  <div><strong><?= array_sum($provSospechosas) ?> orden(es)</strong> con destino fuera de tus zonas de reparto y sin historial: <?= implode(', ', $partes) ?>. Revisá que no sea un error de carga antes de exportar facturación o avisar a los clientes. <strong><i class="bi bi-funnel-fill me-1"></i>Clic para filtrar estas órdenes.</strong></div>
+</a>
 <?php endif; ?>
 
 <div class="print-area">
@@ -348,7 +357,7 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
             <td style="color:var(--muted)"><?= h(($o['fecha_carga'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_carga'])) : '—') ?></td>
             <td style="color:var(--muted)"><?= h(fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i')) ?></td>
             <td><?= estado_badge((string)($o['estado'] ?? '')) ?></td>
-            <td class="no-print"><a class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px" href="<?= h(url('admin/ordenes-detalle.php') . '?id=' . (int)$o['id']) ?>">Ver</a></td>
+            <td class="no-print"><a class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px" href="<?= h(url('admin/ordenes-detalle.php') . '?id=' . (int)$o['id'] . '&vol=' . rawurlencode($volverQS)) ?>">Ver</a></td>
           </tr>
         <?php endforeach; endif; ?>
         </tbody>

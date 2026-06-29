@@ -20,11 +20,17 @@ use Trazock\Models\Usuario;
 $user    = Auth::requierePanel(['admin', 'gestor', 'logistica']); // gestor = Supervisor (solo lectura)
 $puedeEditar = in_array($user['rol'], ['admin', 'logistica'], true); // gestor = solo lectura
 
+// Querystring de Reportes para volver con el filtro intacto. Llega como ?vol=… en
+// la URL (también en el action de los forms, así viaja en el POST). Siempre se
+// reusa anteponiendo la URL fija de Reportes → no hay open-redirect.
+$vol = trim((string)($_GET['vol'] ?? $_POST['vol'] ?? ''));
+$reporteVolverUrl = url('admin/ordenes-reportes.php') . ($vol !== '' ? '?' . $vol : '');
+
 // --- POST: editar / agregar ítem / quitar ítem / eliminar (PRG + CSRF) -------
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $oid    = (int)($_POST['id'] ?? 0);
     $accion = (string)($_POST['accion'] ?? 'guardar');
-    $volverA = url('admin/ordenes-detalle.php') . '?id=' . $oid;
+    $volverA = url('admin/ordenes-detalle.php') . '?id=' . $oid . ($vol !== '' ? '&vol=' . urlencode($vol) : '');
 
     if (!$puedeEditar) {
         flash_set('danger', 'No tenés permiso para modificar órdenes.');
@@ -58,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $res = Orden::eliminar($oid);
         if ($res === 'ok') {
             flash_set('success', 'Orden eliminada.');
-            header('Location: ' . url('admin/ordenes-reportes.php'));
+            header('Location: ' . $reporteVolverUrl);
             exit;
         }
         flash_set($res === 'despachada' ? 'warning' : 'danger',
@@ -127,7 +133,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $id    = (int)($_GET['id'] ?? 0);
 $orden = $id > 0 ? Orden::find($id) : null;
 
-$volver = '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-reportes.php')) . '"><i class="bi bi-arrow-left me-1"></i>Reportes</a>';
+// URL de los forms (conserva id + vol para que el filtro viaje en el POST).
+$selfUrl = url('admin/ordenes-detalle.php') . '?id=' . $id . ($vol !== '' ? '&vol=' . urlencode($vol) : '');
+
+$volver = '<a class="btn btn-sm btn-outline-secondary" href="' . h($reporteVolverUrl) . '"><i class="bi bi-arrow-left me-1"></i>Reportes</a>';
 
 if ($orden === null) {
     panel_header('Detalle de orden', $user, 'reportes', '', $volver);
@@ -278,7 +287,7 @@ $campo = static function (string $label, string $valor): void {
             <?php if ($puedeEditar): ?>
             <td style="text-align:right">
               <?php if ((string)($it['estado_actual'] ?? '') === 'INGRESADO'): ?>
-              <form method="post" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>" style="display:inline" onsubmit="return confirm('¿Quitar este ítem de la orden? Se borra el producto y su etiqueta.')">
+              <form method="post" action="<?= h($selfUrl) ?>" style="display:inline" onsubmit="return confirm('¿Quitar este ítem de la orden? Se borra el producto y su etiqueta.')">
                 <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
                 <input type="hidden" name="id" value="<?= $id ?>">
                 <input type="hidden" name="accion" value="quitar_item">
@@ -355,7 +364,7 @@ $campo = static function (string $label, string $valor): void {
 <!-- Modal: editar datos de la orden -->
 <div class="modal fade" id="modalEditar" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <form method="post" class="modal-content" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>">
+    <form method="post" class="modal-content" action="<?= h($selfUrl) ?>">
       <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
       <input type="hidden" name="id" value="<?= $id ?>">
       <input type="hidden" name="accion" value="guardar">
@@ -421,7 +430,7 @@ $campo = static function (string $label, string $valor): void {
 <!-- Modal: agregar ítem a la orden -->
 <div class="modal fade" id="modalAgregarItem" tabindex="-1">
   <div class="modal-dialog">
-    <form method="post" class="modal-content" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>">
+    <form method="post" class="modal-content" action="<?= h($selfUrl) ?>">
       <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
       <input type="hidden" name="id" value="<?= $id ?>">
       <input type="hidden" name="accion" value="agregar_item">
@@ -449,7 +458,7 @@ $campo = static function (string $label, string $valor): void {
 <!-- Modal: corregir estado de la orden -->
 <div class="modal fade" id="modalCorregirEstado" tabindex="-1">
   <div class="modal-dialog">
-    <form method="post" class="modal-content" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>">
+    <form method="post" class="modal-content" action="<?= h($selfUrl) ?>">
       <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
       <input type="hidden" name="id" value="<?= $id ?>">
       <input type="hidden" name="accion" value="corregir_estado">
@@ -484,7 +493,7 @@ $campo = static function (string $label, string $valor): void {
 <!-- Modal: eliminar orden -->
 <div class="modal fade" id="modalEliminar" tabindex="-1">
   <div class="modal-dialog">
-    <form method="post" class="modal-content" action="<?= h(url('admin/ordenes-detalle.php') . '?id=' . $id) ?>">
+    <form method="post" class="modal-content" action="<?= h($selfUrl) ?>">
       <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
       <input type="hidden" name="id" value="<?= $id ?>">
       <input type="hidden" name="accion" value="eliminar_orden">
