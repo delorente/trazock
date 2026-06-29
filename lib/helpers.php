@@ -202,8 +202,9 @@ if (!function_exists('tel_e164')) {
         if ($raw === '') {
             return null;
         }
-        // Primer número de la lista (corta en separadores de "varios teléfonos").
-        $primero = preg_split('/[\/;,]| o | y /iu', $raw)[0] ?? $raw;
+        // Primer número de la lista (corta en separadores de "varios teléfonos":
+        // / ; , * o el texto " o "/" y ").
+        $primero = preg_split('/[\/;,*]| o | y /iu', $raw)[0] ?? $raw;
         $d = preg_replace('/\D+/', '', $primero) ?? '';
         if ($d === '') {
             return null;
