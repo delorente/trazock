@@ -184,6 +184,47 @@ if (!function_exists('seguimiento_orden_url')) {
     }
 }
 
+if (!function_exists('tel_e164')) {
+    /**
+     * Normaliza un teléfono argentino a E.164 (sin el '+'), apto para WhatsApp.
+     * `ordenes.telefonos` es texto libre y puede traer varios números, prefijos
+     * 0/15, paréntesis, guiones, etc. Tomamos el PRIMER número y lo llevamos a
+     * 549 + área + abonado. Best-effort: devuelve null si no parece un móvil
+     * argentino plausible (se podrá corregir a mano).
+     *
+     *   "11 4567-8900"        → 5491145678900
+     *   "0381 15 555-1234"    → 5493815551234
+     *   "+54 9 11 4567 8900"  → 5491145678900
+     */
+    function tel_e164(?string $raw): ?string
+    {
+        $raw = trim((string)$raw);
+        if ($raw === '') {
+            return null;
+        }
+        // Primer número de la lista (corta en separadores de "varios teléfonos").
+        $primero = preg_split('/[\/;,]| o | y /iu', $raw)[0] ?? $raw;
+        $d = preg_replace('/\D+/', '', $primero) ?? '';
+        if ($d === '') {
+            return null;
+        }
+        // Pelamos, en orden, los prefijos que NO forman parte del área+abonado:
+        //   00 internacional · 54 país · 9 móvil · 0 larga distancia.
+        $d = preg_replace('/^00/', '', $d);
+        $d = preg_replace('/^54/', '', $d);  // país
+        $d = preg_replace('/^9/',  '', $d);  // 9 de móvil (no hay áreas que empiecen en 9)
+        $d = preg_replace('/^0/',  '', $d);  // 0 de larga distancia
+        // Sacar el "15" de móvil intercalado tras el código de área (2-4 dígitos).
+        // El abonado nacional (área + número) siempre suma 10 dígitos; con el 15 son 12.
+        $d = preg_replace('/^(\d{2,4})15(\d{6,8})$/', '$1$2', $d, 1) ?? $d;
+
+        if (strlen($d) !== 10) {
+            return null; // área + abonado debe ser 10 dígitos
+        }
+        return '549' . $d;
+    }
+}
+
 if (!function_exists('filtro_multi_valores')) {
     /**
      * Normaliza un filtro multi-valor de $_GET (name="campo[]") a array de strings

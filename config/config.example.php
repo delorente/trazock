@@ -98,6 +98,36 @@ define('ANTHROPIC_MODEL', 'claude-sonnet-4-6');
 // define('ANTHROPIC_CA_BUNDLE', 'C:/wamp64/cacert.pem');
 
 // =============================================================================
+// WhatsApp Business Cloud API (Meta) — aviso de entrega al cliente final
+// =============================================================================
+// Avisa al comprador antes de la entrega con la fecha/horario y dos botones
+// (Confirmar / Reprogramar). Requiere una app de WhatsApp Cloud API en Meta con
+// una plantilla aprobada. Ver docs/WHATSAPP.md para el trámite completo. Mientras
+// estos valores estén vacíos, el panel muestra un aviso y NO intenta enviar.
+
+// Token permanente (System User) de la app de WhatsApp. NUNCA commitear el real.
+define('WA_TOKEN', '');
+
+// ID del número emisor (Phone Number ID, NO el número en sí).
+define('WA_PHONE_NUMBER_ID', '');
+
+// Nombre EXACTO de la plantilla aprobada (con 2 botones quick-reply).
+define('WA_TEMPLATE', 'aviso_entrega');
+
+// Código de idioma de la plantilla (debe coincidir con el aprobado en Meta).
+define('WA_LANG', 'es_AR');
+
+// Versión de Graph API.
+define('WA_API_VER', 'v21.0');
+
+// Token de verificación del webhook (lo elegís vos y lo cargás también en Meta).
+define('WA_VERIFY_TOKEN', '');
+
+// App Secret de la app de Meta — valida la firma X-Hub-Signature-256 del webhook.
+// Si queda vacío, NO se exige firma (solo para pruebas locales).
+define('WA_APP_SECRET', '');
+
+// =============================================================================
 // Superadmin protegido (acceso de emergencia)
 // =============================================================================
 // Nombre de usuario que el panel NO permite editar, desactivar ni borrar — tu

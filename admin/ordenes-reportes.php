@@ -188,7 +188,10 @@ $paginas     = (int)max(1, ceil($total / $porPagina));
 $qsBase = http_build_query(array_filter($filtros, static fn($v) => $v !== '' && $v !== []));
 
 $acciones =
-    '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-productos.php') . ($qsBase ? '?' . $qsBase : '')) . '"><i class="bi bi-box-seam me-1"></i>Por productos</a>'
+    ($puedeMarcar
+        ? '<button class="btn btn-sm btn-success" id="btnWaOpen" type="button"><i class="bi bi-whatsapp me-1"></i>Avisar entrega (<span id="waCount">0</span>)</button>'
+        : '')
+    . '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-productos.php') . ($qsBase ? '?' . $qsBase : '')) . '"><i class="bi bi-box-seam me-1"></i>Por productos</a>'
     . '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?') . 'export=xlsx') . '"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>'
     . '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?') . 'export=facturacion') . '"><i class="bi bi-cash-coin me-1"></i>Facturación (Excel)</a>'
     . '<button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>';
@@ -281,6 +284,7 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
     <div style="overflow-x:auto">
       <table class="table table-hover mb-0">
         <thead><tr>
+          <?php if ($puedeMarcar): ?><th class="no-print" style="width:30px"><input type="checkbox" id="waChkAll" title="Seleccionar todas" class="form-check-input"></th><?php endif; ?>
           <th style="width:58px">Marca</th>
           <th>Lote</th><th>Nº orden</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Destino</th><th>Teléfono</th><th>m³</th>
           <th>Tipo</th><th>F. remito</th><th>Nº remito</th><th>Hoja ruta</th><th>Transportista</th><th>F. carga</th><th>F. ingreso</th>
@@ -288,12 +292,13 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-          <tr><td colspan="17" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
+          <tr><td colspan="<?= $puedeMarcar ? 18 : 17 ?>" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
         <?php else: foreach ($ordenes as $o):
             $tv = (string)($o['tipo_venta'] ?? '');
         ?>
           <?php $marca = (string)($o['marca'] ?? ''); $obs = trim((string)($o['observaciones'] ?? '')); ?>
           <tr>
+            <?php if ($puedeMarcar): ?><td class="no-print"><input type="checkbox" class="form-check-input wa-chk" value="<?= (int)$o['id'] ?>" data-nro="<?= h((string)$o['nro_orden']) ?>"></td><?php endif; ?>
             <td style="white-space:nowrap">
               <?php if ($puedeMarcar): ?>
               <button type="button" class="tz-marca-btn <?= $marca === 'no_entregar' ? 'on-ne' : '' ?>" data-id="<?= (int)$o['id'] ?>" data-marca="no_entregar" title="No entregar"><i class="bi bi-x-octagon-fill"></i></button>
@@ -371,5 +376,96 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
   });
 })();
 </script>
+
+<?php if ($puedeMarcar): ?>
+<!-- Aviso de entrega por WhatsApp a las órdenes seleccionadas -->
+<div class="modal fade" id="modalWa" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-whatsapp text-success me-2"></i>Avisar entrega por WhatsApp</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Se enviará el aviso a <strong><span id="waModalCount">0</span></strong> orden(es) seleccionada(s), con los botones <em>Confirmar</em> y <em>Reprogramar</em>. Si el cliente elige reprogramar, la orden queda marcada como <em>no entregar</em>.</p>
+        <div class="mb-3">
+          <label class="form-label" for="waFecha">Fecha de entrega *</label>
+          <input type="date" class="form-control" id="waFecha" value="<?= h(date('Y-m-d')) ?>">
+        </div>
+        <div class="mb-2">
+          <label class="form-label" for="waHorario">Horario</label>
+          <input type="text" class="form-control" id="waHorario" maxlength="40" value="8 a 17 hs">
+        </div>
+        <div id="waResultado" class="small mt-3"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-success" id="waEnviar"><i class="bi bi-send me-1"></i>Enviar avisos</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const ENVIAR_URL = <?= json_encode(url('api/confirmacion-enviar.php')) ?>, CSRF = <?= json_encode($csrf) ?>;
+  const chkAll = document.getElementById('waChkAll');
+  const cuenta = document.getElementById('waCount');
+  const modalEl = document.getElementById('modalWa');
+  const modal = new bootstrap.Modal(modalEl);
+
+  function seleccionadas() {
+    return Array.from(document.querySelectorAll('.wa-chk:checked'));
+  }
+  function refrescar() {
+    if (cuenta) cuenta.textContent = String(seleccionadas().length);
+  }
+  document.querySelectorAll('.wa-chk').forEach(c => c.addEventListener('change', refrescar));
+  if (chkAll) chkAll.addEventListener('change', function () {
+    document.querySelectorAll('.wa-chk').forEach(c => { c.checked = chkAll.checked; });
+    refrescar();
+  });
+  refrescar();
+
+  document.getElementById('btnWaOpen').addEventListener('click', function () {
+    const n = seleccionadas().length;
+    if (n === 0) { alert('Seleccioná al menos una orden (casilla a la izquierda de cada fila).'); return; }
+    document.getElementById('waModalCount').textContent = String(n);
+    document.getElementById('waResultado').innerHTML = '';
+    document.getElementById('waEnviar').disabled = false;
+    modal.show();
+  });
+
+  document.getElementById('waEnviar').addEventListener('click', async function () {
+    const ids = seleccionadas().map(c => +c.value);
+    if (ids.length === 0) { alert('No hay órdenes seleccionadas.'); return; }
+    const fecha = document.getElementById('waFecha').value;
+    const horario = document.getElementById('waHorario').value.trim();
+    if (!fecha) { alert('Elegí una fecha de entrega.'); return; }
+
+    const btn = this, res = document.getElementById('waResultado');
+    btn.disabled = true;
+    res.innerHTML = '<span class="text-muted"><i class="bi bi-hourglass-split me-1"></i>Enviando…</span>';
+    try {
+      const r = await fetch(ENVIAR_URL, {
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csrf_token: CSRF, ids: ids, fecha: fecha, horario: horario })
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo enviar.');
+      let html = '<div class="alert alert-success py-2 mb-2">Enviados: <strong>' + d.enviadas + '</strong>'
+               + (d.errores ? ' · Con error: <strong>' + d.errores + '</strong>' : '') + '</div>';
+      const fallidos = (d.detalle || []).filter(x => !x.ok);
+      if (fallidos.length) {
+        html += '<ul class="mb-0 ps-3">' + fallidos.map(x => '<li>' + x.nro_orden + ': ' + (x.error || 'error') + '</li>').join('') + '</ul>';
+      }
+      res.innerHTML = html;
+    } catch (e) {
+      res.innerHTML = '<div class="alert alert-danger py-2 mb-0">' + e.message + '</div>';
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+<?php endif; ?>
 <?php
 panel_footer();

@@ -36,6 +36,7 @@ function panel_menu(): array
                 ['key' => 'caja-chica', 'label' => 'Caja chica',  'href' => 'caja-chica.php',       'icon' => 'wallet2',                  'roles' => ['admin', 'gestor', 'contable']],
                 ['key' => 'rentabilidad','label' => 'Resultados', 'href' => 'rentabilidad.php',     'icon' => 'graph-up-arrow',           'roles' => ['admin', 'gestor', 'contable']],
                 ['key' => 'encuestas',  'label' => 'Encuestas',   'href' => 'encuestas.php',        'icon' => 'emoji-smile-fill',         'roles' => ['admin', 'gestor', 'logistica'], 'encuesta' => true],
+                ['key' => 'confirmaciones','label' => 'Avisos de entrega','href' => 'confirmaciones.php','icon' => 'whatsapp',           'roles' => ['admin', 'gestor', 'logistica']],
             ],
         ],
         [
