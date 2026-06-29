@@ -52,6 +52,7 @@ function panel_menu(): array
                 ['key' => 'motivos',      'label' => 'Motivos',          'href' => 'motivos.php',      'icon' => 'chat-text-fill',   'roles' => ['admin']],
                 ['key' => 'facturacion-clientes', 'label' => 'Facturación x cliente', 'href' => 'facturacion-clientes.php', 'icon' => 'cash-coin', 'roles' => ['admin']],
                 ['key' => 'afip-emisor',  'label' => 'Datos del emisor', 'href' => 'afip-emisor.php',  'icon' => 'receipt',          'roles' => ['admin']],
+                ['key' => 'prefijos',     'label' => 'Prefijos',         'href' => 'prefijos.php',     'icon' => 'hash',             'roles' => ['admin']],
                 ['key' => 'seguimiento',  'label' => 'Seguimiento',      'href' => 'seguimiento.php',  'icon' => 'geo-alt-fill',     'roles' => ['admin']],
             ],
         ],

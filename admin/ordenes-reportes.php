@@ -17,6 +17,7 @@ use Trazock\Models\Carga;
 use Trazock\Models\Categoria;
 use Trazock\Models\Destino;
 use Trazock\Models\Orden;
+use Trazock\Models\Prefijo;
 use Trazock\Models\Zona;
 
 $user = Auth::requierePanel(['admin', 'gestor', 'logistica']); // gestor = Supervisor (solo reportes)
@@ -29,6 +30,7 @@ $filtros = [
     'carga'        => filtro_multi_valores('carga'),      // multi (lotes)
     'provincia'    => filtro_multi_valores('provincia'),  // multi (destinos)
     'hoja_ruta'    => filtro_multi_valores('hoja_ruta'),  // multi (hojas de ruta)
+    'prefijo'      => filtro_multi_valores('prefijo'),    // multi (local / origen)
     'transportista'=> trim((string)($_GET['transportista'] ?? '')),
     'estado'       => trim((string)($_GET['estado'] ?? '')),
     'tipo_venta'   => trim((string)($_GET['tipo_venta'] ?? '')),
@@ -225,6 +227,7 @@ foreach ($cargas as $c) {
 }
 $provOpts = array_map(static fn($p) => [$p, $p], $provincias);
 $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
+$prefOpts = Prefijo::paraFiltro();
 ?>
 <form method="get" action="<?= h(url('admin/ordenes-reportes.php')) ?>" class="card mb-3 no-print" style="padding:.85rem 1rem">
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-bottom:.6rem">
@@ -249,6 +252,7 @@ $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
     <?php filtro_multi_dropdown('Lote (carga)', 'carga', $cargaOpts, $filtros['carga']); ?>
     <?php filtro_multi_dropdown('Destino (provincia)', 'provincia', $provOpts, $filtros['provincia']); ?>
     <?php filtro_multi_dropdown('Hoja de ruta', 'hoja_ruta', $hrOpts, $filtros['hoja_ruta']); ?>
+    <?php if ($prefOpts !== []) filtro_multi_dropdown('Local (origen)', 'prefijo', $prefOpts, $filtros['prefijo']); ?>
     <div>
       <label class="form-label">Transportista</label>
       <select class="form-select form-select-sm" name="transportista">

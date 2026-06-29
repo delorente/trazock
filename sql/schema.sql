@@ -755,3 +755,23 @@ CREATE TABLE IF NOT EXISTS `entrega_remitos` (
 -- =============================================================================
 -- END: 029_entrega_remitos.sql
 -- =============================================================================
+
+-- =============================================================================
+-- BEGIN: 030_prefijos.sql — nombres de prefijo + acceso público por local (token).
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `prefijos` (
+    `id`             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `prefijo`        VARCHAR(40)  NOT NULL,
+    `nombre_interno` VARCHAR(120) NOT NULL,
+    `nombre_publico` VARCHAR(150) DEFAULT NULL,
+    `token`          CHAR(32)     DEFAULT NULL,
+    `activo`         TINYINT(1)   NOT NULL DEFAULT 1,
+    `created_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_prefijo` (`prefijo`),
+    UNIQUE KEY `uq_prefijo_token` (`token`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- END: 030_prefijos.sql
+-- =============================================================================

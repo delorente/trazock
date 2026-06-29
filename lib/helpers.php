@@ -253,6 +253,19 @@ if (!function_exists('tel_e164')) {
     }
 }
 
+if (!function_exists('local_url')) {
+    /**
+     * URL ABSOLUTA del listado público de un local (por token de prefijo). Es el
+     * link que se le comparte al local para ver el estado de SUS órdenes. Usa
+     * APP_URL para que resuelva fuera de la app.
+     */
+    function local_url(string $token): string
+    {
+        $base = defined('APP_URL') ? rtrim(APP_URL, '/') : '';
+        return $base . '/seguimiento/local.php?t=' . rawurlencode($token);
+    }
+}
+
 if (!function_exists('filtro_multi_valores')) {
     /**
      * Normaliza un filtro multi-valor de $_GET (name="campo[]") a array de strings

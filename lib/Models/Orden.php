@@ -521,6 +521,10 @@ final class Orden
         if (($c = self::inClause('o.hoja_ruta', (array)($f['hoja_ruta'] ?? []), 'hr', $params)) !== null) {
             $where[] = $c;
         }
+        // Prefijo del Nº de orden (lo anterior al primer '-'): identifica el local/origen.
+        if (($c = self::inClause("SUBSTRING_INDEX(o.nro_orden, '-', 1)", (array)($f['prefijo'] ?? []), 'pref', $params)) !== null) {
+            $where[] = $c;
+        }
         if (!empty($f['transportista'])) {
             $where[] = 'o.transportista_id = :transp';
             $params[':transp'] = (int)$f['transportista'];
@@ -920,6 +924,108 @@ final class Orden
         $out = [];
         foreach ($stmt->fetchAll() as $r) {
             $out[(string)$r['prov']] = (int)$r['n'];
+        }
+        return $out;
+    }
+
+    // -------------------------------------------------------------------------
+    // Listado público por prefijo (acceso por token del local)
+    // -------------------------------------------------------------------------
+
+    /**
+     * WHERE del listado público de un local (por prefijo). Filtros: fecha de
+     * recepción (created_at), estado y búsqueda por Nº de orden.
+     *
+     * @param array<string,mixed> $f
+     * @return array{0:string, 1:array<string,mixed>}
+     */
+    private static function wherePublico(string $prefijo, array $f): array
+    {
+        $where  = ["SUBSTRING_INDEX(o.nro_orden, '-', 1) = :pref"];
+        $params = [':pref' => $prefijo];
+        if (!empty($f['fecha_desde'])) { $where[] = 'DATE(o.created_at) >= :fd'; $params[':fd'] = $f['fecha_desde']; }
+        if (!empty($f['fecha_hasta'])) { $where[] = 'DATE(o.created_at) <= :fh'; $params[':fh'] = $f['fecha_hasta']; }
+        if (!empty($f['estado']) && in_array($f['estado'], self::ESTADOS, true)) {
+            $where[] = 'o.estado = :est'; $params[':est'] = $f['estado'];
+        }
+        if (!empty($f['q'])) { $where[] = 'o.nro_orden LIKE :q'; $params[':q'] = '%' . $f['q'] . '%'; }
+        return [' WHERE ' . implode(' AND ', $where), $params];
+    }
+
+    /** Expresión SQL de la fecha/hora en que la orden alcanzó su estado actual. */
+    private static function fechaEstadoExpr(): string
+    {
+        return "(SELECT MAX(t.timestamp_cliente)
+                   FROM transiciones t JOIN productos p2 ON p2.id = t.producto_id
+                  WHERE p2.orden_id = o.id AND t.es_conflicto = 0
+                    AND t.estado_hasta = CASE WHEN o.estado = 'RECIBIDO' THEN 'INGRESADO' ELSE o.estado END)";
+    }
+
+    /**
+     * Órdenes de un local (prefijo) para la página pública. Nº orden, estado,
+     * cantidad de ítems y fecha/hora del estado actual.
+     *
+     * @param array<string,mixed> $f
+     * @return array<int, array<string,mixed>>
+     */
+    public static function listarPorPrefijo(string $prefijo, array $f, int $limit = 50, int $offset = 0): array
+    {
+        [$where, $params] = self::wherePublico($prefijo, $f);
+        $limit  = max(1, min(500, $limit));
+        $offset = max(0, $offset);
+        $sql = 'SELECT o.id, o.nro_orden, o.estado, o.created_at,
+                       (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items,
+                       ' . self::fechaEstadoExpr() . ' AS fecha_estado
+                FROM ordenes o' . $where
+             . " ORDER BY o.created_at DESC, o.id DESC LIMIT {$limit} OFFSET {$offset}";
+        $stmt = DB::getInstance()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /** @param array<string,mixed> $f */
+    public static function contarPorPrefijo(string $prefijo, array $f): int
+    {
+        [$where, $params] = self::wherePublico($prefijo, $f);
+        $stmt = DB::getInstance()->prepare('SELECT COUNT(*) FROM ordenes o' . $where);
+        $stmt->execute($params);
+        return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * Ítems agrupados (cantidad por descripción+dimensiones) de un conjunto de
+     * órdenes, para el detalle expandible del listado público.
+     *
+     * @param array<int,int> $ordenIds
+     * @return array<int, array<int, array{cantidad:int, descripcion:string, dimensiones:string}>>
+     */
+    public static function itemsAgrupadosDeOrdenes(array $ordenIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ordenIds), static fn($v) => $v > 0)));
+        if ($ids === []) {
+            return [];
+        }
+        $ph = [];
+        $params = [];
+        foreach ($ids as $i => $id) { $k = ':o' . $i; $ph[] = $k; $params[$k] = $id; }
+        $stmt = DB::getInstance()->prepare(
+            "SELECT orden_id,
+                    COALESCE(descripcion, '') AS descripcion,
+                    COALESCE(dimensiones, '') AS dimensiones,
+                    COUNT(*) AS cantidad
+               FROM productos
+              WHERE orden_id IN (" . implode(', ', $ph) . ")
+              GROUP BY orden_id, descripcion, dimensiones
+              ORDER BY orden_id, descripcion"
+        );
+        $stmt->execute($params);
+        $out = [];
+        foreach ($stmt->fetchAll() as $r) {
+            $out[(int)$r['orden_id']][] = [
+                'cantidad'    => (int)$r['cantidad'],
+                'descripcion' => (string)$r['descripcion'],
+                'dimensiones' => (string)$r['dimensiones'],
+            ];
         }
         return $out;
     }
