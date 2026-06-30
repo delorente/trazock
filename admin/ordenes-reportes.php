@@ -155,6 +155,137 @@ if (($_GET['export'] ?? '') === 'facturacion') {
     exit;
 }
 
+// --- Modo export "Locales": por orden, con el desglose de productos debajo -----
+// Encabezado = nombre del local si hay exactamente un prefijo filtrado.
+if (($_GET['export'] ?? '') === 'locales') {
+    $rows  = Orden::buscar($filtros, 5000, 0);
+    $items = Orden::itemsDeOrdenes(array_map(static fn($o) => (int)$o['id'], $rows));
+    $titulo = (is_array($filtros['prefijo']) && count($filtros['prefijo']) === 1)
+        ? Prefijo::nombreDe((string)$filtros['prefijo'][0]) : '';
+
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Locales');
+    $STR = \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING;
+
+    $fila = 1;
+    if ($titulo !== '') {
+        $sheet->setCellValue('A' . $fila, 'Órdenes de ' . $titulo);
+        $sheet->getStyle('A' . $fila)->getFont()->setBold(true)->setSize(14);
+        $fila += 2;
+    }
+    if ($rows === []) {
+        $sheet->setCellValue('A' . $fila, 'No hay órdenes para los filtros seleccionados.');
+    }
+    foreach ($rows as $o) {
+        $oid = (int)$o['id'];
+        $sheet->setCellValue('A' . $fila, 'N° orden'); $sheet->setCellValue('B' . $fila, 'Cliente');
+        $sheet->setCellValue('C' . $fila, 'Localidad'); $sheet->setCellValue('D' . $fila, 'Provincia');
+        $sheet->setCellValue('E' . $fila, 'Ítems');
+        $sheet->getStyle('A' . $fila . ':E' . $fila)->getFont()->setBold(true);
+        $fila++;
+        $sheet->setCellValueExplicit('A' . $fila, (string)$o['nro_orden'], $STR);
+        $sheet->setCellValue('B' . $fila, (string)($o['cliente'] ?? ''));
+        $sheet->setCellValue('C' . $fila, (string)($o['dest_localidad'] ?? ''));
+        $sheet->setCellValue('D' . $fila, (string)($o['dest_provincia'] ?? ''));
+        $sheet->setCellValue('E' . $fila, (int)($o['cant_items'] ?? 0));
+        $fila++;
+        $its = $items[$oid] ?? [];
+        if ($its !== []) {
+            $sheet->setCellValue('A' . $fila, 'Descripción'); $sheet->setCellValue('B' . $fila, 'Dimensiones');
+            $sheet->getStyle('A' . $fila . ':B' . $fila)->getFont()->setBold(true);
+            $fila++;
+            foreach ($its as $it) {
+                $sheet->setCellValueExplicit('A' . $fila, (string)$it['descripcion'], $STR);
+                $sheet->setCellValueExplicit('B' . $fila, (string)$it['dimensiones'], $STR);
+                $fila++;
+            }
+        }
+        $fila++; // línea en blanco entre órdenes
+    }
+    foreach (range('A', 'E') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+
+    if (ob_get_length()) { ob_end_clean(); }
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="locales_' . date('Ymd_His') . '.xlsx"');
+    header('Cache-Control: max-age=0');
+    (new Xlsx($spreadsheet))->save('php://output');
+    exit;
+}
+
+// --- Modo impresión: renderiza el reporte elegido y dispara la impresión ------
+$printRep = (string)($_GET['print'] ?? '');
+if ($printRep === 'locales' || $printRep === 'facturacion') {
+    $titulo = (is_array($filtros['prefijo']) && count($filtros['prefijo']) === 1)
+        ? Prefijo::nombreDe((string)$filtros['prefijo'][0]) : '';
+    ?>
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><?= h($printRep === 'locales' ? ('Órdenes' . ($titulo !== '' ? ' de ' . $titulo : '')) : 'Facturación') ?></title>
+<style>
+  body{font-family:system-ui,Segoe UI,Arial,sans-serif;color:#111;margin:24px;font-size:13px}
+  h1{font-size:18px;margin:0 0 14px}
+  table{border-collapse:collapse;width:100%}
+  .ord{margin-bottom:14px;break-inside:avoid}
+  .ord th{text-align:left;background:#f1f5f9;padding:4px 8px;border:1px solid #cbd5e1;font-size:12px}
+  .ord td{padding:4px 8px;border:1px solid #e2e8f0}
+  .items td,.items th{font-size:12px}
+  .fact td,.fact th{padding:5px 10px;border:1px solid #cbd5e1}
+  @media print{ button{display:none} }
+</style></head><body>
+<?php if ($printRep === 'locales'):
+    $rows  = Orden::buscar($filtros, 5000, 0);
+    $items = Orden::itemsDeOrdenes(array_map(static fn($o) => (int)$o['id'], $rows));
+?>
+  <h1>Órdenes<?= $titulo !== '' ? ' de ' . h($titulo) : '' ?></h1>
+  <?php if ($rows === []): ?><p>No hay órdenes para los filtros seleccionados.</p><?php endif; ?>
+  <?php foreach ($rows as $o): $its = $items[(int)$o['id']] ?? []; ?>
+    <table class="ord">
+      <thead><tr><th>N° orden</th><th>Cliente</th><th>Localidad</th><th>Provincia</th><th>Ítems</th></tr></thead>
+      <tbody><tr>
+        <td class="mono"><?= h((string)$o['nro_orden']) ?></td>
+        <td><?= h((string)($o['cliente'] ?? '')) ?></td>
+        <td><?= h((string)($o['dest_localidad'] ?? '')) ?></td>
+        <td><?= h((string)($o['dest_provincia'] ?? '')) ?></td>
+        <td><?= (int)($o['cant_items'] ?? 0) ?></td>
+      </tr></tbody>
+    </table>
+    <?php if ($its !== []): ?>
+    <table class="ord items" style="margin-top:-10px">
+      <thead><tr><th style="width:55%">Descripción</th><th>Dimensiones</th></tr></thead>
+      <tbody>
+        <?php foreach ($its as $it): ?>
+          <tr><td><?= h($it['descripcion']) ?></td><td><?= h($it['dimensiones']) ?></td></tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+    <?php endif; ?>
+  <?php endforeach; ?>
+<?php else: // facturacion
+    $f = Orden::facturacionResumen($filtros);
+?>
+  <h1>Facturación — m³ por destino</h1>
+  <table class="fact">
+    <thead><tr><th>Destino</th><th>m³</th></tr></thead>
+    <tbody>
+      <?php foreach ($f['destinos'] as $d): ?>
+        <tr><td><?= h((string)$d['provincia']) ?></td><td><?= number_format((float)$d['m3'], 2, ',', '.') ?></td></tr>
+      <?php endforeach; ?>
+      <tr><th>TOTAL</th><th><?= number_format((float)$f['total_m3'], 2, ',', '.') ?></th></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:12px;font-size:12px">
+    <strong>Transportista(s):</strong> <?= h($f['transportistas'] !== '' ? $f['transportistas'] : '—') ?><br>
+    <strong>Hoja(s) de ruta:</strong> <?= h($f['hojas_ruta'] !== '' ? $f['hojas_ruta'] : '—') ?>
+  </p>
+<?php endif; ?>
+<button onclick="window.print()" style="margin-top:16px;padding:8px 16px">Imprimir</button>
+<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 250); });</script>
+</body></html>
+<?php
+    exit;
+}
+
 // --- Modo página -------------------------------------------------------------
 require __DIR__ . '/_layout.php';
 
@@ -200,11 +331,15 @@ $acciones =
         ? '<button class="btn btn-sm btn-success" id="btnWaOpen" type="button"><i class="bi bi-whatsapp me-1"></i>Avisar entrega (<span id="waCount">0</span>)</button>'
         : '')
     . '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-productos.php') . ($qsBase ? '?' . $qsBase : '')) . '"><i class="bi bi-box-seam me-1"></i>Por productos</a>'
-    . '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?') . 'export=xlsx') . '"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>'
-    . '<a class="btn btn-sm btn-outline-success" href="' . h(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?') . 'export=facturacion') . '"><i class="bi bi-cash-coin me-1"></i>Facturación (Excel)</a>'
-    . '<button class="btn btn-sm btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer me-1"></i>Imprimir / PDF</button>';
+    . '<select id="repSel" class="form-select form-select-sm d-inline-block" style="width:auto;vertical-align:middle">'
+    . '<option value="completo">Reporte completo</option>'
+    . '<option value="locales">Locales (con ítems)</option>'
+    . '<option value="facturacion">Facturación (m³)</option>'
+    . '</select>'
+    . '<button class="btn btn-sm btn-outline-success" id="btnRepExcel" type="button"><i class="bi bi-file-earmark-excel me-1"></i>Excel</button>'
+    . '<button class="btn btn-sm btn-outline-secondary" id="btnRepPrint" type="button"><i class="bi bi-printer me-1"></i>Imprimir</button>';
 
-panel_header('Reportes', $user, 'reportes', 'Facturación por m³/destino · armado de rutas', $acciones);
+panel_header('Reportes', $user, 'reportes', 'Reportes preconfigurados sobre lo filtrado', $acciones);
 
 // Opciones para los filtros multi.
 $cargaOpts = [];
@@ -381,6 +516,22 @@ $prefOpts = Prefijo::paraFiltro();
   window.addEventListener('resize', fit);
   window.addEventListener('load', fit);
   fit();
+})();
+// Reportes preconfigurados: el selector + Excel/Imprimir actúan sobre lo filtrado.
+(function () {
+  var base = <?= json_encode(url('admin/ordenes-reportes.php') . ($qsBase ? '?' . $qsBase . '&' : '?')) ?>;
+  var sel = document.getElementById('repSel');
+  var ex  = document.getElementById('btnRepExcel');
+  var pr  = document.getElementById('btnRepPrint');
+  function rep() { return sel ? sel.value : 'completo'; }
+  if (ex) ex.addEventListener('click', function () {
+    var r = rep(); location.href = base + 'export=' + (r === 'completo' ? 'xlsx' : r);
+  });
+  if (pr) pr.addEventListener('click', function () {
+    var r = rep();
+    if (r === 'completo') { window.print(); }
+    else { window.open(base + 'print=' + r, '_blank'); }
+  });
 })();
 </script>
 <?php filtro_multi_script(); ?>

@@ -1113,6 +1113,39 @@ final class Orden
         return $out;
     }
 
+    /**
+     * Ítems (uno por producto, sin agrupar) de un conjunto de órdenes, con su
+     * descripción y dimensiones, ordenados por secuencia. Para el reporte "Locales".
+     *
+     * @param array<int,int> $ordenIds
+     * @return array<int, array<int, array{descripcion:string, dimensiones:string}>>
+     */
+    public static function itemsDeOrdenes(array $ordenIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ordenIds), static fn($v) => $v > 0)));
+        if ($ids === []) {
+            return [];
+        }
+        $ph = [];
+        $params = [];
+        foreach ($ids as $i => $id) { $k = ':o' . $i; $ph[] = $k; $params[$k] = $id; }
+        $stmt = DB::getInstance()->prepare(
+            "SELECT orden_id, COALESCE(descripcion, '') AS descripcion, COALESCE(dimensiones, '') AS dimensiones
+               FROM productos
+              WHERE orden_id IN (" . implode(', ', $ph) . ")
+              ORDER BY orden_id, secuencia, id"
+        );
+        $stmt->execute($params);
+        $out = [];
+        foreach ($stmt->fetchAll() as $r) {
+            $out[(int)$r['orden_id']][] = [
+                'descripcion' => (string)$r['descripcion'],
+                'dimensiones' => (string)$r['dimensiones'],
+            ];
+        }
+        return $out;
+    }
+
     /** Fija (o limpia con null) la marca operativa de una orden. */
     public static function setMarca(int $id, ?string $marca): void
     {

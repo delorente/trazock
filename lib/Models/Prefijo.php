@@ -47,6 +47,19 @@ final class Prefijo
         return $r === false ? null : $r;
     }
 
+    /** Nombre legible del prefijo (público si tiene, si no el interno). '' si no existe. */
+    public static function nombreDe(string $prefijo): string
+    {
+        $stmt = DB::getInstance()->prepare('SELECT nombre_publico, nombre_interno FROM prefijos WHERE prefijo = :p LIMIT 1');
+        $stmt->execute([':p' => $prefijo]);
+        $r = $stmt->fetch();
+        if ($r === false) {
+            return '';
+        }
+        $pub = trim((string)($r['nombre_publico'] ?? ''));
+        return $pub !== '' ? $pub : (string)$r['nombre_interno'];
+    }
+
     /** @return array<string,mixed>|null */
     public static function findByToken(string $token): ?array
     {
