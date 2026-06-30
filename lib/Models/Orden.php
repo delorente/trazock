@@ -1066,6 +1066,35 @@ final class Orden
         return $stmt->fetchAll();
     }
 
+    /**
+     * KPIs del portal del local (set filtrado): total de órdenes, total de ítems y
+     * conteo por estado.
+     *
+     * @param array<string,mixed> $f
+     * @return array{total:int, items:int, estados:array<string,int>}
+     */
+    public static function kpisPorPrefijo(string $prefijo, array $f): array
+    {
+        [$where, $params] = self::wherePublico($prefijo, $f);
+        $stmt = DB::getInstance()->prepare(
+            'SELECT o.estado AS estado, COUNT(*) AS n,
+                    COALESCE(SUM((SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id)), 0) AS items
+               FROM ordenes o' . $where . ' GROUP BY o.estado'
+        );
+        $stmt->execute($params);
+        $out = ['total' => 0, 'items' => 0,
+                'estados' => ['RECIBIDO' => 0, 'EN_REPARTO' => 0, 'ENTREGADO' => 0, 'REINGRESADO' => 0, 'DEVUELTO' => 0]];
+        foreach ($stmt->fetchAll() as $r) {
+            $e = (string)$r['estado'];
+            $out['total'] += (int)$r['n'];
+            $out['items'] += (int)$r['items'];
+            if (isset($out['estados'][$e])) {
+                $out['estados'][$e] += (int)$r['n'];
+            }
+        }
+        return $out;
+    }
+
     /** @param array<string,mixed> $f */
     public static function contarPorPrefijo(string $prefijo, array $f): int
     {
