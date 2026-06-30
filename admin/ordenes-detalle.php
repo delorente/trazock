@@ -73,17 +73,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 : 'No se encontró la orden.');
     } elseif ($accion === 'corregir_estado') {
         // Corrección manual del estado de la orden (ajuste manual a todos sus ítems).
+        // Permite fijar la fecha/hora real del estado (ej. entregada hace 2 días).
         $mapa   = ['RECIBIDO' => 'INGRESADO', 'EN_REPARTO' => 'EN_REPARTO', 'ENTREGADO' => 'ENTREGADO',
                    'REINGRESADO' => 'REINGRESADO', 'DEVUELTO' => 'DEVUELTO', 'BAJA' => 'BAJA'];
         $dest   = (string)($_POST['nuevo_estado'] ?? '');
-        $motivo = trim((string)($_POST['motivo'] ?? ''));
+        $motivo = trim((string)($_POST['motivo'] ?? '')); // opcional
+        $fecha  = trim((string)($_POST['fecha'] ?? ''));
+        $hora   = preg_match('/^\d{2}:\d{2}$/', (string)($_POST['hora'] ?? '')) ? (string)$_POST['hora'] : '12:00';
         if (!isset($mapa[$dest])) {
             flash_set('danger', 'Estado destino inválido.');
-        } elseif ($motivo === '') {
-            flash_set('danger', 'El motivo es obligatorio.');
+        } elseif ($fecha !== '' && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha) || $fecha > date('Y-m-d'))) {
+            flash_set('danger', 'La fecha es inválida o futura.');
         } else {
+            // Si se indica fecha, se interpreta en hora local y se guarda en UTC; si no, ahora.
+            if ($fecha !== '') {
+                $dt = DateTime::createFromFormat('Y-m-d H:i', $fecha . ' ' . $hora, new DateTimeZone(defined('DISPLAY_TZ') ? DISPLAY_TZ : 'UTC'));
+                $tsUtc = $dt ? $dt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s') : gmdate('Y-m-d H:i:s');
+            } else {
+                $tsUtc = gmdate('Y-m-d H:i:s');
+            }
             try {
-                $n = Orden::corregirEstado($oid, $mapa[$dest], $motivo, (int)$user['id']);
+                $n = Orden::fijarEstadoHistorico($oid, $mapa[$dest], $tsUtc, $motivo !== '' ? $motivo : 'Corrección de estado', (int)$user['id']);
                 flash_set('success', "Estado corregido a " . str_replace('_', ' ', $dest) . " ({$n} ítem(s) ajustado(s)).");
             } catch (\Throwable $e) {
                 flash_set('danger', 'No se pudo corregir el estado: ' . $e->getMessage());
@@ -464,11 +474,22 @@ $campo = static function (string $label, string $valor): void {
             <?php endforeach; ?>
           </select>
         </div>
-        <div class="mb-2">
-          <label class="form-label">Motivo *</label>
-          <textarea class="form-control form-control-sm" name="motivo" rows="3" placeholder="Explicá por qué corregís el estado…" required></textarea>
+        <div class="row g-2 mb-2">
+          <div class="col-7">
+            <label class="form-label">Fecha del estado</label>
+            <input type="date" class="form-control form-control-sm" name="fecha" max="<?= h(date('Y-m-d')) ?>">
+            <div class="form-text" style="font-size:11px">Vacío = ahora. Ej.: entregada hace 2 días.</div>
+          </div>
+          <div class="col-5">
+            <label class="form-label">Hora</label>
+            <input type="time" class="form-control form-control-sm" name="hora" value="12:00">
+          </div>
         </div>
-        <div class="alert alert-warning py-2 mb-0" style="font-size:12px"><i class="bi bi-exclamation-triangle me-1"></i>Aplica un <strong>ajuste manual</strong> a los <?= count($items) ?> ítem(s) de la orden y queda registrado con tu usuario en el historial de cada uno. Usalo solo para corregir errores.</div>
+        <div class="mb-2">
+          <label class="form-label">Motivo</label>
+          <textarea class="form-control form-control-sm" name="motivo" rows="2" placeholder="Opcional"></textarea>
+        </div>
+        <div class="alert alert-warning py-2 mb-0" style="font-size:12px"><i class="bi bi-exclamation-triangle me-1"></i>Aplica un <strong>ajuste manual</strong> a los <?= count($items) ?> ítem(s) de la orden, con la fecha indicada, y queda registrado con tu usuario en el historial de cada uno.</div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>

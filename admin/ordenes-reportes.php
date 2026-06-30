@@ -298,13 +298,13 @@ $prefOpts = Prefijo::paraFiltro();
         <thead><tr>
           <?php if ($puedeMarcar): ?><th class="no-print" style="width:30px"><input type="checkbox" id="waChkAll" title="Seleccionar todas" class="form-check-input"></th><?php endif; ?>
           <th style="width:58px">Marca</th>
-          <th>Lote</th><th>Nº orden</th><th>Cliente</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Provincia</th><th>Localidad</th><th>Teléfono</th><th>m³</th>
+          <th>Nº orden</th><th>Cliente</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Provincia</th><th>Localidad</th><th>Teléfono</th><th>m³</th>
           <th>F. remito</th><th>Nº remito</th><th>Hoja ruta</th><th>Transportista</th><th>F. carga</th>
-          <th>Estado</th><th class="no-print"></th>
+          <th>Estado</th>
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-          <tr><td colspan="<?= $puedeMarcar ? 18 : 17 ?>" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
+          <tr><td colspan="<?= $puedeMarcar ? 16 : 15 ?>" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
         <?php else: foreach ($ordenes as $o): ?>
           <?php $marca = (string)($o['marca'] ?? ''); $obs = trim((string)($o['observaciones'] ?? '')); ?>
           <tr>
@@ -318,8 +318,7 @@ $prefOpts = Prefijo::paraFiltro();
               <?php endif; ?>
               <?php if ($obs !== ''): ?><i class="bi bi-chat-left-text-fill tz-obs-ic" title="<?= h($obs) ?>"></i><?php endif; ?>
             </td>
-            <td class="mono" style="font-size:12px;color:var(--muted)"><?= h(rep_lote($o)) ?></td>
-            <td class="mono" style="font-size:12px"><?= h((string)$o['nro_orden']) ?></td>
+            <td class="mono" style="font-size:12px"><a href="<?= h(url('admin/ordenes-detalle.php') . '?id=' . (int)$o['id'] . '&vol=' . rawurlencode($volverQS)) ?>" style="color:#60a5fa;text-decoration:none"><?= h((string)$o['nro_orden']) ?></a></td>
             <td style="font-size:13px"><?= h((string)($o['cliente'] ?? '') !== '' ? (string)$o['cliente'] : '—') ?></td>
             <td style="font-size:13px"><?= h((string)($o['categoria'] ?? '—')) ?></td>
             <td style="text-align:center"><?= (int)($o['cant_items'] ?? 0) ?></td>
@@ -336,7 +335,6 @@ $prefOpts = Prefijo::paraFiltro();
             <td style="font-size:12px"><?= h((string)($o['transportista_nombre'] ?? '') !== '' ? (string)$o['transportista_nombre'] : '—') ?></td>
             <td style="color:var(--muted)"><?= h(($o['fecha_carga'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_carga'])) : '—') ?></td>
             <td><?= estado_badge((string)($o['estado'] ?? '')) ?></td>
-            <td class="no-print"><a class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px" href="<?= h(url('admin/ordenes-detalle.php') . '?id=' . (int)$o['id'] . '&vol=' . rawurlencode($volverQS)) ?>">Ver</a></td>
           </tr>
         <?php endforeach; endif; ?>
         </tbody>
@@ -369,6 +367,22 @@ $prefOpts = Prefijo::paraFiltro();
 .tz-obs-ic{color:#60a5fa;font-size:13px;margin-left:3px}
 @media print{.tz-marca-btn:not(.on-ne):not(.on-pr){display:none}}
 </style>
+<script>
+// Ajusta el alto de la tabla al espacio que queda hasta el fondo de la pantalla,
+// así la barra de scroll horizontal queda siempre visible al pie (no hay que bajar
+// hasta el final del listado para verla).
+(function () {
+  function fit() {
+    var el = document.querySelector('.tz-table-scroll');
+    if (!el) return;
+    var top = el.getBoundingClientRect().top;
+    el.style.maxHeight = Math.max(220, window.innerHeight - top - 16) + 'px';
+  }
+  window.addEventListener('resize', fit);
+  window.addEventListener('load', fit);
+  fit();
+})();
+</script>
 <?php filtro_multi_script(); ?>
 <script>
 (function () {
