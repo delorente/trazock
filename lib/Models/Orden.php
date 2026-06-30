@@ -23,7 +23,7 @@ final class Orden
     /** Columnas escribibles de una orden (para crear/actualizar desde la carga). */
     private const CAMPOS = [
         'carga_id', 'nro_orden', 'nro_remito', 'hoja_ruta', 'transportista_id', 'fecha_carga',
-        'fecha_remito', 'tipo_venta',
+        'fecha_remito',
         'cliente', 'cliente_apellido', 'telefonos', 'telefono_wa',
         'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
         'valor_declarado', 'observaciones', 'marca', 'm3_total', 'estado',
@@ -57,7 +57,7 @@ final class Orden
 
     /** Campos editables de una orden desde el detalle (subconjunto de CAMPOS). */
     private const EDITABLES = [
-        'nro_remito', 'hoja_ruta', 'transportista_id', 'fecha_carga', 'fecha_remito', 'tipo_venta',
+        'nro_remito', 'hoja_ruta', 'transportista_id', 'fecha_carga', 'fecha_remito',
         'cliente', 'cliente_apellido',
         'telefonos', 'telefono_wa', 'dest_provincia', 'dest_localidad', 'dest_domicilio', 'dest_cp',
         'valor_declarado', 'observaciones', 'marca',
@@ -99,16 +99,15 @@ final class Orden
 
     /**
      * Edición EN BLOQUE de los datos de ingreso de toda una carga (corrección de
-     * errores de import): fija transportista, tipo de venta y fecha de carga en
-     * TODAS las órdenes de la carga. Devuelve cuántas órdenes actualizó.
+     * errores de import): fija transportista y fecha de carga en TODAS las órdenes
+     * de la carga. Devuelve cuántas órdenes actualizó.
      */
-    public static function actualizarDatosCarga(int $cargaId, ?int $transportistaId, ?string $tipoVenta, ?string $fechaCarga): int
+    public static function actualizarDatosCarga(int $cargaId, ?int $transportistaId, ?string $fechaCarga): int
     {
         $stmt = DB::getInstance()->prepare(
-            'UPDATE ordenes SET transportista_id = :t, tipo_venta = :tv, fecha_carga = :f WHERE carga_id = :c'
+            'UPDATE ordenes SET transportista_id = :t, fecha_carga = :f WHERE carga_id = :c'
         );
         $stmt->bindValue(':t', $transportistaId, $transportistaId === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
-        $stmt->bindValue(':tv', ($tipoVenta === null || $tipoVenta === '') ? null : $tipoVenta, ($tipoVenta === null || $tipoVenta === '') ? \PDO::PARAM_NULL : \PDO::PARAM_STR);
         $stmt->bindValue(':f', ($fechaCarga === null || $fechaCarga === '') ? null : $fechaCarga, ($fechaCarga === null || $fechaCarga === '') ? \PDO::PARAM_NULL : \PDO::PARAM_STR);
         $stmt->bindValue(':c', $cargaId, \PDO::PARAM_INT);
         $stmt->execute();
@@ -117,14 +116,14 @@ final class Orden
 
     /**
      * Datos de ingreso representativos de una carga (de su primera orden), para
-     * precargar la edición en bloque: transportista_id, tipo_venta, fecha_carga.
+     * precargar la edición en bloque: transportista_id, fecha_carga.
      *
      * @return array<string,mixed>|null
      */
     public static function datosCarga(int $cargaId): ?array
     {
         $stmt = DB::getInstance()->prepare(
-            'SELECT transportista_id, tipo_venta, fecha_carga FROM ordenes WHERE carga_id = :c ORDER BY id LIMIT 1'
+            'SELECT transportista_id, fecha_carga FROM ordenes WHERE carga_id = :c ORDER BY id LIMIT 1'
         );
         $stmt->execute([':c' => $cargaId]);
         $row = $stmt->fetch();
@@ -649,10 +648,6 @@ final class Orden
             $where[] = 'o.estado = :estado';
             $params[':estado'] = $f['estado'];
         }
-        if (!empty($f['tipo_venta'])) {
-            $where[] = 'o.tipo_venta = :tv';
-            $params[':tv'] = $f['tipo_venta'];
-        }
         // Fecha de CARGA del documento (la que se ingresa al importar; columna DATE).
         if (!empty($f['fecha_desde'])) {
             $where[] = 'o.fecha_carga >= :fd';
@@ -680,7 +675,7 @@ final class Orden
         $limit  = max(1, min(1000, $limit));
         $offset = max(0, $offset);
 
-        $sql = 'SELECT o.id, o.carga_id, o.nro_orden, o.nro_remito, o.fecha_remito, o.tipo_venta,
+        $sql = 'SELECT o.id, o.carga_id, o.nro_orden, o.nro_remito, o.fecha_remito,
                        o.hoja_ruta, o.transportista_id, o.fecha_carga,
                        o.cliente, o.telefonos, o.telefono_wa, o.dest_provincia, o.dest_localidad, o.m3_total,
                        o.valor_declarado, o.observaciones, o.marca, o.estado, o.created_at AS fecha_ingreso,
@@ -830,60 +825,47 @@ final class Orden
     }
 
     /**
-     * Facturación simple para el Excel: una "factura" por tipo de venta
-     * (online/local), con m³ por destino (provincia) y al pie transportista(s),
-     * fecha(s) de carga y hoja(s) de ruta. Sin marca ni importes.
+     * Facturación para el Excel: m³ por destino (provincia) del set filtrado, con
+     * transportista(s), fecha(s) de carga y hoja(s) de ruta al pie. Sin marca,
+     * importes ni separación por tipo (la separación online/resto se hace filtrando
+     * por prefijo y exportando dos veces).
      *
      * @param array<string, mixed> $filtros
-     * @return array<string, array{
-     *     destinos: array<int, array{provincia:string, m3:float}>,
-     *     total_m3: float, transportistas: string, fechas: string, hojas_ruta: string
-     * }>  Clave = tipo de venta ('online'|'local'|'').
+     * @return array{destinos: array<int, array{provincia:string, m3:float}>,
+     *               total_m3: float, transportistas: string, fechas: string, hojas_ruta: string}
      */
-    public static function facturacionPorTipo(array $filtros): array
+    public static function facturacionResumen(array $filtros): array
     {
         [$where, $params] = self::whereFiltros($filtros);
         $db = DB::getInstance();
 
         $stmtD = $db->prepare(
-            "SELECT COALESCE(o.tipo_venta, '')                 AS tipo,
-                    COALESCE(NULLIF(o.dest_provincia, ''), '(sin provincia)') AS provincia,
-                    COALESCE(SUM(o.m3_total), 0)               AS m3
+            "SELECT COALESCE(NULLIF(o.dest_provincia, ''), '(sin provincia)') AS provincia,
+                    COALESCE(SUM(o.m3_total), 0) AS m3
              FROM ordenes o" . $where . "
-             GROUP BY tipo, provincia
-             ORDER BY tipo ASC, provincia ASC"
+             GROUP BY provincia ORDER BY provincia ASC"
         );
         $stmtD->execute($params);
 
-        $out = [];
+        $out = ['destinos' => [], 'total_m3' => 0.0, 'transportistas' => '', 'fechas' => '', 'hojas_ruta' => ''];
         foreach ($stmtD->fetchAll() as $r) {
-            $tipo = (string)$r['tipo'];
-            if (!isset($out[$tipo])) {
-                $out[$tipo] = ['destinos' => [], 'total_m3' => 0.0,
-                               'transportistas' => '', 'fechas' => '', 'hojas_ruta' => ''];
-            }
             $m3 = (float)$r['m3'];
-            $out[$tipo]['destinos'][] = ['provincia' => (string)$r['provincia'], 'm3' => $m3];
-            $out[$tipo]['total_m3']  += $m3;
+            $out['destinos'][] = ['provincia' => (string)$r['provincia'], 'm3' => $m3];
+            $out['total_m3']  += $m3;
         }
 
         $stmtF = $db->prepare(
-            "SELECT COALESCE(o.tipo_venta, '') AS tipo,
-                    GROUP_CONCAT(DISTINCT u.nombre_completo ORDER BY u.nombre_completo SEPARATOR ', ') AS transportistas,
+            "SELECT GROUP_CONCAT(DISTINCT u.nombre_completo ORDER BY u.nombre_completo SEPARATOR ', ') AS transportistas,
                     GROUP_CONCAT(DISTINCT o.fecha_carga ORDER BY o.fecha_carga SEPARATOR ',')          AS fechas,
                     GROUP_CONCAT(DISTINCT o.hoja_ruta ORDER BY o.hoja_ruta SEPARATOR ', ')             AS hojas_ruta
              FROM ordenes o
-             LEFT JOIN usuarios u ON u.id = o.transportista_id" . $where . "
-             GROUP BY tipo"
+             LEFT JOIN usuarios u ON u.id = o.transportista_id" . $where
         );
         $stmtF->execute($params);
-        foreach ($stmtF->fetchAll() as $r) {
-            $tipo = (string)$r['tipo'];
-            if (!isset($out[$tipo])) { continue; }
-            $out[$tipo]['transportistas'] = (string)($r['transportistas'] ?? '');
-            $out[$tipo]['fechas']         = (string)($r['fechas'] ?? '');
-            $out[$tipo]['hojas_ruta']     = (string)($r['hojas_ruta'] ?? '');
-        }
+        $f = $stmtF->fetch() ?: [];
+        $out['transportistas'] = (string)($f['transportistas'] ?? '');
+        $out['fechas']         = (string)($f['fechas'] ?? '');
+        $out['hojas_ruta']     = (string)($f['hojas_ruta'] ?? '');
 
         return $out;
     }

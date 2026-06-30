@@ -90,7 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } else { // guardar
-        $tvIn     = (string)($_POST['tipo_venta'] ?? '');
         $valor    = trim((string)($_POST['valor_declarado'] ?? ''));
         $transpId = (int)($_POST['transportista_id'] ?? 0);
         $fCarga   = trim((string)($_POST['fecha_carga'] ?? ''));
@@ -109,7 +108,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'cliente_apellido' => trim((string)($_POST['cliente_apellido'] ?? '')),
                 'telefonos'        => $telefonos,
                 'telefono_wa'      => $telefonoWa,
-                'tipo_venta'       => in_array($tvIn, ['online', 'local'], true) ? $tvIn : null,
                 'transportista_id' => $transpId > 0 ? $transpId : '',
                 'fecha_carga'      => $fCarga,
                 'dest_provincia'   => trim((string)($_POST['dest_provincia'] ?? '')),
@@ -155,7 +153,6 @@ if (!empty($orden['transportista_id'])) {
     $transpNombre = (string)($t['nombre_completo'] ?? '');
 }
 $transportistasAll = Usuario::transportistasActivos();
-$tv        = (string)($orden['tipo_venta'] ?? '');
 $urlEti    = url('admin/ordenes-etiquetas.php') . '?orden=' . $id;
 $csrf      = Auth::tokenCSRF();
 $historial = Orden::historial($id);
@@ -213,7 +210,6 @@ $campo = static function (string $label, string $valor): void {
       <div class="mono" style="font-size:1.15rem;font-weight:700;margin-bottom:6px"><?= h((string)$orden['nro_orden']) ?></div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
         <?= estado_badge((string)($orden['estado'] ?? '')) ?>
-        <?php if ($tv !== ''): ?><span class="badge b-<?= h(strtoupper($tv)) ?>"><?= h(ucfirst($tv)) ?></span><?php endif; ?>
         <?php $marca = (string)($orden['marca'] ?? ''); ?>
         <?php if ($marca === 'no_entregar'): ?><span class="badge" style="background:rgba(239,68,68,.2);color:#f87171"><i class="bi bi-x-octagon-fill me-1"></i>No entregar</span>
         <?php elseif ($marca === 'prioridad'): ?><span class="badge" style="background:rgba(245,158,11,.2);color:#fbbf24"><i class="bi bi-lightning-charge-fill me-1"></i>Prioridad</span><?php endif; ?>
@@ -377,13 +373,6 @@ $campo = static function (string $label, string $valor): void {
           <div class="col-md-4"><label class="form-label">Nº remito</label><input class="form-control form-control-sm" name="nro_remito" value="<?= h((string)($orden['nro_remito'] ?? '')) ?>"></div>
           <div class="col-md-4"><label class="form-label">Hoja de ruta</label><input class="form-control form-control-sm" name="hoja_ruta" value="<?= h((string)($orden['hoja_ruta'] ?? '')) ?>"></div>
           <div class="col-md-4"><label class="form-label">Fecha remito</label><input type="date" class="form-control form-control-sm" name="fecha_remito" value="<?= h((string)($orden['fecha_remito'] ?? '')) ?>"></div>
-          <div class="col-md-4"><label class="form-label">Tipo de venta</label>
-            <select class="form-select form-select-sm" name="tipo_venta">
-              <option value="" <?= $tv === '' ? 'selected' : '' ?>>—</option>
-              <option value="online" <?= $tv === 'online' ? 'selected' : '' ?>>Online</option>
-              <option value="local" <?= $tv === 'local' ? 'selected' : '' ?>>Local</option>
-            </select>
-          </div>
           <div class="col-md-4"><label class="form-label">Transportista</label>
             <select class="form-select form-select-sm" name="transportista_id">
               <option value="">—</option>

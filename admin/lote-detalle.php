@@ -51,18 +51,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $cargaId  = (int)($_POST['carga_id'] ?? 0);
         $transpId = (int)($_POST['transportista_id'] ?? 0);
-        $tipo     = (string)($_POST['tipo_venta'] ?? '');
         $fCarga   = trim((string)($_POST['fecha_carga'] ?? ''));
         if ($cargaId <= 0) {
             flash_set('danger', 'Carga inválida.');
         } elseif ($transpId > 0 && !Usuario::existeActivoConRol($transpId, 'transportista')) {
             flash_set('danger', 'Transportista inválido.');
-        } elseif ($tipo !== '' && !in_array($tipo, ['online', 'local'], true)) {
-            flash_set('danger', 'Tipo de venta inválido.');
         } elseif ($fCarga !== '' && $fCarga > date('Y-m-d')) {
             flash_set('danger', 'La fecha de carga no puede ser posterior a hoy.');
         } else {
-            $n = Orden::actualizarDatosCarga($cargaId, $transpId > 0 ? $transpId : null, $tipo !== '' ? $tipo : null, $fCarga !== '' ? $fCarga : null);
+            $n = Orden::actualizarDatosCarga($cargaId, $transpId > 0 ? $transpId : null, $fCarga !== '' ? $fCarga : null);
             flash_set('success', "Datos de carga actualizados en {$n} orden(es).");
         }
     }
@@ -316,15 +313,6 @@ if ($remitos !== []): ?>
             <?php foreach ($transportistasAll as $t): ?>
               <option value="<?= (int)$t['id'] ?>" <?= (int)($cargaDatos['transportista_id'] ?? 0) === (int)$t['id'] ? 'selected' : '' ?>><?= h($t['nombre_completo']) ?></option>
             <?php endforeach; ?>
-          </select>
-        </div>
-        <div class="mb-2">
-          <label class="form-label">Tipo de venta</label>
-          <select class="form-select form-select-sm" name="tipo_venta">
-            <?php $tvC = (string)($cargaDatos['tipo_venta'] ?? ''); ?>
-            <option value="" <?= $tvC === '' ? 'selected' : '' ?>>—</option>
-            <option value="online" <?= $tvC === 'online' ? 'selected' : '' ?>>Online</option>
-            <option value="local" <?= $tvC === 'local' ? 'selected' : '' ?>>Local</option>
           </select>
         </div>
         <div class="mb-2">

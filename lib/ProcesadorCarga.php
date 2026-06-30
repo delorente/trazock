@@ -81,7 +81,6 @@ final class ProcesadorCarga
                     'transportista_id'=> isset($o['transportista_id']) && (int)$o['transportista_id'] > 0 ? (int)$o['transportista_id'] : null,
                     'fecha_carga'     => self::s($o['fecha_carga'] ?? null),
                     'fecha_remito'    => self::s($o['fecha_remito'] ?? null),
-                    'tipo_venta'      => self::s($o['tipo_venta'] ?? null),
                     'cliente'         => $cliente,
                     'cliente_apellido'=> $apellido,
                     'telefonos'       => $telefonos,

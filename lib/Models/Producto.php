@@ -328,10 +328,6 @@ final class Producto
             $where[] = 'p.categoria_id = :cat';
             $params[':cat'] = (int)$f['categoria'];
         }
-        if (!empty($f['tipo_venta'])) {
-            $where[] = 'o.tipo_venta = :tv';
-            $params[':tv'] = $f['tipo_venta'];
-        }
         // Fecha de CARGA del documento (la que se ingresa al importar; columna DATE).
         if (!empty($f['fecha_desde'])) {
             $where[] = 'o.fecha_carga >= :fd';
@@ -361,7 +357,7 @@ final class Producto
 
         $sql = 'SELECT p.id, p.codigo, p.descripcion, p.dimensiones, p.m3, p.secuencia,
                        p.estado_actual, p.etiquetada_at,
-                       o.id AS orden_id, o.carga_id, o.nro_orden, o.cliente, o.tipo_venta,
+                       o.id AS orden_id, o.carga_id, o.nro_orden, o.cliente,
                        o.hoja_ruta, o.fecha_carga,
                        o.dest_provincia, o.dest_localidad, o.created_at AS fecha_ingreso,
                        tu.nombre_completo AS transportista_nombre,

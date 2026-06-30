@@ -34,14 +34,6 @@ panel_header('Nueva carga', $user, 'captura',
       </select>
       <div class="text-muted" style="font-size:11px;margin-top:6px">Ej. "Colchones Simmons" o "Café La Morenita". Se aplica a los productos de esta carga (se fija al procesar la 1ª hoja).</div>
     </div>
-    <div>
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Tipo de venta</div>
-      <div class="btn-group btn-group-sm" id="tipoVenta">
-        <button type="button" class="btn btn-primary btn-sm" data-tv="online">Online</button>
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-tv="local">Local</button>
-      </div>
-      <div class="text-muted" style="font-size:11px;margin-top:6px">Aplica a las órdenes de esta carga. Se puede ajustar por orden en la revisión.</div>
-    </div>
   </div>
 
   <div class="card">
@@ -79,7 +71,6 @@ const TZ = {
   apiHoja: <?= json_encode(url('api/ordenes-hoja.php')) ?>,
   revision: <?= json_encode(url('admin/ordenes-revision.php')) ?>,
   cargaId: null,
-  tipoVenta: 'online',
   totalOrdenes: 0,
   transportistas: <?= json_encode(array_map(static fn($t) => ['id' => (int)$t['id'], 'nombre' => (string)$t['nombre_completo']], $transportistas), JSON_UNESCAPED_UNICODE) ?>,
   hoy: <?= json_encode(date('Y-m-d')) ?>,
@@ -89,14 +80,6 @@ const TZ = {
 const TRANSP_OPTS = '<option value="">— Transportista —</option>' +
   TZ.transportistas.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
 
-// Toggle tipo de venta
-document.querySelectorAll('#tipoVenta [data-tv]').forEach(b => b.addEventListener('click', () => {
-  TZ.tipoVenta = b.getAttribute('data-tv');
-  document.querySelectorAll('#tipoVenta [data-tv]').forEach(x => {
-    x.classList.toggle('btn-primary', x === b);
-    x.classList.toggle('btn-outline-secondary', x !== b);
-  });
-}));
 
 const fileInput = document.getElementById('fileInput');
 const dropZone  = document.getElementById('dropZone');
@@ -188,7 +171,6 @@ async function procesarHoja(item) {
   const fd = new FormData();
   fd.append('csrf_token', TZ.csrf);
   fd.append('hoja', item.file);
-  fd.append('tipo_venta', TZ.tipoVenta);
   fd.append('categoria_id', document.getElementById('cfgCategoria').value || '');
   fd.append('transportista_id', transportistaId);
   fd.append('fecha_carga', fechaCarga);

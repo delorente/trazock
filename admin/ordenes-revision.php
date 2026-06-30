@@ -59,7 +59,7 @@ panel_header('Revisión OCR', $user, 'captura',
       <thead><tr>
         <th style="width:26px"></th>
         <th>Nº orden</th><th>Nº remito</th><th style="width:120px">Hoja ruta</th><th>Cliente</th><th>Teléfono</th><th>Destino</th>
-        <th style="width:96px">Tipo</th><th style="width:70px">m³</th><th style="width:54px">Ítems</th><th style="width:110px">Valor</th><th style="width:34px"></th>
+        <th style="width:70px">m³</th><th style="width:54px">Ítems</th><th style="width:110px">Valor</th><th style="width:34px"></th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -106,7 +106,6 @@ function render(){
 
     const tr = document.createElement('tr');
     if (errOrden) tr.className = 'row-err';
-    const tv = o.tipo_venta || '';
     tr.innerHTML = `
       <td><button class="xbtn ${expandido.has(i)?'open':''}" data-exp="${i}"><i class="bi bi-chevron-${expandido.has(i)?'down':'right'}"></i></button></td>
       <td>${inp(i,'nro_orden',o.nro_orden||'', errOrden?'cell-err':'')}</td>
@@ -115,10 +114,6 @@ function render(){
       <td>${inp(i,'cliente',o.cliente||'')}</td>
       <td>${inp(i,'telefonos',o.telefonos||'')}</td>
       <td><div class="d-flex flex-column gap-1">${inp(i,'dest_localidad',o.dest_localidad||'')}${inp(i,'dest_provincia',o.dest_provincia||'', (warnDest||provRara)?'cell-warn':'')}${provRara?'<div class="text-warning" style="font-size:11px;line-height:1.2"><i class="bi bi-exclamation-triangle-fill me-1"></i>¿Vas a esta provincia? No está en tus zonas ni en envíos anteriores</div>':''}</div></td>
-      <td><select class="cell-edit" data-i="${i}" data-f="tipo_venta">
-          <option value="" ${tv===''?'selected':''}>—</option>
-          <option value="online" ${tv==='online'?'selected':''}>Online</option>
-          <option value="local" ${tv==='local'?'selected':''}>Local</option></select></td>
       <td class="mono ${sinItems?'':''}" style="font-size:12px">${fmt(m3DeOrden(o))}</td>
       <td style="text-align:center">${itemsDeOrden(o)}</td>
       <td>${inp(i,'valor_declarado',o.valor_declarado??'')}</td>
@@ -135,7 +130,7 @@ function render(){
           <td class="sub-td" style="width:80px"><input class="cell-edit" data-i="${i}" data-j="${j}" data-f="m3" value="${esc(it.m3??'')}"></td>
           <td class="sub-td" style="width:30px"><button class="xbtn" data-deli="${i}:${j}"><i class="bi bi-x-lg"></i></button></td>
         </tr>`).join('');
-      sub.innerHTML = `<td></td><td colspan="11" style="padding:0!important">
+      sub.innerHTML = `<td></td><td colspan="10" style="padding:0!important">
         <table class="table mb-0" style="background:transparent">
           <thead><tr><th class="sub-th">Código</th><th class="sub-th">Dimensiones</th><th class="sub-th">Cant.</th><th class="sub-th">m³</th><th class="sub-th"></th></tr></thead>
           <tbody>${items || '<tr><td class="sub-td text-muted" colspan="5">Sin ítems.</td></tr>'}</tbody>

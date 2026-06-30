@@ -33,7 +33,6 @@ $filtros = [
     'prefijo'      => filtro_multi_valores('prefijo'),    // multi (local / origen)
     'transportista'=> trim((string)($_GET['transportista'] ?? '')),
     'estado'       => trim((string)($_GET['estado'] ?? '')),
-    'tipo_venta'   => trim((string)($_GET['tipo_venta'] ?? '')),
     'fecha_desde'  => trim((string)($_GET['fecha_desde'] ?? '')),
     'fecha_hasta'  => trim((string)($_GET['fecha_hasta'] ?? '')),
 ];
@@ -62,10 +61,10 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     $sheet->setTitle('Órdenes');
 
     $encabezados = ['Lote', 'Nº orden', 'Categoría', 'Nº remito', 'Hoja ruta', 'Transportista', 'F. carga',
-                    'F. remito', 'Tipo', 'Cliente', 'Teléfono', 'Provincia', 'Localidad',
-                    'm³', 'Valor declarado', 'Ítems', 'Estado', 'F. ingreso'];
+                    'F. remito', 'Cliente', 'Teléfono', 'Provincia', 'Localidad',
+                    'm³', 'Valor declarado', 'Ítems', 'Estado'];
     $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:R1')->getFont()->setBold(true);
+    $sheet->getStyle('A1:P1')->getFont()->setBold(true);
 
     $fila = 2;
     foreach ($rows as $o) {
@@ -77,19 +76,17 @@ if (($_GET['export'] ?? '') === 'xlsx') {
         $sheet->setCellValue('F' . $fila, (string)($o['transportista_nombre'] ?? ''));
         $sheet->setCellValue('G' . $fila, ($o['fecha_carga'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_carga'])) : '');
         $sheet->setCellValue('H' . $fila, (string)($o['fecha_remito'] ?? ''));
-        $sheet->setCellValue('I' . $fila, (string)($o['tipo_venta'] ?? ''));
-        $sheet->setCellValue('J' . $fila, (string)($o['cliente'] ?? ''));
-        $sheet->setCellValueExplicit('K' . $fila, (string)($o['telefonos'] ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-        $sheet->setCellValue('L' . $fila, trim((string)($o['dest_provincia'] ?? '')));
-        $sheet->setCellValue('M' . $fila, trim((string)($o['dest_localidad'] ?? '')));
-        $sheet->setCellValue('N' . $fila, (float)($o['m3_total'] ?? 0));
-        $sheet->setCellValue('O' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
-        $sheet->setCellValue('P' . $fila, (int)($o['cant_items'] ?? 0));
-        $sheet->setCellValue('Q' . $fila, (string)($o['estado'] ?? ''));
-        $sheet->setCellValue('R' . $fila, fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
+        $sheet->setCellValue('I' . $fila, (string)($o['cliente'] ?? ''));
+        $sheet->setCellValueExplicit('J' . $fila, (string)($o['telefonos'] ?? ''), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+        $sheet->setCellValue('K' . $fila, trim((string)($o['dest_provincia'] ?? '')));
+        $sheet->setCellValue('L' . $fila, trim((string)($o['dest_localidad'] ?? '')));
+        $sheet->setCellValue('M' . $fila, (float)($o['m3_total'] ?? 0));
+        $sheet->setCellValue('N' . $fila, $o['valor_declarado'] !== null ? (float)$o['valor_declarado'] : null);
+        $sheet->setCellValue('O' . $fila, (int)($o['cant_items'] ?? 0));
+        $sheet->setCellValue('P' . $fila, (string)($o['estado'] ?? ''));
         $fila++;
     }
-    foreach (range('A', 'R') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+    foreach (range('A', 'P') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -99,65 +96,55 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     exit;
 }
 
-// --- Modo export Facturación: una factura por tipo (m³ por destino) -----------
-// Cada tipo (online/local) es una hoja: ítems = m³ por provincia de destino y, al
-// pie, transportista(s), fecha(s) de carga y nº(s) de hoja de ruta del/los doc(s).
+// --- Modo export Facturación: una hoja con m³ por destino (provincia) ---------
+// Sin separar por tipo de venta: la separación (online / resto) se hace filtrando
+// por prefijo (Local) y exportando dos veces.
 if (($_GET['export'] ?? '') === 'facturacion') {
-    $facturas = Orden::facturacionPorTipo($filtros);
-    $tvLabel  = ['online' => 'Online', 'local' => 'Local', '' => 'Sin tipo'];
+    $f = Orden::facturacionResumen($filtros);
 
     $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setTitle('Facturación');
 
-    if ($facturas === []) {
-        $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Facturación');
+    if ($f['destinos'] === []) {
         $sheet->setCellValue('A1', 'No hay órdenes para los filtros seleccionados.');
     } else {
-        $primera = true;
-        foreach ($facturas as $tipo => $f) {
-            $titulo = $tvLabel[$tipo] ?? 'Sin tipo';
-            $sheet  = $primera ? $spreadsheet->getActiveSheet() : $spreadsheet->createSheet();
-            $primera = false;
-            $sheet->setTitle(mb_substr('Factura ' . $titulo, 0, 31));
+        $sheet->setCellValue('A1', 'FACTURACIÓN — m³ por destino');
+        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
 
-            $sheet->setCellValue('A1', 'FACTURA — ' . $titulo);
-            $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $sheet->setCellValue('A3', 'Destino');
+        $sheet->setCellValue('B3', 'm³');
+        $sheet->getStyle('A3:B3')->getFont()->setBold(true);
 
-            $sheet->setCellValue('A3', 'Destino');
-            $sheet->setCellValue('B3', 'm³');
-            $sheet->getStyle('A3:B3')->getFont()->setBold(true);
-
-            $fila = 4;
-            foreach ($f['destinos'] as $d) {
-                $sheet->setCellValue('A' . $fila, (string)$d['provincia']);
-                $sheet->setCellValue('B' . $fila, (float)$d['m3']);
-                $fila++;
-            }
-            $sheet->setCellValue('A' . $fila, 'TOTAL');
-            $sheet->setCellValue('B' . $fila, (float)$f['total_m3']);
-            $sheet->getStyle('A' . $fila . ':B' . $fila)->getFont()->setBold(true);
-
-            // Pie: transportista(s) / fecha(s) / hoja(s) de ruta.
-            $fechasFmt = implode(', ', array_map(
-                static fn(string $x): string => date('d/m/Y', strtotime($x)),
-                array_values(array_filter(explode(',', (string)$f['fechas']), static fn($x) => trim($x) !== ''))
-            ));
-            $pie = [
-                ['Transportista(s):', $f['transportistas'] !== '' ? $f['transportistas'] : '—'],
-                ['Fecha(s) de carga:', $fechasFmt !== '' ? $fechasFmt : '—'],
-                ['Hoja(s) de ruta:',  $f['hojas_ruta'] !== '' ? $f['hojas_ruta'] : '—'],
-            ];
-            $fila += 2;
-            foreach ($pie as [$lbl, $val]) {
-                $sheet->setCellValue('A' . $fila, $lbl);
-                $sheet->getStyle('A' . $fila)->getFont()->setBold(true);
-                $sheet->setCellValueExplicit('B' . $fila, (string)$val, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-                $fila++;
-            }
-            $sheet->getColumnDimension('A')->setAutoSize(true);
-            $sheet->getColumnDimension('B')->setAutoSize(true);
+        $fila = 4;
+        foreach ($f['destinos'] as $d) {
+            $sheet->setCellValue('A' . $fila, (string)$d['provincia']);
+            $sheet->setCellValue('B' . $fila, (float)$d['m3']);
+            $fila++;
         }
-        $spreadsheet->setActiveSheetIndex(0);
+        $sheet->setCellValue('A' . $fila, 'TOTAL');
+        $sheet->setCellValue('B' . $fila, (float)$f['total_m3']);
+        $sheet->getStyle('A' . $fila . ':B' . $fila)->getFont()->setBold(true);
+
+        // Pie: transportista(s) / fecha(s) / hoja(s) de ruta.
+        $fechasFmt = implode(', ', array_map(
+            static fn(string $x): string => date('d/m/Y', strtotime($x)),
+            array_values(array_filter(explode(',', (string)$f['fechas']), static fn($x) => trim($x) !== ''))
+        ));
+        $pie = [
+            ['Transportista(s):', $f['transportistas'] !== '' ? $f['transportistas'] : '—'],
+            ['Fecha(s) de carga:', $fechasFmt !== '' ? $fechasFmt : '—'],
+            ['Hoja(s) de ruta:',  $f['hojas_ruta'] !== '' ? $f['hojas_ruta'] : '—'],
+        ];
+        $fila += 2;
+        foreach ($pie as [$lbl, $val]) {
+            $sheet->setCellValue('A' . $fila, $lbl);
+            $sheet->getStyle('A' . $fila)->getFont()->setBold(true);
+            $sheet->setCellValueExplicit('B' . $fila, (string)$val, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $fila++;
+        }
+        $sheet->getColumnDimension('A')->setAutoSize(true);
+        $sheet->getColumnDimension('B')->setAutoSize(true);
     }
 
     if (ob_get_length()) { ob_end_clean(); }
@@ -271,14 +258,6 @@ $prefOpts = Prefijo::paraFiltro();
         <?php endforeach; ?>
       </select>
     </div>
-    <div>
-      <label class="form-label">Tipo de venta</label>
-      <select class="form-select form-select-sm" name="tipo_venta">
-        <option value="">Todos</option>
-        <option value="online" <?= $filtros['tipo_venta'] === 'online' ? 'selected' : '' ?>>Online</option>
-        <option value="local"  <?= $filtros['tipo_venta'] === 'local'  ? 'selected' : '' ?>>Local</option>
-      </select>
-    </div>
     <div><label class="form-label">F. carga desde</label><input type="date" class="form-control form-control-sm" name="fecha_desde" value="<?= h($filtros['fecha_desde']) ?>"></div>
     <div><label class="form-label">F. carga hasta</label><input type="date" class="form-control form-control-sm" name="fecha_hasta" value="<?= h($filtros['fecha_hasta']) ?>"></div>
     <div>
@@ -320,15 +299,13 @@ $prefOpts = Prefijo::paraFiltro();
           <?php if ($puedeMarcar): ?><th class="no-print" style="width:30px"><input type="checkbox" id="waChkAll" title="Seleccionar todas" class="form-check-input"></th><?php endif; ?>
           <th style="width:58px">Marca</th>
           <th>Lote</th><th>Nº orden</th><th>Cliente</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Provincia</th><th>Localidad</th><th>Teléfono</th><th>m³</th>
-          <th>Tipo</th><th>F. remito</th><th>Nº remito</th><th>Hoja ruta</th><th>Transportista</th><th>F. carga</th><th>F. ingreso</th>
+          <th>F. remito</th><th>Nº remito</th><th>Hoja ruta</th><th>Transportista</th><th>F. carga</th>
           <th>Estado</th><th class="no-print"></th>
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-          <tr><td colspan="<?= $puedeMarcar ? 20 : 19 ?>" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
-        <?php else: foreach ($ordenes as $o):
-            $tv = (string)($o['tipo_venta'] ?? '');
-        ?>
+          <tr><td colspan="<?= $puedeMarcar ? 18 : 17 ?>" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
+        <?php else: foreach ($ordenes as $o): ?>
           <?php $marca = (string)($o['marca'] ?? ''); $obs = trim((string)($o['observaciones'] ?? '')); ?>
           <tr>
             <?php if ($puedeMarcar): ?><td class="no-print"><input type="checkbox" class="form-check-input wa-chk" value="<?= (int)$o['id'] ?>" data-nro="<?= h((string)$o['nro_orden']) ?>"></td><?php endif; ?>
@@ -353,13 +330,11 @@ $prefOpts = Prefijo::paraFiltro();
               <?php if ((string)($o['telefono_wa'] ?? '') === ''): ?><i class="bi bi-whatsapp text-danger" title="Sin teléfono apto para WhatsApp"></i><?php endif; ?>
             </td>
             <td><?= number_format((float)($o['m3_total'] ?? 0), 2, ',', '.') ?></td>
-            <td><?php if ($tv !== ''): ?><span class="badge b-<?= h(strtoupper($tv)) ?>"><?= h(ucfirst($tv)) ?></span><?php else: ?>—<?php endif; ?></td>
             <td style="color:var(--muted)"><?= h(($o['fecha_remito'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_remito'])) : '—') ?></td>
             <td class="mono" style="font-size:12px"><?= h((string)($o['nro_remito'] ?? '—')) ?></td>
             <td class="mono" style="font-size:12px"><?= h((string)($o['hoja_ruta'] ?? '') !== '' ? (string)$o['hoja_ruta'] : '—') ?></td>
             <td style="font-size:12px"><?= h((string)($o['transportista_nombre'] ?? '') !== '' ? (string)$o['transportista_nombre'] : '—') ?></td>
             <td style="color:var(--muted)"><?= h(($o['fecha_carga'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_carga'])) : '—') ?></td>
-            <td style="color:var(--muted)"><?= h(fmt_fecha((string)($o['fecha_ingreso'] ?? ''), 'd/m/Y H:i')) ?></td>
             <td><?= estado_badge((string)($o['estado'] ?? '')) ?></td>
             <td class="no-print"><a class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px" href="<?= h(url('admin/ordenes-detalle.php') . '?id=' . (int)$o['id'] . '&vol=' . rawurlencode($volverQS)) ?>">Ver</a></td>
           </tr>

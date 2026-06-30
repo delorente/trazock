@@ -5,7 +5,7 @@ declare(strict_types=1);
 // POST /api/ordenes-hoja.php — procesa UNA hoja resumen subida (multipart).
 // Extrae las órdenes con OCR y las acumula en la carga borrador. Crea la carga
 // si no viene carga_id. Requiere admin/gestor + CSRF.
-//   Form: csrf_token, hoja (file), tipo_venta (local|online), carga_id (opt)
+//   Form: csrf_token, hoja (file), carga_id (opt)
 //   → {ok, carga_id, ordenes_hoja, total}
 // =============================================================================
 
@@ -36,7 +36,6 @@ if ($bytes === false || $bytes === '') {
     Api::error('La imagen está vacía.', 400);
 }
 
-$tipoVenta = in_array(($_POST['tipo_venta'] ?? ''), ['local', 'online'], true) ? (string)$_POST['tipo_venta'] : null;
 $cargaId   = (int)($_POST['carga_id'] ?? 0);
 
 // Datos clave POR DOCUMENTO (obligatorios): transportista que trajo la mercadería
@@ -82,10 +81,9 @@ $nuevas = is_array($res['ordenes'] ?? null) ? $res['ordenes'] : [];
 // HR del documento (OCR) — puede venir null; el usuario lo completa en revisión.
 $hojaRuta = isset($res['hoja_ruta']) && $res['hoja_ruta'] !== null ? trim((string)$res['hoja_ruta']) : '';
 
-// Estampar en cada orden del documento: tipo de venta de la carga + los datos
-// clave de ESTE documento (HR, transportista, fecha). Todos editables luego.
+// Estampar en cada orden del documento los datos clave de ESTE documento
+// (HR, transportista, fecha). Todos editables luego.
 foreach ($nuevas as &$o) {
-    if ($tipoVenta !== null) { $o['tipo_venta'] = $tipoVenta; }
     $o['hoja_ruta']        = $hojaRuta;
     $o['transportista_id'] = $transportistaId;
     $o['fecha_carga']      = $fechaCarga;

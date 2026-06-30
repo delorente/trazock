@@ -29,7 +29,6 @@ $filtros = [
     'hoja_ruta'    => filtro_multi_valores('hoja_ruta'),  // multi (hojas de ruta)
     'transportista'=> trim((string)($_GET['transportista'] ?? '')),
     'estado'       => trim((string)($_GET['estado'] ?? '')),
-    'tipo_venta'   => trim((string)($_GET['tipo_venta'] ?? '')),
     'fecha_desde'  => trim((string)($_GET['fecha_desde'] ?? '')),
     'fecha_hasta'  => trim((string)($_GET['fecha_hasta'] ?? '')),
 ];
@@ -65,9 +64,9 @@ if (($_GET['export'] ?? '') === 'xlsx') {
     $sheet->setTitle('Productos');
 
     $encabezados = ['Lote', 'Nº orden', 'Categoría', 'Código', 'Descripción', 'Dimensiones', 'm³',
-                    'Ítem', 'Estado', 'Provincia', 'Localidad', 'Cliente', 'Tipo', 'F. ingreso'];
+                    'Ítem', 'Estado', 'Provincia', 'Localidad', 'Cliente', 'F. ingreso'];
     $sheet->fromArray($encabezados, null, 'A1');
-    $sheet->getStyle('A1:N1')->getFont()->setBold(true);
+    $sheet->getStyle('A1:M1')->getFont()->setBold(true);
 
     $fila = 2;
     foreach ($rows as $p) {
@@ -83,11 +82,10 @@ if (($_GET['export'] ?? '') === 'xlsx') {
         $sheet->setCellValue('J' . $fila, trim((string)($p['dest_provincia'] ?? '')));
         $sheet->setCellValue('K' . $fila, trim((string)($p['dest_localidad'] ?? '')));
         $sheet->setCellValue('L' . $fila, (string)($p['cliente'] ?? ''));
-        $sheet->setCellValue('M' . $fila, (string)($p['tipo_venta'] ?? ''));
-        $sheet->setCellValue('N' . $fila, fmt_fecha((string)($p['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
+        $sheet->setCellValue('M' . $fila, fmt_fecha((string)($p['fecha_ingreso'] ?? ''), 'd/m/Y H:i'));
         $fila++;
     }
-    foreach (range('A', 'N') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
+    foreach (range('A', 'M') as $col) { $sheet->getColumnDimension($col)->setAutoSize(true); }
 
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -171,14 +169,6 @@ panel_header('Reporte por productos', $user, 'reportes', 'Un ítem físico por f
         <?php foreach (Producto::ESTADOS as $e): ?>
           <option value="<?= h($e) ?>" <?= $e === $filtros['estado'] ? 'selected' : '' ?>><?= h(str_replace('_', ' ', $e)) ?></option>
         <?php endforeach; ?>
-      </select>
-    </div>
-    <div>
-      <label class="form-label">Tipo de venta</label>
-      <select class="form-select form-select-sm" name="tipo_venta">
-        <option value="">Todos</option>
-        <option value="online" <?= $filtros['tipo_venta'] === 'online' ? 'selected' : '' ?>>Online</option>
-        <option value="local"  <?= $filtros['tipo_venta'] === 'local'  ? 'selected' : '' ?>>Local</option>
       </select>
     </div>
     <div><label class="form-label">F. carga desde</label><input type="date" class="form-control form-control-sm" name="fecha_desde" value="<?= h($filtros['fecha_desde']) ?>"></div>
