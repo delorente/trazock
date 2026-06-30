@@ -131,6 +131,50 @@ final class Orden
         return $row === false ? null : $row;
     }
 
+    /**
+     * Edición EN BLOQUE por HOJA DE RUTA (corrección de datos viejos): aplica los
+     * cambios a TODAS las órdenes cuyo `hoja_ruta` coincide. Solo toca las claves
+     * presentes en $cambios (subconjunto de transportista_id, fecha_carga, hoja_ruta;
+     * esta última renombra la hoja). Devuelve cuántas órdenes tenía la hoja.
+     *
+     * @param array<string,mixed> $cambios
+     */
+    public static function actualizarPorHojaRuta(string $hojaRuta, array $cambios): int
+    {
+        $permitidos = ['transportista_id', 'fecha_carga', 'hoja_ruta'];
+        $sets = [];
+        $vals = [];
+        foreach ($permitidos as $c) {
+            if (array_key_exists($c, $cambios)) {
+                $sets[]     = "`{$c}` = :{$c}";
+                $vals[$c]   = $cambios[$c];
+            }
+        }
+        if ($sets === [] || $hojaRuta === '') {
+            return 0;
+        }
+        $db = DB::getInstance();
+        // Cuántas órdenes tiene la hoja (antes de un eventual renombrado).
+        $cnt = $db->prepare('SELECT COUNT(*) FROM ordenes WHERE hoja_ruta = :hr');
+        $cnt->execute([':hr' => $hojaRuta]);
+        $matched = (int)$cnt->fetchColumn();
+        if ($matched === 0) {
+            return 0;
+        }
+        $stmt = $db->prepare('UPDATE ordenes SET ' . implode(', ', $sets) . ' WHERE hoja_ruta = :hr');
+        foreach ($vals as $k => $v) {
+            if ($k === 'transportista_id') {
+                $stmt->bindValue(':' . $k, $v === null ? null : (int)$v, $v === null ? \PDO::PARAM_NULL : \PDO::PARAM_INT);
+            } else {
+                $vacio = ($v === null || $v === '');
+                $stmt->bindValue(':' . $k, $vacio ? null : $v, $vacio ? \PDO::PARAM_NULL : \PDO::PARAM_STR);
+            }
+        }
+        $stmt->bindValue(':hr', $hojaRuta, \PDO::PARAM_STR);
+        $stmt->execute();
+        return $matched;
+    }
+
     /** Recalcula ordenes.m3_total como la suma de los m³ de sus productos. */
     public static function recalcularM3(int $ordenId): void
     {
