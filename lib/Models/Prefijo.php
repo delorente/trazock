@@ -79,30 +79,32 @@ final class Prefijo
         return (bool)$stmt->fetchColumn();
     }
 
-    public static function crear(string $prefijo, string $nombreInterno, ?string $nombrePublico): int
+    public static function crear(string $prefijo, string $nombreInterno, ?string $nombrePublico, ?string $nombreCliente = null): int
     {
         $db = DB::getInstance();
         $stmt = $db->prepare(
-            'INSERT INTO prefijos (prefijo, nombre_interno, nombre_publico)
-             VALUES (:p, :ni, :np)'
+            'INSERT INTO prefijos (prefijo, nombre_interno, nombre_publico, nombre_cliente)
+             VALUES (:p, :ni, :np, :nc)'
         );
         $stmt->execute([
             ':p'  => $prefijo,
             ':ni' => $nombreInterno,
             ':np' => ($nombrePublico === null || $nombrePublico === '') ? null : $nombrePublico,
+            ':nc' => ($nombreCliente === null || $nombreCliente === '') ? null : $nombreCliente,
         ]);
         return (int)$db->lastInsertId();
     }
 
-    public static function actualizar(int $id, string $prefijo, string $nombreInterno, ?string $nombrePublico): void
+    public static function actualizar(int $id, string $prefijo, string $nombreInterno, ?string $nombrePublico, ?string $nombreCliente = null): void
     {
         $stmt = DB::getInstance()->prepare(
-            'UPDATE prefijos SET prefijo = :p, nombre_interno = :ni, nombre_publico = :np WHERE id = :id'
+            'UPDATE prefijos SET prefijo = :p, nombre_interno = :ni, nombre_publico = :np, nombre_cliente = :nc WHERE id = :id'
         );
         $stmt->execute([
             ':p'  => $prefijo,
             ':ni' => $nombreInterno,
             ':np' => ($nombrePublico === null || $nombrePublico === '') ? null : $nombrePublico,
+            ':nc' => ($nombreCliente === null || $nombreCliente === '') ? null : $nombreCliente,
             ':id' => $id,
         ]);
     }

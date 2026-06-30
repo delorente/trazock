@@ -764,6 +764,7 @@ CREATE TABLE IF NOT EXISTS `prefijos` (
     `prefijo`        VARCHAR(40)  NOT NULL,
     `nombre_interno` VARCHAR(120) NOT NULL,
     `nombre_publico` VARCHAR(150) DEFAULT NULL,
+    `nombre_cliente` VARCHAR(150) DEFAULT NULL,
     `token`          CHAR(32)     DEFAULT NULL,
     `activo`         TINYINT(1)   NOT NULL DEFAULT 1,
     `created_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -775,3 +776,4 @@ CREATE TABLE IF NOT EXISTS `prefijos` (
 -- =============================================================================
 -- END: 030_prefijos.sql
 -- =============================================================================
+-- (031 agrega prefijos.nombre_cliente — ya incluido en la tabla `prefijos` de arriba.)

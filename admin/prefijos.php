@@ -43,15 +43,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $prefijo = trim((string)($_POST['prefijo'] ?? ''));
             $nomInt  = trim((string)($_POST['nombre_interno'] ?? ''));
             $nomPub  = trim((string)($_POST['nombre_publico'] ?? ''));
+            $nomCli  = trim((string)($_POST['nombre_cliente'] ?? ''));
             if ($prefijo === '' || $nomInt === '') {
                 flash_set('danger', 'El prefijo y el nombre interno son obligatorios.');
             } elseif (Prefijo::existsByPrefijo($prefijo, $id)) {
                 flash_set('danger', 'Ya existe un prefijo «' . $prefijo . '».');
             } elseif ($id > 0) {
-                Prefijo::actualizar($id, $prefijo, $nomInt, $nomPub);
+                Prefijo::actualizar($id, $prefijo, $nomInt, $nomPub, $nomCli);
                 flash_set('success', 'Prefijo actualizado.');
             } else {
-                Prefijo::crear($prefijo, $nomInt, $nomPub);
+                Prefijo::crear($prefijo, $nomInt, $nomPub, $nomCli);
                 flash_set('success', 'Prefijo creado.');
             }
         }
@@ -137,6 +138,7 @@ panel_header('Prefijos', $user, 'prefijos', count($prefijos) . ' prefijo(s)', $a
                                 onclick='prefEditar(<?= json_encode([
                                     "id" => (int)$p["id"], "prefijo" => $p["prefijo"],
                                     "nombre_interno" => $p["nombre_interno"], "nombre_publico" => $p["nombre_publico"],
+                                    "nombre_cliente" => $p["nombre_cliente"] ?? "",
                                 ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'><i class="bi bi-pencil"></i></button>
                         <form method="post" class="d-inline">
                             <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
@@ -182,6 +184,11 @@ panel_header('Prefijos', $user, 'prefijos', count($prefijos) . ' prefijo(s)', $a
           <input class="form-control" id="pref_np" name="nombre_publico" maxlength="150" placeholder="Opcional — lo ve el local en su link">
           <div class="form-text">Título que ve el local en su listado. Si se deja vacío, se usa el nombre interno.</div>
         </div>
+        <div class="mb-3">
+          <label class="form-label" for="pref_nc">Nombre del cliente (stock del local)</label>
+          <input class="form-control" id="pref_nc" name="nombre_cliente" maxlength="150" placeholder="Ej. Local Tucuman">
+          <div class="form-text">Nombre con el que vienen las órdenes de <strong>stock del local</strong>. El portal separa así "Pedidos del Local" (a este nombre) de "Ventas del Local" (clientes finales).</div>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -198,6 +205,7 @@ function prefNuevo(prefijo) {
     document.getElementById('pref_prefijo').value = prefijo || '';
     document.getElementById('pref_ni').value = '';
     document.getElementById('pref_np').value = '';
+    document.getElementById('pref_nc').value = '';
     if (prefijo) { new bootstrap.Modal(document.getElementById('modalPref')).show(); }
 }
 function prefEditar(d) {
@@ -206,6 +214,7 @@ function prefEditar(d) {
     document.getElementById('pref_prefijo').value = d.prefijo || '';
     document.getElementById('pref_ni').value = d.nombre_interno || '';
     document.getElementById('pref_np').value = d.nombre_publico || '';
+    document.getElementById('pref_nc').value = d.nombre_cliente || '';
 }
 function prefCopiar(btn, url) {
     navigator.clipboard.writeText(url).then(function () {

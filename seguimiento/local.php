@@ -47,19 +47,25 @@ if ($pref !== null && ($_GET['export'] ?? '') === 'xlsx') {
     $sh->setTitle('Órdenes');
     $sh->setCellValue('A1', 'Órdenes de ' . $nombre);
     $sh->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-    $sh->fromArray(['Nº orden', 'Ítems', 'Estado', 'Fecha y hora'], null, 'A3');
-    $sh->getStyle('A3:D3')->getFont()->setBold(true);
+    $sh->fromArray(['Nº orden', 'Cliente', 'Tipo', 'Ítems', 'Estado', 'Fecha y hora'], null, 'A3');
+    $sh->getStyle('A3:F3')->getFont()->setBold(true);
     $STR = \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING;
+    $nclExp = trim((string)($pref['nombre_cliente'] ?? ''));
+    $nclExpN = mb_strtolower($nclExp);
     $fila = 4;
     foreach ($rows as $o) {
         $fest = (string)($o['fecha_estado'] ?? '') !== '' ? (string)$o['fecha_estado'] : (string)$o['created_at'];
+        $cli  = trim((string)($o['cliente'] ?? ''));
+        $tipo = ($nclExp !== '' && mb_strtolower($cli) === $nclExpN) ? 'Pedido del Local' : 'Venta del Local';
         $sh->setCellValueExplicit('A' . $fila, (string)$o['nro_orden'], $STR);
-        $sh->setCellValue('B' . $fila, (int)($o['cant_items'] ?? 0));
-        $sh->setCellValue('C' . $fila, $EST[(string)$o['estado']][0] ?? (string)$o['estado']);
-        $sh->setCellValue('D' . $fila, fmt_fecha($fest, 'd/m/Y H:i'));
+        $sh->setCellValue('B' . $fila, $cli);
+        $sh->setCellValue('C' . $fila, $tipo);
+        $sh->setCellValue('D' . $fila, (int)($o['cant_items'] ?? 0));
+        $sh->setCellValue('E' . $fila, $EST[(string)$o['estado']][0] ?? (string)$o['estado']);
+        $sh->setCellValue('F' . $fila, fmt_fecha($fest, 'd/m/Y H:i'));
         $fila++;
     }
-    foreach (range('A', 'D') as $c) { $sh->getColumnDimension($c)->setAutoSize(true); }
+    foreach (range('A', 'F') as $c) { $sh->getColumnDimension($c)->setAutoSize(true); }
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment; filename="ordenes_' . date('Ymd_His') . '.xlsx"');
@@ -149,6 +155,7 @@ tbody tr.lo-row:hover{background:var(--tz-line-soft)}
 tr.lo-row.open .lo-chev{transform:rotate(90deg)}
 .lo-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:20px}
 .lo-pill.t-slate{background:var(--tz-slate-tint);color:var(--tz-slate-ink)}
+.lo-pill.t-violet{background:var(--tz-violet-tint);color:var(--tz-violet-ink)}
 .lo-pill.s-blue{background:var(--tz-blue-tint);color:var(--tz-blue-ink)}
 .lo-pill.s-amber{background:var(--tz-amber-tint);color:var(--tz-amber-ink)}
 .lo-pill.s-green{background:var(--tz-green-tint);color:var(--tz-green-ink)}
@@ -188,13 +195,15 @@ if ($pref === null) {
 }
 
 $nombre = trim((string)($pref['nombre_publico'] ?? '')) !== '' ? (string)$pref['nombre_publico'] : (string)$pref['nombre_interno'];
+$nombreCliente = trim((string)($pref['nombre_cliente'] ?? ''));
+$nclNorm = function_exists('mb_strtolower') ? mb_strtolower($nombreCliente) : strtolower($nombreCliente);
 
 $porPagina = 12;
 $pagina    = max(1, (int)($_GET['pagina'] ?? 1));
 $offset    = ($pagina - 1) * $porPagina;
 
 $total   = Orden::contarPorPrefijo((string)$pref['prefijo'], $filtros);
-$kpis    = Orden::kpisPorPrefijo((string)$pref['prefijo'], $filtros);
+$kpis    = Orden::kpisPorPrefijo((string)$pref['prefijo'], $filtros, $nombreCliente);
 $paginas = (int)max(1, ceil($total / $porPagina));
 $ordenes = Orden::listarPorPrefijo((string)$pref['prefijo'], $filtros, $porPagina, $offset);
 $itemsMap = Orden::itemsAgrupadosDeOrdenes(array_map(static fn($o) => (int)$o['id'], $ordenes));
@@ -233,19 +242,19 @@ loc_head('Órdenes de ' . $nombre);
     <div class="lo-kpis-caption"><i class="bi bi-funnel"></i>Resumen según el filtro aplicado</div>
     <div class="kpi-row kpi-row-main">
       <div class="kpi-card kpi-main kpi-slate">
-        <div class="kpi-icon"><i class="bi bi-receipt"></i></div>
+        <div class="kpi-icon"><i class="bi bi-box-seam"></i></div>
         <div>
-          <div class="kpi-value"><?= number_format($kpis['total'], 0, ',', '.') ?></div>
-          <div class="kpi-label">Órdenes</div>
-          <div class="kpi-hint">En el período filtrado</div>
+          <div class="kpi-value"><?= number_format($kpis['pedidos'], 0, ',', '.') ?></div>
+          <div class="kpi-label">Pedidos del Local</div>
+          <div class="kpi-hint">Stock para el local</div>
         </div>
       </div>
       <div class="kpi-card kpi-main kpi-violet">
-        <div class="kpi-icon"><i class="bi bi-box-seam"></i></div>
+        <div class="kpi-icon"><i class="bi bi-bag-check"></i></div>
         <div>
-          <div class="kpi-value"><?= number_format($kpis['items'], 0, ',', '.') ?></div>
-          <div class="kpi-label">Ítems</div>
-          <div class="kpi-hint">Total de bultos</div>
+          <div class="kpi-value"><?= number_format($kpis['ventas'], 0, ',', '.') ?></div>
+          <div class="kpi-label">Ventas del Local</div>
+          <div class="kpi-hint">Vendidas a clientes</div>
         </div>
       </div>
     </div>
@@ -282,6 +291,7 @@ loc_head('Órdenes de ' . $nombre);
         <tr>
           <th style="width:30px"></th>
           <th>Nº orden</th>
+          <th>Cliente</th>
           <th>Ítems</th>
           <th>Estado</th>
           <th>Fecha y hora</th>
@@ -289,23 +299,30 @@ loc_head('Órdenes de ' . $nombre);
       </thead>
       <tbody>
       <?php if ($ordenes === []): ?>
-        <tr><td colspan="5"><div class="lo-empty">No hay órdenes para los filtros seleccionados.</div></td></tr>
+        <tr><td colspan="6"><div class="lo-empty">No hay órdenes para los filtros seleccionados.</div></td></tr>
       <?php else: foreach ($ordenes as $i => $o):
         $oid   = (int)$o['id'];
         $items = $itemsMap[$oid] ?? [];
         $fest  = (string)($o['fecha_estado'] ?? '') !== '' ? (string)$o['fecha_estado'] : (string)$o['created_at'];
         $did   = 'd' . $i;
         $tieneItems = $items !== [];
+        $cli   = trim((string)($o['cliente'] ?? ''));
+        $esStock = $nombreCliente !== '' && (function_exists('mb_strtolower') ? mb_strtolower($cli) : strtolower($cli)) === $nclNorm;
       ?>
         <tr class="lo-row<?= $tieneItems ? '' : ' lo-noexp' ?>"<?= $tieneItems ? ' data-target="' . $did . '" onclick="loToggle(\'' . $did . '\', this)"' : '' ?>>
           <td><?php if ($tieneItems): ?><span class="lo-chev"><i class="bi bi-chevron-right"></i></span><?php endif; ?></td>
           <td class="lo-ordno"><?= h((string)$o['nro_orden']) ?></td>
+          <td>
+            <?php if ($cli !== ''): ?>
+              <span class="lo-pill <?= $esStock ? 't-slate' : 't-violet' ?>"><i class="bi <?= $esStock ? 'bi-box-seam' : 'bi-bag-check' ?>"></i><?= h($cli) ?></span>
+            <?php else: ?><span style="color:var(--tz-muted)">—</span><?php endif; ?>
+          </td>
           <td><?= (int)$o['cant_items'] ?></td>
           <td><?= loc_pill((string)$o['estado']) ?></td>
           <td class="lo-fecha"><?= h(fmt_fecha($fest, 'd/m/Y H:i')) ?></td>
         </tr>
         <?php if ($tieneItems): ?>
-        <tr class="lo-detail" id="<?= $did ?>"><td colspan="5"><div class="lo-detail-inner">
+        <tr class="lo-detail" id="<?= $did ?>"><td colspan="6"><div class="lo-detail-inner">
           <?php foreach ($items as $it): ?>
             <div class="lo-item-row">
               <span class="cod">x<?= (int)$it['cantidad'] ?></span>

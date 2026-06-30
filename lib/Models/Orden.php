@@ -1056,7 +1056,7 @@ final class Orden
         [$where, $params] = self::wherePublico($prefijo, $f);
         $limit  = max(1, min(500, $limit));
         $offset = max(0, $offset);
-        $sql = 'SELECT o.id, o.nro_orden, o.estado, o.created_at,
+        $sql = 'SELECT o.id, o.nro_orden, o.cliente, o.estado, o.created_at,
                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items,
                        ' . self::fechaEstadoExpr() . ' AS fecha_estado
                 FROM ordenes o' . $where
@@ -1070,10 +1070,13 @@ final class Orden
      * KPIs del portal del local (set filtrado): total de órdenes, total de ítems y
      * conteo por estado.
      *
+     * Si se pasa $nombreCliente, además separa "pedidos" (stock del local: órdenes a
+     * nombre de ese cliente) de "ventas" (el resto).
+     *
      * @param array<string,mixed> $f
-     * @return array{total:int, items:int, estados:array<string,int>}
+     * @return array{total:int, items:int, pedidos:int, ventas:int, estados:array<string,int>}
      */
-    public static function kpisPorPrefijo(string $prefijo, array $f): array
+    public static function kpisPorPrefijo(string $prefijo, array $f, ?string $nombreCliente = null): array
     {
         [$where, $params] = self::wherePublico($prefijo, $f);
         $stmt = DB::getInstance()->prepare(
@@ -1082,7 +1085,7 @@ final class Orden
                FROM ordenes o' . $where . ' GROUP BY o.estado'
         );
         $stmt->execute($params);
-        $out = ['total' => 0, 'items' => 0,
+        $out = ['total' => 0, 'items' => 0, 'pedidos' => 0, 'ventas' => 0,
                 'estados' => ['RECIBIDO' => 0, 'EN_REPARTO' => 0, 'ENTREGADO' => 0, 'REINGRESADO' => 0, 'DEVUELTO' => 0]];
         foreach ($stmt->fetchAll() as $r) {
             $e = (string)$r['estado'];
@@ -1092,6 +1095,15 @@ final class Orden
                 $out['estados'][$e] += (int)$r['n'];
             }
         }
+        // Pedidos del local (stock): órdenes a nombre del propio local.
+        if ($nombreCliente !== null && trim($nombreCliente) !== '') {
+            $p2 = $params;
+            $p2[':nc'] = trim($nombreCliente);
+            $st = DB::getInstance()->prepare('SELECT COUNT(*) FROM ordenes o' . $where . ($where !== '' ? ' AND' : ' WHERE') . ' o.cliente = :nc');
+            $st->execute($p2);
+            $out['pedidos'] = (int)$st->fetchColumn();
+        }
+        $out['ventas'] = $out['total'] - $out['pedidos'];
         return $out;
     }
 
