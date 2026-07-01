@@ -1078,10 +1078,19 @@ final class Orden
         if (!empty($f['q'])) {
             // Busca por Nº de orden, cliente y producto (código/descripción/dimensiones).
             $like = '%' . $f['q'] . '%';
-            $where[] = '(o.nro_orden LIKE :q1 OR o.cliente LIKE :q2 OR EXISTS ('
-                     . 'SELECT 1 FROM productos pq WHERE pq.orden_id = o.id AND '
-                     . '(pq.descripcion LIKE :q3 OR pq.codigo LIKE :q4 OR pq.dimensiones LIKE :q5)))';
+            $ors = [
+                'o.nro_orden LIKE :q1',
+                'o.cliente LIKE :q2',
+                'EXISTS (SELECT 1 FROM productos pq WHERE pq.orden_id = o.id AND '
+                    . '(pq.descripcion LIKE :q3 OR pq.codigo LIKE :q4 OR pq.dimensiones LIKE :q5))',
+            ];
             $params[':q1'] = $like; $params[':q2'] = $like; $params[':q3'] = $like; $params[':q4'] = $like; $params[':q5'] = $like;
+            // Nº de orden ignorando ceros a la izquierda (el cliente lo copia sin ellos).
+            if (($re = self::regexNroSinCeros((string)$f['q'])) !== null) {
+                $ors[] = 'o.nro_orden REGEXP :q6';
+                $params[':q6'] = $re;
+            }
+            $where[] = '(' . implode(' OR ', $ors) . ')';
         }
         return [' WHERE ' . implode(' AND ', $where), $params];
     }
