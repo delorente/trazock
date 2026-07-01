@@ -12,6 +12,7 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\EtiquetaQr;
+use Trazock\Models\CatalogoProductos;
 use Trazock\Models\EntregaRemito;
 use Trazock\Models\HojaRuta;
 use Trazock\Models\Orden;
@@ -456,10 +457,10 @@ $campo = static function (string $label, string $valor): void {
       </div>
       <div class="modal-body">
         <div class="row g-2">
-          <div class="col-12"><label class="form-label">Descripción</label><input class="form-control form-control-sm" name="descripcion" placeholder="Ej. Colchón 2 plazas" autofocus></div>
-          <div class="col-6"><label class="form-label">Dimensiones</label><input class="form-control form-control-sm" name="dimensiones" placeholder="Ej. 1,40 × 1,90"></div>
+          <div class="col-12"><label class="form-label">Descripción</label><input class="form-control form-control-sm" name="descripcion" placeholder="Ej. Colchón 2 plazas" autofocus data-cat-desc list="catalogo-prod"></div>
+          <div class="col-6"><label class="form-label">Dimensiones</label><input class="form-control form-control-sm" name="dimensiones" placeholder="Ej. 1,40 × 1,90" data-cat-dim></div>
           <div class="col-3"><label class="form-label">Cantidad</label><input type="number" min="1" max="99" class="form-control form-control-sm" name="cantidad" value="1"></div>
-          <div class="col-3"><label class="form-label">m³ (total)</label><input class="form-control form-control-sm" name="m3" placeholder="0,000"></div>
+          <div class="col-3"><label class="form-label">m³ (total)</label><input class="form-control form-control-sm" name="m3" placeholder="0,000" data-cat-m3></div>
         </div>
         <div class="text-muted small mt-2"><i class="bi bi-info-circle me-1"></i>Para una orden que vino cortada en la hoja. Los ítems se ingresan al mismo lote de la orden. Reimprimí las etiquetas: cambia el "de N".</div>
       </div>
@@ -557,5 +558,9 @@ $campo = static function (string $label, string $valor): void {
   });
 })();
 </script>
+<?php if ($puedeEditar): ?>
+<script>window.CATALOGO_PROD = <?= json_encode(CatalogoProductos::catalogo()['items'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
+<script src="<?= h(asset('assets/js/catalogo-productos.js')) ?>"></script>
+<?php endif; ?>
 <?php
 panel_footer();

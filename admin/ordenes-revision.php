@@ -12,6 +12,7 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\Models\Carga;
+use Trazock\Models\CatalogoProductos;
 use Trazock\Models\Destino;
 
 $user = Auth::requierePanel(['admin', 'logistica']);
@@ -74,6 +75,8 @@ panel_header('Revisión OCR', $user, 'captura',
 
 <div id="cta" class="d-flex justify-content-end gap-2"></div>
 
+<script>window.CATALOGO_PROD = <?= json_encode(CatalogoProductos::catalogo()['items'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
+<script src="<?= h(asset('assets/js/catalogo-productos.js')) ?>"></script>
 <script src="<?= h(asset('assets/js/revision-destino.js')) ?>"></script>
 <script>
 const TZ = {
@@ -146,10 +149,10 @@ function render(){
       const sub = document.createElement('tr');
       const items = (o.items||[]).map((it,j) => `
         <tr>
-          <td class="sub-td"><input class="cell-edit" data-i="${i}" data-j="${j}" data-f="codigo" value="${esc(it.codigo||'')}"></td>
-          <td class="sub-td"><input class="cell-edit" data-i="${i}" data-j="${j}" data-f="dimensiones" value="${esc(it.dimensiones||'')}"></td>
+          <td class="sub-td"><input class="cell-edit" data-i="${i}" data-j="${j}" data-f="codigo" value="${esc(it.codigo||'')}" data-cat-desc list="catalogo-prod"></td>
+          <td class="sub-td"><input class="cell-edit" data-i="${i}" data-j="${j}" data-f="dimensiones" value="${esc(it.dimensiones||'')}" data-cat-dim></td>
           <td class="sub-td" style="width:70px"><input class="cell-edit" data-i="${i}" data-j="${j}" data-f="cantidad" value="${esc(it.cantidad??1)}"></td>
-          <td class="sub-td" style="width:80px"><input class="cell-edit" data-i="${i}" data-j="${j}" data-f="m3" value="${esc(it.m3??'')}"></td>
+          <td class="sub-td" style="width:80px"><input class="cell-edit" data-i="${i}" data-j="${j}" data-f="m3" value="${esc(it.m3??'')}" data-cat-m3></td>
           <td class="sub-td" style="width:30px"><button class="xbtn" data-deli="${i}:${j}"><i class="bi bi-x-lg"></i></button></td>
         </tr>`).join('');
       sub.innerHTML = `<td></td><td colspan="10" style="padding:0!important">

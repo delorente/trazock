@@ -13,6 +13,7 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\Models\Carga;
+use Trazock\Models\CatalogoProductos;
 use Trazock\Models\Categoria;
 use Trazock\Models\Destino;
 use Trazock\Models\Orden;
@@ -31,6 +32,13 @@ $old     = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
         flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
+        header('Location: ' . url('admin/orden-manual.php'));
+        exit;
+    }
+    // Regenerar el catálogo de productos (incorpora los agregados desde el último cache).
+    if (($_POST['accion'] ?? '') === 'regenerar_catalogo') {
+        $cat = CatalogoProductos::regenerar();
+        flash_set('success', 'Catálogo de productos actualizado: ' . (int)$cat['total'] . ' producto(s).');
         header('Location: ' . url('admin/orden-manual.php'));
         exit;
     }
@@ -120,9 +128,17 @@ function om_old(array $old, string $k, string $def = ''): string
     return h((string)($old[$k] ?? $def));
 }
 
+$catalogo = CatalogoProductos::catalogo();
+
 $volver = '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-captura.php')) . '"><i class="bi bi-arrow-left me-1"></i>Nueva carga</a>';
+$acciones = $volver
+    . '<form method="post" class="d-inline">'
+    . '<input type="hidden" name="csrf_token" value="' . h($csrf) . '">'
+    . '<input type="hidden" name="accion" value="regenerar_catalogo">'
+    . '<button class="btn btn-sm btn-outline-secondary" title="Regenerar el catálogo de productos con lo cargado desde el último cache (' . (int)$catalogo['total'] . ' productos)"><i class="bi bi-arrow-clockwise me-1"></i>Actualizar catálogo</button>'
+    . '</form>';
 panel_header('Nueva orden manual', $user, 'captura',
-    'Cargá a mano una orden que llegó por fuera de los documentos (p. ej. por mail)', $volver);
+    'Cargá a mano una orden que llegó por fuera de los documentos (p. ej. por mail) · catálogo: ' . (int)$catalogo['total'] . ' productos', $acciones);
 flash_render();
 
 // Filas de ítems a pintar: las enviadas (si hubo error) o una vacía.
@@ -235,10 +251,10 @@ if ($itemRows === []) { $itemRows[] = ['codigo' => '', 'dim' => '', 'cant' => '1
         <tbody>
         <?php foreach ($itemRows as $it): ?>
           <tr>
-            <td><input class="form-control form-control-sm" name="item_codigo[]" value="<?= h($it['codigo']) ?>" placeholder="Ej. Colchón 2 plazas"></td>
-            <td><input class="form-control form-control-sm" name="item_dim[]" value="<?= h($it['dim']) ?>" placeholder="190x140x…"></td>
+            <td><input class="form-control form-control-sm" name="item_codigo[]" value="<?= h($it['codigo']) ?>" placeholder="Ej. Colchón 2 plazas" data-cat-desc list="catalogo-prod"></td>
+            <td><input class="form-control form-control-sm" name="item_dim[]" value="<?= h($it['dim']) ?>" placeholder="190x140x…" data-cat-dim></td>
             <td><input class="form-control form-control-sm text-center" name="item_cant[]" value="<?= h($it['cant'] !== '' ? $it['cant'] : '1') ?>" inputmode="numeric"></td>
-            <td><input class="form-control form-control-sm" name="item_m3[]" value="<?= h($it['m3']) ?>" inputmode="decimal"></td>
+            <td><input class="form-control form-control-sm" name="item_m3[]" value="<?= h($it['m3']) ?>" inputmode="decimal" data-cat-m3></td>
             <td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger p-0 om-del" title="Quitar"><i class="bi bi-x-lg"></i></button></td>
           </tr>
         <?php endforeach; ?>
@@ -252,6 +268,8 @@ if ($itemRows === []) { $itemRows[] = ['codigo' => '', 'dim' => '', 'cant' => '1
   </div>
 </form>
 
+<script>window.CATALOGO_PROD = <?= json_encode($catalogo['items'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;</script>
+<script src="<?= h(asset('assets/js/catalogo-productos.js')) ?>"></script>
 <script src="<?= h(asset('assets/js/revision-destino.js')) ?>"></script>
 <script>
 // Autocompletado de destino (mismo resolvedor que la revisión OCR).
@@ -277,12 +295,13 @@ if ($itemRows === []) { $itemRows[] = ['codigo' => '', 'dim' => '', 'cant' => '1
   function fila() {
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td><input class="form-control form-control-sm" name="item_codigo[]" placeholder="Ej. Colchón 2 plazas"></td>' +
-      '<td><input class="form-control form-control-sm" name="item_dim[]" placeholder="190x140x…"></td>' +
+      '<td><input class="form-control form-control-sm" name="item_codigo[]" placeholder="Ej. Colchón 2 plazas" data-cat-desc list="catalogo-prod"></td>' +
+      '<td><input class="form-control form-control-sm" name="item_dim[]" placeholder="190x140x…" data-cat-dim></td>' +
       '<td><input class="form-control form-control-sm text-center" name="item_cant[]" value="1" inputmode="numeric"></td>' +
-      '<td><input class="form-control form-control-sm" name="item_m3[]" inputmode="decimal"></td>' +
+      '<td><input class="form-control form-control-sm" name="item_m3[]" inputmode="decimal" data-cat-m3></td>' +
       '<td class="text-end"><button type="button" class="btn btn-sm btn-link text-danger p-0 om-del" title="Quitar"><i class="bi bi-x-lg"></i></button></td>';
     tbody.appendChild(tr);
+    if (window.catalogoWire) window.catalogoWire(tr);
   }
   if (add) add.addEventListener('click', fila);
   if (tbody) tbody.addEventListener('click', function (e) {
