@@ -53,6 +53,12 @@ panel_header('Revisión OCR', $user, 'captura',
   <div id="sb-alert" style="margin-left:auto;font-size:12px;color:#fbbf24"></div>
 </div>
 
+<style>
+  /* Celda autocompletada por el resolvedor de destino (localidad/provincia). */
+  .cell-auto{ border-color:#3b82f6 !important; background:rgba(59,130,246,.08) !important; }
+  .dest-nota{ font-size:11px; line-height:1.2; color:#60a5fa; }
+</style>
+
 <div class="card mb-3" style="overflow:hidden">
   <div style="overflow-x:auto">
     <table class="table mb-0" id="tabla">
@@ -68,6 +74,7 @@ panel_header('Revisión OCR', $user, 'captura',
 
 <div id="cta" class="d-flex justify-content-end gap-2"></div>
 
+<script src="<?= h(asset('js/revision-destino.js')) ?>"></script>
 <script>
 const TZ = {
   csrf: <?= json_encode($csrf) ?>,
@@ -79,7 +86,22 @@ const TZ = {
 let ORD = <?= json_encode($ordenes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 // Provincias conocidas (zonas de reparto + historial) para avisar destinos raros.
 const PROV_OK = new Set(<?= json_encode(array_keys(Destino::provinciasConocidas()), JSON_UNESCAPED_UNICODE) ?>);
+// Diccionario de destinos (24 provincias + localidades conocidas) para autocompletar.
+const DIC = <?= json_encode(Destino::diccionarioDestinos(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+const resolverDestino = crearResolvedor(DIC);
 const expandido = new Set();
+
+// Aplica el resolvedor a una orden: completa/separa localidad y provincia y deja
+// marcado qué se autocompletó (para pintarlo en azul). Devuelve true si cambió.
+function autoDestino(o){
+  const r = resolverDestino(o.dest_localidad || '', o.dest_provincia || '');
+  o._locAuto = !!r.locChg; o._provAuto = !!r.provChg; o._destNota = r.nota || '';
+  if (r.locChg) o.dest_localidad = r.localidad;
+  if (r.provChg) o.dest_provincia = r.provincia;
+  return r.cambio;
+}
+// Pasada inicial sobre lo que trajo el OCR.
+ORD.forEach(autoDestino);
 
 function normProv(s){ s=String(s||'').toLowerCase(); const m={'á':'a','à':'a','ä':'a','â':'a','ã':'a','é':'e','è':'e','ë':'e','ê':'e','í':'i','ì':'i','ï':'i','î':'i','ó':'o','ò':'o','ö':'o','ô':'o','õ':'o','ú':'u','ù':'u','ü':'u','û':'u','ñ':'n'}; s=s.replace(/[áàäâãéèëêíìïîóòöôõúùüûñ]/g,c=>m[c]||c); return s.replace(/\s+/g,' ').trim(); }
 function provSospechosa(p){ const v = String(p||'').trim(); return v !== '' && !PROV_OK.has(normProv(v)); }
@@ -113,7 +135,7 @@ function render(){
       <td>${inp(i,'hoja_ruta',o.hoja_ruta||'', errHR?'cell-err':'')}</td>
       <td>${inp(i,'cliente',o.cliente||'')}</td>
       <td>${inp(i,'telefonos',o.telefonos||'')}</td>
-      <td><div class="d-flex flex-column gap-1">${inp(i,'dest_localidad',o.dest_localidad||'')}${inp(i,'dest_provincia',o.dest_provincia||'', (warnDest||provRara)?'cell-warn':'')}${provRara?'<div class="text-warning" style="font-size:11px;line-height:1.2"><i class="bi bi-exclamation-triangle-fill me-1"></i>¿Vas a esta provincia? No está en tus zonas ni en envíos anteriores</div>':''}</div></td>
+      <td><div class="d-flex flex-column gap-1">${inp(i,'dest_localidad',o.dest_localidad||'', o._locAuto?'cell-auto':'')}${inp(i,'dest_provincia',o.dest_provincia||'', (warnDest||provRara)?'cell-warn':(o._provAuto?'cell-auto':''))}${provRara?'<div class="text-warning" style="font-size:11px;line-height:1.2"><i class="bi bi-exclamation-triangle-fill me-1"></i>¿Vas a esta provincia? No está en tus zonas ni en envíos anteriores</div>':(o._destNota?('<div class="dest-nota"><i class="bi bi-magic me-1"></i>'+esc(o._destNota)+' — verificá</div>'):'')}</div></td>
       <td class="mono ${sinItems?'':''}" style="font-size:12px">${fmt(m3DeOrden(o))}</td>
       <td style="text-align:center">${itemsDeOrden(o)}</td>
       <td>${inp(i,'valor_declarado',o.valor_declarado??'')}</td>
@@ -179,6 +201,13 @@ document.getElementById('tabla').addEventListener('input', e => {
   else { ORD[i][f] = el.value; }
   // recomputar resumen y marcas sin perder el foco (no re-render completo)
   resumen();
+});
+// Al salir de un campo de destino, reintentar autocompletar/separar con lo tipeado.
+document.getElementById('tabla').addEventListener('change', e => {
+  const el = e.target; const f = el.dataset.f;
+  if (f !== 'dest_localidad' && f !== 'dest_provincia') return;
+  const i = +el.dataset.i;
+  if (autoDestino(ORD[i])) render();
 });
 document.getElementById('tabla').addEventListener('click', e => {
   const t = e.target.closest('[data-exp],[data-del],[data-deli],[data-addi]'); if (!t) return;
