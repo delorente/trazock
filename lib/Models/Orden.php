@@ -598,6 +598,26 @@ final class Orden
         return $col . ' IN (' . implode(', ', $ph) . ')';
     }
 
+    /**
+     * Patrón REGEXP para buscar un Nº de orden ignorando los ceros a la izquierda de
+     * cada grupo (así "760-10435" == "0760-00010435"). Devuelve null si el término no
+     * parece un número de orden (para no aplicar REGEXP a búsquedas por nombre).
+     */
+    private static function regexNroSinCeros(string $q): ?string
+    {
+        $q = str_replace(' ', '', trim($q));
+        // Solo dígitos y guiones, y con al menos un dígito.
+        if ($q === '' || preg_match('/^[0-9-]+$/', $q) !== 1 || preg_match('/[0-9]/', $q) !== 1) {
+            return null;
+        }
+        $partes = array_map(static function (string $p): string {
+            $p = ltrim($p, '0');
+            return $p === '' ? '0' : $p;   // un grupo "0000" queda como "0"
+        }, explode('-', $q));
+        // "0*" antes de cada grupo tolera los ceros a la izquierda de lo guardado.
+        return '0*' . implode('-0*', $partes);
+    }
+
     private static function whereFiltros(array $f): array
     {
         $where  = [];
@@ -605,11 +625,18 @@ final class Orden
 
         if (!empty($f['q'])) {
             // Placeholders distintos: con prepares nativos no se puede reusar :q.
-            $where[] = '(o.nro_orden LIKE :q1 OR o.nro_remito LIKE :q2 OR o.cliente LIKE :q3)';
             $like = '%' . $f['q'] . '%';
+            $cond = ['o.nro_orden LIKE :q1', 'o.nro_remito LIKE :q2', 'o.cliente LIKE :q3'];
             $params[':q1'] = $like;
             $params[':q2'] = $like;
             $params[':q3'] = $like;
+            // Nº de orden ignorando ceros a la izquierda: el cliente lo copia sin ellos
+            // ("760-10435" debe encontrar "0760-00010435"). REGEXP con 0* por grupo.
+            if (($re = self::regexNroSinCeros((string)$f['q'])) !== null) {
+                $cond[]        = 'o.nro_orden REGEXP :q4';
+                $params[':q4'] = $re;
+            }
+            $where[] = '(' . implode(' OR ', $cond) . ')';
         }
         // Multi-valor: destino (provincia), lote (carga) y hoja de ruta.
         if (($c = self::inClause('o.dest_provincia', (array)($f['provincia'] ?? []), 'prov', $params)) !== null) {
