@@ -22,7 +22,8 @@ $transportistas = Usuario::transportistasActivos();
 $pendientes     = Carga::pendientes();
 
 panel_header('Nueva carga', $user, 'captura',
-    'Fotografiá o subí las hojas resumen del camión — el sistema extrae las órdenes con OCR');
+    'Fotografiá o subí las hojas resumen del camión — el sistema extrae las órdenes con OCR',
+    '<a class="btn btn-sm btn-outline-primary" href="' . h(url('admin/orden-manual.php')) . '"><i class="bi bi-pencil-square me-1"></i>Cargar orden manual</a>');
 ?>
 <div style="max-width:460px">
   <?php if ($pendientes !== []): ?>
