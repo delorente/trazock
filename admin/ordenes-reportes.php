@@ -16,6 +16,7 @@ use Trazock\Auth;
 use Trazock\Models\Carga;
 use Trazock\Models\Categoria;
 use Trazock\Models\Destino;
+use Trazock\Models\HojaRuta;
 use Trazock\Models\Orden;
 use Trazock\Models\Prefijo;
 use Trazock\Models\Zona;
@@ -329,6 +330,7 @@ if ($provSospechosas !== []) {
 $acciones =
     ($puedeMarcar
         ? '<button class="btn btn-sm btn-success" id="btnWaOpen" type="button"><i class="bi bi-whatsapp me-1"></i>Avisar entrega (<span id="waCount">0</span>)</button>'
+          . '<button class="btn btn-sm btn-outline-primary" id="btnHrToggle" type="button"><i class="bi bi-signpost-split me-1"></i>Hoja de ruta</button>'
         : '')
     . '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ordenes-productos.php') . ($qsBase ? '?' . $qsBase : '')) . '"><i class="bi bi-box-seam me-1"></i>Por productos</a>'
     . '<select id="repSel" class="form-select form-select-sm d-inline-block" style="width:auto;vertical-align:middle">'
@@ -350,7 +352,25 @@ foreach ($cargas as $c) {
 $provOpts = array_map(static fn($p) => [$p, $p], $provincias);
 $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
 $prefOpts = Prefijo::paraFiltro();
+$hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
 ?>
+<?php if ($puedeMarcar): ?>
+<div id="hrBar" class="card mb-2 no-print d-none" style="padding:.6rem 1rem;border-color:#60a5fa">
+  <div class="d-flex align-items-end gap-2 flex-wrap">
+    <div>
+      <label class="form-label mb-1 small">Hoja de ruta destino</label>
+      <select id="hrSel" class="form-select form-select-sm" style="min-width:220px">
+        <option value="0">➕ Nueva hoja</option>
+        <?php foreach ($hojasAbiertas as $hh): ?>
+          <option value="<?= (int)$hh['id'] ?>"><?= h((string)$hh['numero'] . ((string)($hh['destino'] ?? '') !== '' ? ' · ' . (string)$hh['destino'] : '')) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <button id="btnHrAdd" type="button" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Agregar a Hoja de Ruta</button>
+    <div id="hrResult" class="small text-muted">Tildá las órdenes de la lista y agregalas. Después "Abrir" para completar y emitir.</div>
+  </div>
+</div>
+<?php endif; ?>
 <form method="get" action="<?= h(url('admin/ordenes-reportes.php')) ?>" class="card mb-3 no-print" style="padding:.85rem 1rem">
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-bottom:.6rem">
     <div>
@@ -644,6 +664,53 @@ $prefOpts = Prefijo::paraFiltro();
     } catch (e) {
       res.innerHTML = '<div class="alert alert-danger py-2 mb-0">' + e.message + '</div>';
       btn.disabled = false;
+    }
+  });
+})();
+</script>
+<script>
+// Agregar órdenes seleccionadas a una hoja de ruta (nueva o abierta).
+(function () {
+  const AGREGAR_URL = <?= json_encode(url('api/hoja-ruta-agregar.php')) ?>;
+  const ARMAR_BASE  = <?= json_encode(url('admin/hoja-ruta-armar.php')) ?>;
+  const CSRF = <?= json_encode($csrf) ?>;
+  const bar = document.getElementById('hrBar');
+  const btnToggle = document.getElementById('btnHrToggle');
+  const btnAdd = document.getElementById('btnHrAdd');
+  const sel = document.getElementById('hrSel');
+  const res = document.getElementById('hrResult');
+  if (btnToggle) btnToggle.addEventListener('click', function () {
+    bar.classList.toggle('d-none');
+    if (!bar.classList.contains('d-none')) bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  if (btnAdd) btnAdd.addEventListener('click', async function () {
+    const ids = Array.from(document.querySelectorAll('.wa-chk:checked')).map(c => +c.value);
+    if (ids.length === 0) { alert('Tildá al menos una orden (casilla a la izquierda de cada fila).'); return; }
+    btnAdd.disabled = true;
+    res.className = 'small text-muted';
+    res.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Agregando…';
+    try {
+      const r = await fetch(AGREGAR_URL, {
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csrf_token: CSRF, ids: ids, hoja_id: +sel.value })
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo agregar.');
+      // Si era "Nueva", sumar la hoja recién creada al selector y dejarla elegida.
+      if (+sel.value === 0 && d.hoja_id) {
+        const opt = document.createElement('option');
+        opt.value = d.hoja_id; opt.textContent = d.numero;
+        sel.appendChild(opt); sel.value = String(d.hoja_id);
+      }
+      res.className = 'small';
+      res.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>' + d.agregadas + ' agregada(s) a <strong>' + d.numero + '</strong>'
+        + (d.ya_estaban ? ' · ' + d.ya_estaban + ' ya estaban' : '') + '</span> '
+        + '<a class="btn btn-sm btn-outline-primary ms-2 py-0 px-2" href="' + ARMAR_BASE + '?id=' + d.hoja_id + '"><i class="bi bi-box-arrow-up-right me-1"></i>Abrir</a>';
+    } catch (e) {
+      res.className = 'small text-danger';
+      res.textContent = e.message;
+    } finally {
+      btnAdd.disabled = false;
     }
   });
 })();
