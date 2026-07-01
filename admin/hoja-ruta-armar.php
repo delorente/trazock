@@ -134,19 +134,11 @@ flash_render();
   <div class="row g-2">
     <div class="col-md-3"><label class="form-label">Fecha</label><input type="date" class="form-control form-control-sm" name="fecha" value="<?= h((string)($hoja['fecha'] ?? '')) ?>" <?= $editable ? '' : 'disabled' ?>></div>
     <div class="col-md-5"><label class="form-label">Destino / zona</label><input class="form-control form-control-sm" name="destino" maxlength="150" value="<?= h((string)($hoja['destino'] ?? '')) ?>" <?= $editable ? '' : 'disabled' ?>></div>
-    <div class="col-md-4"></div>
-    <div class="col-md-4">
-      <label class="form-label">Conductor</label>
-      <select class="form-select form-select-sm mb-1" name="conductor_empleado_id" onchange="if(this.value)document.getElementById('conductor_texto').value=''" <?= $editable ? '' : 'disabled' ?>>
-        <option value="">— del padrón —</option>
-        <?php foreach ($empleados as $e): ?>
-          <option value="<?= (int)$e['id'] ?>" <?= (int)($hoja['conductor_empleado_id'] ?? 0) === (int)$e['id'] ? 'selected' : '' ?>><?= h($e['nombre']) ?></option>
-        <?php endforeach; ?>
-      </select>
-      <input class="form-control form-control-sm" id="conductor_texto" name="conductor_texto" placeholder="…o escribir a mano" value="<?= h((int)($hoja['conductor_empleado_id'] ?? 0) === 0 ? (string)($hoja['conductor'] ?? '') : '') ?>" <?= $editable ? '' : 'disabled' ?>>
+    <div class="col-md-4 d-flex align-items-end justify-content-end">
+      <?php if ($editable): ?><button class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Guardar encabezado</button><?php endif; ?>
     </div>
     <div class="col-md-4">
-      <label class="form-label">Vehículo</label>
+      <label class="form-label">Unidad</label>
       <select class="form-select form-select-sm mb-1" name="vehiculo_id" onchange="if(this.value)document.getElementById('vehiculo_texto').value=''" <?= $editable ? '' : 'disabled' ?>>
         <option value="">— del padrón —</option>
         <?php foreach ($vehiculos as $v): ?>
@@ -156,19 +148,36 @@ flash_render();
       <input class="form-control form-control-sm" id="vehiculo_texto" name="vehiculo_texto" placeholder="…o escribir a mano" value="<?= h((int)($hoja['vehiculo_id'] ?? 0) === 0 ? (string)($hoja['vehiculo'] ?? '') : '') ?>" <?= $editable ? '' : 'disabled' ?>>
     </div>
     <div class="col-md-4">
+      <label class="form-label">Chofer</label>
+      <select class="form-select form-select-sm mb-1" name="conductor_empleado_id" onchange="if(this.value)document.getElementById('conductor_texto').value=''" <?= $editable ? '' : 'disabled' ?>>
+        <option value="">— del padrón —</option>
+        <?php foreach ($empleados as $e): ?>
+          <option value="<?= (int)$e['id'] ?>" <?= (int)($hoja['conductor_empleado_id'] ?? 0) === (int)$e['id'] ? 'selected' : '' ?>><?= h($e['nombre']) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <input class="form-control form-control-sm" id="conductor_texto" name="conductor_texto" placeholder="…o escribir a mano" value="<?= h((int)($hoja['conductor_empleado_id'] ?? 0) === 0 ? (string)($hoja['conductor'] ?? '') : '') ?>" <?= $editable ? '' : 'disabled' ?>>
+    </div>
+    <div class="col-md-4">
       <label class="form-label">Ayudante(s)</label>
-      <input class="form-control form-control-sm" id="hr_ayudantes" name="ayudantes" maxlength="255" value="<?= h((string)($hoja['ayudantes'] ?? '')) ?>" placeholder="Nombres, separados por coma" <?= $editable ? '' : 'disabled' ?>>
       <?php if ($editable && $ayudantesPad !== []): ?>
-        <div class="mt-1" style="display:flex;flex-wrap:wrap;gap:4px">
-          <?php foreach ($ayudantesPad as $ay): ?>
-            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px" onclick="hrAddAyudante('<?= h(addslashes((string)$ay['nombre'])) ?>')"><i class="bi bi-plus"></i><?= h($ay['nombre']) ?></button>
-          <?php endforeach; ?>
-        </div>
+      <select class="form-select form-select-sm mb-1" id="hr_ay_sel">
+        <option value="">— agregar del padrón —</option>
+        <?php foreach ($ayudantesPad as $ay): ?>
+          <option value="<?= h((string)$ay['nombre']) ?>"><?= h($ay['nombre']) ?></option>
+        <?php endforeach; ?>
+      </select>
       <?php endif; ?>
+      <?php if ($editable): ?>
+      <div class="input-group input-group-sm mb-1">
+        <input class="form-control form-control-sm" id="hr_ay_txt" placeholder="…o escribir a mano">
+        <button type="button" class="btn btn-outline-secondary" onclick="hrAyAddText()"><i class="bi bi-plus-lg"></i></button>
+      </div>
+      <?php endif; ?>
+      <div id="hr_ay_chips" class="d-flex flex-wrap gap-1"></div>
+      <input type="hidden" id="hr_ayudantes" name="ayudantes" value="<?= h((string)($hoja['ayudantes'] ?? '')) ?>">
     </div>
     <div class="col-12"><label class="form-label">Observaciones</label><input class="form-control form-control-sm" name="observaciones" maxlength="600" value="<?= h((string)($hoja['observaciones'] ?? '')) ?>" <?= $editable ? '' : 'disabled' ?>></div>
   </div>
-  <?php if ($editable): ?><div class="mt-2"><button class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Guardar encabezado</button></div><?php endif; ?>
 </form>
 
 <!-- Órdenes del sistema -->
@@ -267,16 +276,56 @@ flash_render();
 </div>
 
 <div class="text-muted small">Total: <strong><?= $totBultos ?></strong> bulto(s) · <strong><?= number_format($totM3, 2, ',', '.') ?></strong> m³</div>
+<style>
+  .hr-ay-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(96,165,250,.15);border:1px solid rgba(96,165,250,.5);color:var(--text,#e8eaed);border-radius:999px;padding:1px 4px 1px 10px;font-size:12px;line-height:1.6}
+  .hr-ay-chip button{background:none;border:none;color:inherit;cursor:pointer;font-size:14px;line-height:1;padding:0 4px;opacity:.7}
+  .hr-ay-chip button:hover{opacity:1}
+</style>
 <script>
-// Agrega el nombre de un ayudante del padrón al campo (sin duplicar). Hay que
-// Guardar el encabezado para que quede registrado.
-function hrAddAyudante(nombre) {
-  var inp = document.getElementById('hr_ayudantes');
-  if (!inp) return;
-  var actual = inp.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
-  if (actual.indexOf(nombre) === -1) { actual.push(nombre); inp.value = actual.join(', '); }
-  inp.focus();
+// Ayudantes: el desplegable (o el texto libre) SUMA nombres; se muestran como
+// chips y se guardan en el campo oculto "ayudantes" (coma-separados). Hay que
+// Guardar el encabezado para que queden registrados.
+var HR_AY_EDITABLE = <?= $editable ? 'true' : 'false' ?>;
+function hrAyList() {
+  var h = document.getElementById('hr_ayudantes');
+  return h ? h.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean) : [];
 }
+function hrAySet(arr) {
+  var seen = [];
+  arr.forEach(function (n) { if (n && seen.indexOf(n) === -1) seen.push(n); }); // sin duplicar
+  var h = document.getElementById('hr_ayudantes');
+  if (h) h.value = seen.join(', ');
+  hrAyRender();
+}
+function hrAyAdd(nombre) { if (nombre) { var l = hrAyList(); l.push(nombre); hrAySet(l); } }
+function hrAyAddText() {
+  var t = document.getElementById('hr_ay_txt');
+  if (t && t.value.trim()) { hrAyAdd(t.value.trim()); t.value = ''; t.focus(); }
+}
+function hrAyRender() {
+  var cont = document.getElementById('hr_ay_chips');
+  if (!cont) return;
+  cont.innerHTML = '';
+  hrAyList().forEach(function (n) {
+    var chip = document.createElement('span');
+    chip.className = 'hr-ay-chip';
+    chip.appendChild(document.createTextNode(n));
+    if (HR_AY_EDITABLE) {
+      var x = document.createElement('button');
+      x.type = 'button'; x.title = 'Quitar'; x.textContent = '×';
+      x.onclick = function () { hrAySet(hrAyList().filter(function (m) { return m !== n; })); };
+      chip.appendChild(x);
+    }
+    cont.appendChild(chip);
+  });
+}
+document.addEventListener('DOMContentLoaded', function () {
+  hrAyRender();
+  var sel = document.getElementById('hr_ay_sel');
+  if (sel) sel.addEventListener('change', function () { if (this.value) { hrAyAdd(this.value); this.value = ''; } });
+  var txt = document.getElementById('hr_ay_txt');
+  if (txt) txt.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); hrAyAddText(); } });
+});
 </script>
 <?php
 panel_footer();
