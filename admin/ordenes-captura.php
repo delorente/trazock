@@ -65,6 +65,21 @@ panel_header('Nueva carga', $user, 'captura',
   </div>
 </div>
 
+<div id="loadingOverlay" class="load-ov d-none">
+  <div class="load-box">
+    <div class="spinner-border text-success" role="status" style="width:2.4rem;height:2.4rem"></div>
+    <div id="loadMsg" class="load-msg">Abriendo previsualización…</div>
+    <div class="load-sub">No cierres esta pantalla.</div>
+  </div>
+</div>
+
+<style>
+  .load-ov{ position:fixed; inset:0; background:rgba(0,0,0,.6); display:flex; align-items:center; justify-content:center; z-index:1090; backdrop-filter:blur(2px); }
+  .load-box{ background:var(--card,#1a1d24); border:1px solid var(--border,#2a2f3a); border-radius:14px; padding:1.6rem 2.2rem; text-align:center; box-shadow:0 12px 44px rgba(0,0,0,.5); }
+  .load-msg{ margin-top:.9rem; font-size:14px; font-weight:600; color:var(--text,#e8eaed); }
+  .load-sub{ margin-top:.25rem; font-size:11px; color:var(--muted,#9aa0aa); }
+</style>
+
 <script>
 const TZ = {
   csrf: <?= json_encode($csrf) ?>,
@@ -142,15 +157,27 @@ sheetList.addEventListener('click', e => {
   if (i >= 0 && cola[i].estado === 'pendiente') { cola[i].row.remove(); cola.splice(i, 1); actualizar(); }
 });
 
+// Overlay de carga reutilizable (procesamiento y apertura de la previsualización).
+const overlay = document.getElementById('loadingOverlay');
+const loadMsg = document.getElementById('loadMsg');
+function showLoading(msg){ if (msg) loadMsg.textContent = msg; overlay.classList.remove('d-none'); }
+function hideLoading(){ overlay.classList.add('d-none'); }
+
 async function procesar() {
   if (procesando) return;
   const pendientes = cola.filter(c => c.estado === 'pendiente');
   if (!pendientes.length) return;
   procesando = true;
   btnPrim.disabled = true;
+  let i = 0;
   for (const item of pendientes) {
+    i++;
+    showLoading(pendientes.length > 1
+      ? `Procesando hoja ${i} de ${pendientes.length} con OCR…`
+      : 'Procesando la hoja con OCR…');
     await procesarHoja(item);
   }
+  hideLoading();
   procesando = false;
   actualizar();
 }
@@ -208,8 +235,10 @@ async function procesarHoja(item) {
 
 // Botón verde: "Procesar N" mientras haya pendientes; luego "Ir a la revisión".
 btnPrim.addEventListener('click', () => {
-  if (btnPrim.dataset.modo === 'revisar') { location.href = TZ.revision + '?carga=' + TZ.cargaId; }
-  else { procesar(); }
+  if (btnPrim.dataset.modo === 'revisar') {
+    showLoading('Abriendo previsualización…');
+    location.href = TZ.revision + '?carga=' + TZ.cargaId;
+  } else { procesar(); }
 });
 
 // Una fila está lista para procesar si tiene transportista y fecha (≤ hoy).
