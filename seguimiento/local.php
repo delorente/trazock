@@ -36,6 +36,9 @@ $sortsValidos = ['nro_orden', 'cliente', 'items', 'estado', 'fecha'];
 $sort  = in_array((string)($_GET['sort'] ?? ''), $sortsValidos, true) ? (string)$_GET['sort'] : '';
 $dir   = strtolower((string)($_GET['dir'] ?? '')) === 'asc' ? 'asc' : 'desc';
 $vista = (($_GET['vista'] ?? '') === 'productos') ? 'productos' : 'ordenes';
+// Tipo (solo local / solo clientes) — se resuelve por el nombre de cliente del prefijo.
+$filtros['tipo'] = in_array((string)($_GET['tipo'] ?? ''), ['local', 'clientes'], true) ? (string)$_GET['tipo'] : '';
+$filtros['nombre_cliente'] = $pref !== null ? trim((string)($pref['nombre_cliente'] ?? '')) : '';
 
 // Estado → etiqueta, clase de pill y ícono.
 $EST = [
@@ -273,7 +276,8 @@ if ($vista === 'productos') {
 $paginas = (int)max(1, ceil($total / $porPagina));
 
 // Querystrings: base (filtros+vista) para ordenar; +sort/dir para paginación; export.
-$fFiltros  = array_filter($filtros, static fn($v) => $v !== '');
+// nombre_cliente NO va en la URL (se deriva del token en cada request).
+$fFiltros  = array_filter(array_diff_key($filtros, ['nombre_cliente' => 1]), static fn($v) => $v !== '');
 $baseParams = array_merge(['t' => $token], $fFiltros, ['vista' => $vista]);
 $qsSort    = http_build_query($baseParams);                       // encabezados ordenables
 $qs        = http_build_query($sort !== '' ? array_merge($baseParams, ['sort' => $sort, 'dir' => $dir]) : $baseParams); // paginación
@@ -301,7 +305,7 @@ function loc_pill(string $estado): string
 
 // ¿El usuario aplicó algún filtro explícito? (el "Desde" por defecto no cuenta)
 $hayFiltro = ($_GET['fecha_desde'] ?? '') !== '' || ($_GET['fecha_hasta'] ?? '') !== ''
-          || ($_GET['estado'] ?? '') !== '' || ($_GET['q'] ?? '') !== '';
+          || ($_GET['estado'] ?? '') !== '' || ($_GET['q'] ?? '') !== '' || ($_GET['tipo'] ?? '') !== '';
 
 loc_head('Órdenes de ' . $nombre);
 ?>
@@ -362,6 +366,16 @@ loc_head('Órdenes de ' . $nombre);
           <?php endforeach; ?>
         </select>
       </div>
+      <?php if ($filtros['nombre_cliente'] !== ''): ?>
+      <div>
+        <label>Tipo</label>
+        <select name="tipo">
+          <option value="">Todos</option>
+          <option value="local" <?= $filtros['tipo'] === 'local' ? 'selected' : '' ?>>Solo local</option>
+          <option value="clientes" <?= $filtros['tipo'] === 'clientes' ? 'selected' : '' ?>>Solo clientes</option>
+        </select>
+      </div>
+      <?php endif; ?>
       <div><label>Buscar</label><input type="text" name="q" value="<?= h($filtros['q']) ?>" placeholder="Orden, cliente o producto…"></div>
       <button class="filter-btn" type="submit">Filtrar</button>
     </div>

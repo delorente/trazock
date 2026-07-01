@@ -1031,6 +1031,13 @@ final class Orden
         if (!empty($f['estado']) && in_array($f['estado'], self::ESTADOS, true)) {
             $where[] = 'o.estado = :est'; $params[':est'] = $f['estado'];
         }
+        // Tipo (portal del local): stock del local (a nombre del local) vs clientes.
+        $ncf = trim((string)($f['nombre_cliente'] ?? ''));
+        if ($ncf !== '' && ($f['tipo'] ?? '') === 'local') {
+            $where[] = 'o.cliente = :ncf'; $params[':ncf'] = $ncf;
+        } elseif ($ncf !== '' && ($f['tipo'] ?? '') === 'clientes') {
+            $where[] = '(o.cliente IS NULL OR o.cliente <> :ncf)'; $params[':ncf'] = $ncf;
+        }
         if (!empty($f['q'])) {
             // Busca por Nº de orden, cliente y producto (código/descripción/dimensiones).
             $like = '%' . $f['q'] . '%';
