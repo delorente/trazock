@@ -92,6 +92,20 @@ final class Carga
     }
 
     /**
+     * Descarta (elimina) una carga en borrador sin confirmar. Solo afecta borradores
+     * (los confirmados ya materializaron órdenes y no se tocan). Devuelve true si
+     * eliminó algo.
+     */
+    public static function descartarBorrador(int $id): bool
+    {
+        $stmt = DB::getInstance()->prepare(
+            "DELETE FROM cargas WHERE id = :id AND estado = 'borrador'"
+        );
+        $stmt->execute([':id' => $id]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /**
      * Listado de cargas recientes para el panel.
      *
      * @return array<int, array<string, mixed>>

@@ -17,6 +17,19 @@ use Trazock\Models\Usuario;
 
 $user = Auth::requierePanel(['admin', 'logistica']);
 $csrf = Auth::tokenCSRF();
+
+// Descartar una carga borrador vieja (POST + CSRF + PRG).
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'descartar_carga') {
+    if (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
+        flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
+    } else {
+        $ok = Carga::descartarBorrador((int)($_POST['carga_id'] ?? 0));
+        flash_set($ok ? 'success' : 'warning', $ok ? 'Carga sin confirmar descartada.' : 'No se pudo descartar (¿ya no existe?).');
+    }
+    header('Location: ' . url('admin/ordenes-captura.php'));
+    exit;
+}
+
 $categorias     = Categoria::activas();
 $transportistas = Usuario::transportistasActivos();
 $pendientes     = Carga::pendientes();
@@ -24,6 +37,7 @@ $pendientes     = Carga::pendientes();
 panel_header('Nueva carga', $user, 'captura',
     'Fotografiá o subí las hojas resumen del camión — el sistema extrae las órdenes con OCR',
     '<a class="btn btn-sm btn-outline-primary" href="' . h(url('admin/orden-manual.php')) . '"><i class="bi bi-pencil-square me-1"></i>Cargar orden manual</a>');
+flash_render();
 ?>
 <div style="max-width:460px">
   <?php if ($pendientes !== []): ?>
@@ -34,13 +48,19 @@ panel_header('Nueva carga', $user, 'captura',
       <span class="text-muted" style="font-size:11px;margin-left:auto">Retomá una previsualización que dejaste a medias</span>
     </div>
     <?php foreach ($pendientes as $p): ?>
-      <a class="pend-item" href="<?= h(url('admin/ordenes-revision.php')) ?>?carga=<?= (int)$p['id'] ?>" onclick="showLoading('Abriendo previsualización…')">
+      <div class="pend-item">
         <div style="min-width:0;flex:1">
           <div style="font-size:13px;font-weight:600"><?= (int)$p['ordenes'] ?> órden<?= (int)$p['ordenes'] === 1 ? '' : 'es' ?><?php if (!empty($p['categoria_nombre'])): ?> <span class="text-muted" style="font-weight:400">· <?= h($p['categoria_nombre']) ?></span><?php endif; ?></div>
           <div class="text-muted" style="font-size:11px"><?= h(fmt_fecha($p['created_at'])) ?><?php if (!empty($p['usuario_nombre'])): ?> · <?= h($p['usuario_nombre']) ?><?php endif; ?></div>
         </div>
-        <span class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:12px">Retomar <i class="bi bi-arrow-right ms-1"></i></span>
-      </a>
+        <a class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:12px" href="<?= h(url('admin/ordenes-revision.php')) ?>?carga=<?= (int)$p['id'] ?>" onclick="showLoading('Abriendo previsualización…')">Retomar <i class="bi bi-arrow-right ms-1"></i></a>
+        <form method="post" class="d-inline" onsubmit="return confirm('¿Descartar esta carga sin confirmar? No se puede deshacer.')">
+          <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
+          <input type="hidden" name="accion" value="descartar_carga">
+          <input type="hidden" name="carga_id" value="<?= (int)$p['id'] ?>">
+          <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:12px" title="Descartar esta carga"><i class="bi bi-trash me-1"></i>Descartar</button>
+        </form>
+      </div>
     <?php endforeach; ?>
   </div>
   <style>
