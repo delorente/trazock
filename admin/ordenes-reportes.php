@@ -391,7 +391,13 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
 </div>
 <?php endif; ?>
 <form method="get" action="<?= h(url('admin/ordenes-reportes.php')) ?>" class="card mb-3 no-print" style="padding:.85rem 1rem">
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-bottom:.6rem">
+  <div id="filtrosToggle" class="d-flex align-items-center gap-2" style="cursor:pointer;user-select:none">
+    <i class="bi bi-chevron-down" id="filtrosChevron"></i>
+    <span style="font-weight:600;font-size:13px">Filtros</span>
+    <?php if ($qsBase !== ''): ?><span class="badge" style="background:#2563eb;font-weight:600">activos</span><?php endif; ?>
+    <span class="text-muted ms-auto" style="font-size:11px"><i class="bi bi-arrows-collapse me-1"></i>Replegar para ver más filas</span>
+  </div>
+  <div id="filtrosGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;margin-top:.7rem">
     <div>
       <label class="form-label">Categoría</label>
       <select class="form-select form-select-sm" name="categoria">
@@ -564,6 +570,25 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
   window.addEventListener('resize', fit);
   window.addEventListener('load', fit);
   fit();
+})();
+// Replegar/expandir los filtros (recuerda la preferencia) y reajustar la tabla al
+// espacio liberado disparando el 'resize' que recalcula su alto.
+(function () {
+  var KEY = 'tz_reportes_filtros_open';
+  var tog = document.getElementById('filtrosToggle');
+  var body = document.getElementById('filtrosGrid');
+  var chev = document.getElementById('filtrosChevron');
+  if (!tog || !body || !chev) return;
+  function set(open) {
+    body.style.display = open ? '' : 'none';
+    chev.className = 'bi bi-chevron-' + (open ? 'down' : 'right');
+    try { localStorage.setItem(KEY, open ? '1' : '0'); } catch (e) {}
+    window.dispatchEvent(new Event('resize'));
+  }
+  var abierto = true;
+  try { abierto = localStorage.getItem(KEY) !== '0'; } catch (e) {}
+  set(abierto);
+  tog.addEventListener('click', function () { set(body.style.display === 'none'); });
 })();
 // Reportes preconfigurados: el selector + Excel/Imprimir actúan sobre lo filtrado.
 (function () {
