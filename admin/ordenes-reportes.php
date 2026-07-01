@@ -693,6 +693,24 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
     bar.classList.toggle('d-none');
     if (!bar.classList.contains('d-none')) { refrescarBtn(); bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   });
+  async function hrPost(ids, hojaId, forzar) {
+    const r = await fetch(AGREGAR_URL, {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csrf_token: CSRF, ids: ids, hoja_id: hojaId, forzar: !!forzar })
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo agregar.');
+    return d;
+  }
+  function hrEnsureOption(hojaId, numero) {
+    if (!hojaId) return;
+    if (!sel.querySelector('option[value="' + hojaId + '"]')) {
+      const opt = document.createElement('option');
+      opt.value = hojaId; opt.textContent = numero || ('HR ' + hojaId);
+      sel.appendChild(opt);
+    }
+    sel.value = String(hojaId);
+  }
   if (btnAdd) btnAdd.addEventListener('click', async function () {
     const ids = Array.from(document.querySelectorAll('.wa-chk:checked')).map(c => +c.value);
     if (ids.length === 0) { alert('Tildá al menos una orden (casilla a la izquierda de cada fila).'); return; }
@@ -700,22 +718,27 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
     res.className = 'small text-muted';
     res.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Agregando…';
     try {
-      const r = await fetch(AGREGAR_URL, {
-        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ csrf_token: CSRF, ids: ids, hoja_id: +sel.value })
-      });
-      const d = await r.json();
-      if (!r.ok || !d.ok) throw new Error(d.error || 'No se pudo agregar.');
-      // Si era "Nueva", sumar la hoja recién creada al selector y dejarla elegida.
-      if (+sel.value === 0 && d.hoja_id) {
-        const opt = document.createElement('option');
-        opt.value = d.hoja_id; opt.textContent = d.numero;
-        sel.appendChild(opt); sel.value = String(d.hoja_id);
+      let d = await hrPost(ids, +sel.value, false);
+      let hojaId = d.hoja_id, numero = d.numero, total = d.agregadas, ya = d.ya_estaban;
+      hrEnsureOption(hojaId, numero);
+      // Órdenes que no están en depósito → confirmar antes de sumarlas.
+      if (d.pendientes && d.pendientes.length) {
+        const estados = Array.from(new Set(d.pendientes.map(p => (p.estado || '').replace(/_/g, ' ')))).join(', ');
+        if (confirm(d.pendientes.length + ' orden(es) no están en depósito (' + estados + '). ¿Agregarlas igual? Quizás estás armando una hoja de ruta vieja.')) {
+          const d2 = await hrPost(d.pendientes.map(p => p.id), hojaId || 0, true);
+          hojaId = d2.hoja_id; numero = d2.numero || numero; total += d2.agregadas; ya += d2.ya_estaban;
+          hrEnsureOption(hojaId, numero);
+        }
       }
-      res.className = 'small';
-      res.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>' + d.agregadas + ' agregada(s) a <strong>' + d.numero + '</strong>'
-        + (d.ya_estaban ? ' · ' + d.ya_estaban + ' ya estaban' : '') + '</span> '
-        + '<a class="btn btn-sm btn-outline-primary ms-2 py-0 px-2" href="' + ARMAR_BASE + '?id=' + d.hoja_id + '"><i class="bi bi-box-arrow-up-right me-1"></i>Abrir</a>';
+      if (total === 0) {
+        res.className = 'small text-muted';
+        res.textContent = 'No se agregó ninguna orden' + (ya ? ' (' + ya + ' ya estaban en la hoja)' : '.') + '';
+      } else {
+        res.className = 'small';
+        res.innerHTML = '<span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>' + total + ' agregada(s)'
+          + (numero ? ' a <strong>' + numero + '</strong>' : '') + (ya ? ' · ' + ya + ' ya estaban' : '') + '</span>'
+          + (hojaId ? ' <a class="btn btn-sm btn-outline-primary ms-2 py-0 px-2" href="' + ARMAR_BASE + '?id=' + hojaId + '"><i class="bi bi-box-arrow-up-right me-1"></i>Abrir</a>' : '');
+      }
     } catch (e) {
       res.className = 'small text-danger';
       res.textContent = e.message;
