@@ -34,6 +34,7 @@ $filtros = [
     'prefijo'      => filtro_multi_valores('prefijo'),    // multi (local / origen)
     'transportista'=> trim((string)($_GET['transportista'] ?? '')),
     'estado'       => trim((string)($_GET['estado'] ?? '')),
+    'marca'        => trim((string)($_GET['marca'] ?? '')),
     'fecha_desde'  => trim((string)($_GET['fecha_desde'] ?? '')),
     'fecha_hasta'  => trim((string)($_GET['fecha_hasta'] ?? '')),
 ];
@@ -45,6 +46,24 @@ function rep_destino(array $o): string
     $prov = trim((string)($o['dest_provincia'] ?? ''));
     $d = $loc . ($loc !== '' && $prov !== '' ? ' · ' : '') . $prov;
     return $d !== '' ? $d : '—';
+}
+
+/**
+ * Estilo del nombre del cliente según estado/marca:
+ * rojo negrita si está "bloqueada" (marca No entregar), rojo si DEVUELTO, y el
+ * resto de los estados con su color (verde entregado, azul en reparto, ámbar
+ * reingresado, normal en depósito).
+ */
+function rep_cliente_estilo(string $estado, string $marca): string
+{
+    if ($marca === 'no_entregar') { return 'color:#ef4444;font-weight:700'; }
+    return match ($estado) {
+        'DEVUELTO'    => 'color:#ef4444',
+        'ENTREGADO'   => 'color:#4ade80',
+        'EN_REPARTO'  => 'color:#60a5fa',
+        'REINGRESADO' => 'color:#fbbf24',
+        default       => '',
+    };
 }
 
 /** Nº de carga/lote de ingreso al que pertenece la orden (índice para agrupar). */
@@ -413,6 +432,15 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
         <?php endforeach; ?>
       </select>
     </div>
+    <div>
+      <label class="form-label">Marca</label>
+      <select class="form-select form-select-sm" name="marca">
+        <option value="">Todas</option>
+        <option value="prioridad" <?= $filtros['marca'] === 'prioridad' ? 'selected' : '' ?>>⚡ Prioridad</option>
+        <option value="no_entregar" <?= $filtros['marca'] === 'no_entregar' ? 'selected' : '' ?>>⛔ No entregar</option>
+        <option value="sin" <?= $filtros['marca'] === 'sin' ? 'selected' : '' ?>>Sin marca</option>
+      </select>
+    </div>
     <div><label class="form-label">F. carga desde</label><input type="date" class="form-control form-control-sm" name="fecha_desde" value="<?= h($filtros['fecha_desde']) ?>"></div>
     <div><label class="form-label">F. carga hasta</label><input type="date" class="form-control form-control-sm" name="fecha_hasta" value="<?= h($filtros['fecha_hasta']) ?>"></div>
     <div>
@@ -453,9 +481,9 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
         <thead><tr>
           <?php if ($puedeMarcar): ?><th class="no-print" style="width:30px"><input type="checkbox" id="waChkAll" title="Seleccionar todas" class="form-check-input"></th><?php endif; ?>
           <th style="width:58px">Marca</th>
+          <th>Estado</th>
           <th>Nº orden</th><th>Cliente</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Provincia</th><th>Localidad</th><th>Teléfono</th><th>m³</th>
           <th>F. remito</th><th>Nº remito</th><th>Hoja ruta</th><th>Transportista</th><th>F. carga</th>
-          <th>Estado</th>
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
@@ -473,8 +501,9 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
               <?php endif; ?>
               <?php if ($obs !== ''): ?><i class="bi bi-chat-left-text-fill tz-obs-ic" title="<?= h($obs) ?>"></i><?php endif; ?>
             </td>
+            <td><?= estado_badge((string)($o['estado'] ?? '')) ?></td>
             <td class="mono" style="font-size:12px"><a href="<?= h(url('admin/ordenes-detalle.php') . '?id=' . (int)$o['id'] . '&vol=' . rawurlencode($volverQS)) ?>" style="color:#60a5fa;text-decoration:none"><?= h((string)$o['nro_orden']) ?></a></td>
-            <td style="font-size:13px"><?= h((string)($o['cliente'] ?? '') !== '' ? (string)$o['cliente'] : '—') ?></td>
+            <td style="font-size:13px"><span style="<?= rep_cliente_estilo((string)($o['estado'] ?? ''), $marca) ?>"><?= h((string)($o['cliente'] ?? '') !== '' ? (string)$o['cliente'] : '—') ?></span></td>
             <td style="font-size:13px"><?= h((string)($o['categoria'] ?? '—')) ?></td>
             <td style="text-align:center"><?= (int)($o['cant_items'] ?? 0) ?></td>
             <td style="font-size:13px"><?= h((string)($o['dest_provincia'] ?? '') !== '' ? (string)$o['dest_provincia'] : '—') ?><?php if (Destino::esSospechosa((string)($o['dest_provincia'] ?? ''), $conocidasProv)): ?> <i class="bi bi-exclamation-triangle-fill text-warning" title="Destino fuera de tus zonas/envíos habituales — revisá"></i><?php endif; ?></td>
@@ -489,7 +518,6 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
             <td class="mono" style="font-size:12px"><?= h((string)($o['hoja_ruta'] ?? '') !== '' ? (string)$o['hoja_ruta'] : '—') ?></td>
             <td style="font-size:12px"><?= h((string)($o['transportista_nombre'] ?? '') !== '' ? (string)$o['transportista_nombre'] : '—') ?></td>
             <td style="color:var(--muted)"><?= h(($o['fecha_carga'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_carga'])) : '—') ?></td>
-            <td><?= estado_badge((string)($o['estado'] ?? '')) ?></td>
           </tr>
         <?php endforeach; endif; ?>
         </tbody>

@@ -648,6 +648,15 @@ final class Orden
             $where[] = 'o.estado = :estado';
             $params[':estado'] = $f['estado'];
         }
+        // Marca operativa: una de self::MARCAS, o 'sin' para las que no tienen marca.
+        if (!empty($f['marca'])) {
+            if ($f['marca'] === 'sin') {
+                $where[] = 'o.marca IS NULL';
+            } elseif (in_array($f['marca'], self::MARCAS, true)) {
+                $where[] = 'o.marca = :marca';
+                $params[':marca'] = $f['marca'];
+            }
+        }
         // Fecha de CARGA del documento (la que se ingresa al importar; columna DATE).
         if (!empty($f['fecha_desde'])) {
             $where[] = 'o.fecha_carga >= :fd';
@@ -685,7 +694,8 @@ final class Orden
                           WHERE cg.id = o.carga_id) AS categoria
                 FROM ordenes o'
              . $where
-             . " ORDER BY o.created_at DESC, o.id DESC LIMIT {$limit} OFFSET {$offset}";
+             // Prioridad siempre arriba; dentro de cada grupo, lo más reciente primero.
+             . " ORDER BY (o.marca = 'prioridad') DESC, o.created_at DESC, o.id DESC LIMIT {$limit} OFFSET {$offset}";
 
         $stmt = DB::getInstance()->prepare($sql);
         $stmt->execute($params);
