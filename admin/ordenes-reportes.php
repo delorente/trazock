@@ -460,7 +460,7 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
   </div>
 </form>
 
-<div class="sumbar no-print">
+<div class="sumbar sumbar-inline no-print">
   <div><div class="sumbar-n" style="color:#60a5fa"><?= number_format($totales['ordenes'], 0, ',', '.') ?></div><div class="sumbar-l">Órdenes filtradas</div></div>
   <div class="sumbar-div"></div>
   <div><div class="sumbar-n"><?= number_format($totales['m3'], 2, ',', '.') ?></div><div class="sumbar-l">m³ total</div></div>
@@ -554,6 +554,9 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
 .tz-marca-btn.on-ne{color:#ef4444;opacity:1}
 .tz-marca-btn.on-pr{color:#f59e0b;opacity:1}
 .tz-obs-ic{color:#60a5fa;font-size:13px;margin-left:3px}
+/* Resumen compacto: valor y etiqueta en la misma fila (gana alto para más filas). */
+.sumbar-inline > div{display:flex;align-items:baseline;gap:.35rem}
+.sumbar-inline .sumbar-l{text-transform:none;letter-spacing:0}
 @media print{.tz-marca-btn:not(.on-ne):not(.on-pr){display:none}}
 </style>
 <script>
