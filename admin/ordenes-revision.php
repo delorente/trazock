@@ -74,7 +74,7 @@ panel_header('Revisión OCR', $user, 'captura',
 
 <div id="cta" class="d-flex justify-content-end gap-2"></div>
 
-<script src="<?= h(asset('js/revision-destino.js')) ?>"></script>
+<script src="<?= h(asset('assets/js/revision-destino.js')) ?>"></script>
 <script>
 const TZ = {
   csrf: <?= json_encode($csrf) ?>,
