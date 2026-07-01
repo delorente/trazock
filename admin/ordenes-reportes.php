@@ -580,7 +580,8 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
   var chev = document.getElementById('filtrosChevron');
   if (!tog || !body || !chev) return;
   function set(open) {
-    body.style.display = open ? '' : 'none';
+    // 'grid' (no '') para no borrar el display:grid inline y conservar el diseño.
+    body.style.display = open ? 'grid' : 'none';
     chev.className = 'bi bi-chevron-' + (open ? 'down' : 'right');
     try { localStorage.setItem(KEY, open ? '1' : '0'); } catch (e) {}
     window.dispatchEvent(new Event('resize'));
