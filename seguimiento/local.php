@@ -27,6 +27,15 @@ $filtros = [
     'estado'      => trim((string)($_GET['estado'] ?? '')),
     'q'           => trim((string)($_GET['q'] ?? '')),
 ];
+// Por defecto se muestra el último mes (si no eligieron una fecha "Desde").
+if ($filtros['fecha_desde'] === '') {
+    $filtros['fecha_desde'] = date('Y-m-d', strtotime('-1 month'));
+}
+// Orden por columna (clic en el encabezado) y vista (órdenes / productos).
+$sortsValidos = ['nro_orden', 'cliente', 'items', 'estado', 'fecha'];
+$sort  = in_array((string)($_GET['sort'] ?? ''), $sortsValidos, true) ? (string)$_GET['sort'] : '';
+$dir   = strtolower((string)($_GET['dir'] ?? '')) === 'asc' ? 'asc' : 'desc';
+$vista = (($_GET['vista'] ?? '') === 'productos') ? 'productos' : 'ordenes';
 
 // Estado → etiqueta, clase de pill y ícono.
 $EST = [
@@ -69,6 +78,44 @@ if ($pref !== null && ($_GET['export'] ?? '') === 'xlsx') {
     if (ob_get_length()) { ob_end_clean(); }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     header('Content-Disposition: attachment; filename="ordenes_' . date('Ymd_His') . '.xlsx"');
+    header('Cache-Control: max-age=0');
+    (new Xlsx($ss))->save('php://output');
+    exit;
+}
+
+// --- Export Excel por PRODUCTOS ----------------------------------------------
+if ($pref !== null && ($_GET['export'] ?? '') === 'productos') {
+    $rows = Orden::productosPorPrefijo((string)$pref['prefijo'], $filtros, 5000, 0);
+    $nombre = trim((string)($pref['nombre_publico'] ?? '')) !== '' ? (string)$pref['nombre_publico'] : (string)$pref['nombre_interno'];
+    $nclE = trim((string)($pref['nombre_cliente'] ?? '')); $nclEN = mb_strtolower($nclE);
+
+    $ss = new Spreadsheet();
+    $sh = $ss->getActiveSheet();
+    $sh->setTitle('Productos');
+    $sh->setCellValue('A1', 'Productos de ' . $nombre);
+    $sh->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+    $sh->fromArray(['Nº orden', 'Cliente', 'Tipo', 'Código', 'Descripción', 'Dimensiones', 'Estado', 'Fecha y hora'], null, 'A3');
+    $sh->getStyle('A3:H3')->getFont()->setBold(true);
+    $STR = \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING;
+    $fila = 4;
+    foreach ($rows as $r) {
+        $fest = (string)($r['fecha_estado'] ?? '');
+        $cli  = trim((string)($r['cliente'] ?? ''));
+        $tipo = ($nclE !== '' && mb_strtolower($cli) === $nclEN) ? 'Pedido del Local' : 'Venta del Local';
+        $sh->setCellValueExplicit('A' . $fila, (string)$r['nro_orden'], $STR);
+        $sh->setCellValue('B' . $fila, $cli);
+        $sh->setCellValue('C' . $fila, $tipo);
+        $sh->setCellValueExplicit('D' . $fila, (string)($r['codigo'] ?? ''), $STR);
+        $sh->setCellValueExplicit('E' . $fila, (string)($r['descripcion'] ?? ''), $STR);
+        $sh->setCellValueExplicit('F' . $fila, (string)($r['dimensiones'] ?? ''), $STR);
+        $sh->setCellValue('G' . $fila, $EST[(string)$r['estado']][0] ?? (string)$r['estado']);
+        $sh->setCellValue('H' . $fila, $fest !== '' ? fmt_fecha($fest, 'd/m/Y H:i') : '');
+        $fila++;
+    }
+    foreach (range('A', 'H') as $c) { $sh->getColumnDimension($c)->setAutoSize(true); }
+    if (ob_get_length()) { ob_end_clean(); }
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="productos_' . date('Ymd_His') . '.xlsx"');
     header('Cache-Control: max-age=0');
     (new Xlsx($ss))->save('php://output');
     exit;
@@ -156,6 +203,14 @@ tr.lo-row.open .lo-chev{transform:rotate(90deg)}
 .lo-pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:20px}
 .lo-pill.t-slate{background:var(--tz-slate-tint);color:var(--tz-slate-ink)}
 .lo-pill.t-violet{background:var(--tz-violet-tint);color:var(--tz-violet-ink)}
+.lo-cli{display:inline-flex;align-items:center;gap:7px}
+.lo-cli .ic-slate{color:var(--tz-slate-ink)}
+.lo-cli .ic-violet{color:var(--tz-violet-ink)}
+.lo-sort{color:inherit;text-decoration:none;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center}
+.lo-sort:hover{color:var(--tz-ink)}
+.lo-tabs{display:inline-flex;gap:4px;margin-bottom:14px;background:var(--tz-line-soft);border:1px solid var(--tz-line);border-radius:10px;padding:3px}
+.lo-tab{font-size:13px;font-weight:600;color:var(--tz-ink-soft);text-decoration:none;padding:7px 15px;border-radius:8px;display:inline-flex;align-items:center;gap:6px}
+.lo-tab.active{background:#fff;color:var(--tz-ink);box-shadow:0 1px 2px rgba(0,0,0,.06)}
 .lo-pill.s-blue{background:var(--tz-blue-tint);color:var(--tz-blue-ink)}
 .lo-pill.s-amber{background:var(--tz-amber-tint);color:var(--tz-amber-ink)}
 .lo-pill.s-green{background:var(--tz-green-tint);color:var(--tz-green-ink)}
@@ -202,11 +257,39 @@ $porPagina = 12;
 $pagina    = max(1, (int)($_GET['pagina'] ?? 1));
 $offset    = ($pagina - 1) * $porPagina;
 
-$total   = Orden::contarPorPrefijo((string)$pref['prefijo'], $filtros);
-$kpis    = Orden::kpisPorPrefijo((string)$pref['prefijo'], $filtros, $nombreCliente);
+$kpis = Orden::kpisPorPrefijo((string)$pref['prefijo'], $filtros, $nombreCliente);
+
+$ordenes = [];
+$itemsMap = [];
+$productos = [];
+if ($vista === 'productos') {
+    $total     = Orden::contarProductosPorPrefijo((string)$pref['prefijo'], $filtros);
+    $productos = Orden::productosPorPrefijo((string)$pref['prefijo'], $filtros, $porPagina, $offset);
+} else {
+    $total    = Orden::contarPorPrefijo((string)$pref['prefijo'], $filtros);
+    $ordenes  = Orden::listarPorPrefijo((string)$pref['prefijo'], $filtros, $porPagina, $offset, $sort, $dir);
+    $itemsMap = Orden::itemsAgrupadosDeOrdenes(array_map(static fn($o) => (int)$o['id'], $ordenes));
+}
 $paginas = (int)max(1, ceil($total / $porPagina));
-$ordenes = Orden::listarPorPrefijo((string)$pref['prefijo'], $filtros, $porPagina, $offset);
-$itemsMap = Orden::itemsAgrupadosDeOrdenes(array_map(static fn($o) => (int)$o['id'], $ordenes));
+
+// Querystrings: base (filtros+vista) para ordenar; +sort/dir para paginación; export.
+$fFiltros  = array_filter($filtros, static fn($v) => $v !== '');
+$baseParams = array_merge(['t' => $token], $fFiltros, ['vista' => $vista]);
+$qsSort    = http_build_query($baseParams);                       // encabezados ordenables
+$qs        = http_build_query($sort !== '' ? array_merge($baseParams, ['sort' => $sort, 'dir' => $dir]) : $baseParams); // paginación
+$expUrl    = '?' . http_build_query(array_merge(['t' => $token], $fFiltros)) . '&export=' . ($vista === 'productos' ? 'productos' : 'xlsx');
+$viewOrdUrl  = '?' . http_build_query(array_merge(['t' => $token], $fFiltros));
+$viewProdUrl = $viewOrdUrl . '&vista=productos';
+
+/** Encabezado ordenable de la vista de órdenes. */
+function th_sort(string $label, string $col, string $extra = ''): string
+{
+    global $sort, $dir, $qsSort;
+    $next  = ($sort === $col && $dir === 'asc') ? 'desc' : 'asc';
+    $arrow = $sort === $col ? ($dir === 'asc' ? ' ▲' : ' ▼') : '';
+    $href  = '?' . $qsSort . '&sort=' . $col . '&dir=' . $next;
+    return '<th' . $extra . '><a class="lo-sort" href="' . h($href) . '">' . h($label) . $arrow . '</a></th>';
+}
 
 /** Pill de estado. */
 function loc_pill(string $estado): string
@@ -216,10 +299,9 @@ function loc_pill(string $estado): string
     return '<span class="lo-pill ' . $cls . '"><i class="bi ' . $ic . '"></i>' . h($lb) . '</span>';
 }
 
-// Querystring base (token + filtros) para paginación y export.
-$qs       = http_build_query(array_merge(['t' => $token], array_filter($filtros, static fn($v) => $v !== '')));
-$exportUrl = '?' . $qs . '&export=xlsx';
-$hayFiltro = $filtros['fecha_desde'] || $filtros['fecha_hasta'] || $filtros['estado'] || $filtros['q'];
+// ¿El usuario aplicó algún filtro explícito? (el "Desde" por defecto no cuenta)
+$hayFiltro = ($_GET['fecha_desde'] ?? '') !== '' || ($_GET['fecha_hasta'] ?? '') !== ''
+          || ($_GET['estado'] ?? '') !== '' || ($_GET['q'] ?? '') !== '';
 
 loc_head('Órdenes de ' . $nombre);
 ?>
@@ -233,7 +315,7 @@ loc_head('Órdenes de ' . $nombre);
       </div>
     </div>
     <div class="lo-actions">
-      <a class="lo-btn" href="<?= h($exportUrl) ?>"><i class="bi bi-file-earmark-excel"></i>Exportar Excel</a>
+      <a class="lo-btn" href="<?= h($expUrl) ?>"><i class="bi bi-file-earmark-excel"></i>Exportar Excel</a>
       <button type="button" class="lo-btn primary" onclick="window.print()"><i class="bi bi-printer"></i>Imprimir / PDF</button>
     </div>
   </header>
@@ -267,6 +349,7 @@ loc_head('Órdenes de ' . $nombre);
 
   <form class="lo-filters" method="get">
     <input type="hidden" name="t" value="<?= h($token) ?>">
+    <input type="hidden" name="vista" value="<?= h($vista) ?>">
     <div class="filter-grid">
       <div><label>Desde</label><input type="date" name="fecha_desde" value="<?= h($filtros['fecha_desde']) ?>"></div>
       <div><label>Hasta</label><input type="date" name="fecha_hasta" value="<?= h($filtros['fecha_hasta']) ?>"></div>
@@ -279,22 +362,56 @@ loc_head('Órdenes de ' . $nombre);
           <?php endforeach; ?>
         </select>
       </div>
-      <div><label>Buscar Nº de orden</label><input type="text" name="q" value="<?= h($filtros['q']) ?>" placeholder="Nº de orden…"></div>
+      <div><label>Buscar</label><input type="text" name="q" value="<?= h($filtros['q']) ?>" placeholder="Orden, cliente o producto…"></div>
       <button class="filter-btn" type="submit">Filtrar</button>
     </div>
-    <?php if ($hayFiltro): ?><a class="filter-clear" href="?t=<?= h(rawurlencode($token)) ?>">Limpiar filtros</a><?php endif; ?>
+    <?php if ($hayFiltro): ?><a class="filter-clear" href="?t=<?= h(rawurlencode($token)) ?><?= $vista === 'productos' ? '&vista=productos' : '' ?>">Limpiar filtros</a><?php endif; ?>
   </form>
 
+  <div class="lo-tabs">
+    <a class="lo-tab <?= $vista === 'ordenes' ? 'active' : '' ?>" href="<?= h($viewOrdUrl) ?>"><i class="bi bi-receipt"></i>Por órdenes</a>
+    <a class="lo-tab <?= $vista === 'productos' ? 'active' : '' ?>" href="<?= h($viewProdUrl) ?>"><i class="bi bi-box-seam"></i>Por productos</a>
+  </div>
+
   <section class="lo-table">
+    <?php if ($vista === 'productos'): ?>
+    <table>
+      <thead>
+        <tr>
+          <th>Nº orden</th><th>Cliente</th><th>Producto</th><th>Dimensiones</th><th>Estado</th>
+          <th title="Fecha y hora en que la orden alcanzó su estado actual">Fecha y hora</th>
+        </tr>
+      </thead>
+      <tbody>
+      <?php if ($productos === []): ?>
+        <tr><td colspan="6"><div class="lo-empty">No hay productos para los filtros seleccionados.</div></td></tr>
+      <?php else: foreach ($productos as $r):
+        $cli = trim((string)($r['cliente'] ?? ''));
+        $esStock = $nombreCliente !== '' && mb_strtolower($cli) === $nclNorm;
+        $desc = (string)($r['descripcion'] ?? '') !== '' ? (string)$r['descripcion'] : (string)($r['codigo'] ?? '');
+        $fest = (string)($r['fecha_estado'] ?? '');
+      ?>
+        <tr>
+          <td class="lo-ordno"><?= h((string)$r['nro_orden']) ?></td>
+          <td><?php if ($cli !== ''): ?><span class="lo-cli"><i class="bi <?= $esStock ? 'bi-box-seam ic-slate' : 'bi-bag-check ic-violet' ?>"></i><?= h($cli) ?></span><?php else: ?><span style="color:var(--tz-muted)">—</span><?php endif; ?></td>
+          <td><?= h($desc !== '' ? $desc : '—') ?></td>
+          <td class="lo-fecha"><?= h((string)($r['dimensiones'] ?? '') !== '' ? (string)$r['dimensiones'] : '—') ?></td>
+          <td><?= loc_pill((string)$r['estado']) ?></td>
+          <td class="lo-fecha"><?= $fest !== '' ? h(fmt_fecha($fest, 'd/m/Y H:i')) : '—' ?></td>
+        </tr>
+      <?php endforeach; endif; ?>
+      </tbody>
+    </table>
+    <?php else: ?>
     <table>
       <thead>
         <tr>
           <th style="width:30px"></th>
-          <th>Nº orden</th>
-          <th>Cliente</th>
-          <th>Ítems</th>
-          <th>Estado</th>
-          <th>Fecha y hora</th>
+          <?= th_sort('Nº orden', 'nro_orden') ?>
+          <?= th_sort('Cliente', 'cliente') ?>
+          <?= th_sort('Ítems', 'items') ?>
+          <?= th_sort('Estado', 'estado') ?>
+          <?= th_sort('Fecha y hora', 'fecha', ' title="Fecha y hora en que la orden alcanzó su estado actual"') ?>
         </tr>
       </thead>
       <tbody>
@@ -314,7 +431,7 @@ loc_head('Órdenes de ' . $nombre);
           <td class="lo-ordno"><?= h((string)$o['nro_orden']) ?></td>
           <td>
             <?php if ($cli !== ''): ?>
-              <span class="lo-pill <?= $esStock ? 't-slate' : 't-violet' ?>"><i class="bi <?= $esStock ? 'bi-box-seam' : 'bi-bag-check' ?>"></i><?= h($cli) ?></span>
+              <span class="lo-cli"><i class="bi <?= $esStock ? 'bi-box-seam ic-slate' : 'bi-bag-check ic-violet' ?>"></i><?= h($cli) ?></span>
             <?php else: ?><span style="color:var(--tz-muted)">—</span><?php endif; ?>
           </td>
           <td><?= (int)$o['cant_items'] ?></td>
@@ -335,6 +452,7 @@ loc_head('Órdenes de ' . $nombre);
       <?php endforeach; endif; ?>
       </tbody>
     </table>
+    <?php endif; ?>
     <?php if ($total > 0): ?>
     <div class="lo-tfoot">
       <span>Mostrando <?= number_format($offset + 1, 0, ',', '.') ?>–<?= number_format(min($offset + $porPagina, $total), 0, ',', '.') ?> de <?= number_format($total, 0, ',', '.') ?></span>

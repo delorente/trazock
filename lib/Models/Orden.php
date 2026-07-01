@@ -1031,7 +1031,14 @@ final class Orden
         if (!empty($f['estado']) && in_array($f['estado'], self::ESTADOS, true)) {
             $where[] = 'o.estado = :est'; $params[':est'] = $f['estado'];
         }
-        if (!empty($f['q'])) { $where[] = 'o.nro_orden LIKE :q'; $params[':q'] = '%' . $f['q'] . '%'; }
+        if (!empty($f['q'])) {
+            // Busca por Nº de orden, cliente y producto (código/descripción/dimensiones).
+            $like = '%' . $f['q'] . '%';
+            $where[] = '(o.nro_orden LIKE :q1 OR o.cliente LIKE :q2 OR EXISTS ('
+                     . 'SELECT 1 FROM productos pq WHERE pq.orden_id = o.id AND '
+                     . '(pq.descripcion LIKE :q3 OR pq.codigo LIKE :q4 OR pq.dimensiones LIKE :q5)))';
+            $params[':q1'] = $like; $params[':q2'] = $like; $params[':q3'] = $like; $params[':q4'] = $like; $params[':q5'] = $like;
+        }
         return [' WHERE ' . implode(' AND ', $where), $params];
     }
 
@@ -1051,19 +1058,57 @@ final class Orden
      * @param array<string,mixed> $f
      * @return array<int, array<string,mixed>>
      */
-    public static function listarPorPrefijo(string $prefijo, array $f, int $limit = 50, int $offset = 0): array
+    public static function listarPorPrefijo(string $prefijo, array $f, int $limit = 50, int $offset = 0, string $sort = '', string $dir = 'desc'): array
     {
         [$where, $params] = self::wherePublico($prefijo, $f);
         $limit  = max(1, min(500, $limit));
         $offset = max(0, $offset);
+        // Columnas ordenables (clic en el encabezado del portal).
+        $cols = ['nro_orden' => 'o.nro_orden', 'cliente' => 'o.cliente', 'items' => 'cant_items',
+                 'estado' => 'o.estado', 'fecha' => 'fecha_estado'];
+        $orderExpr = $cols[$sort] ?? 'o.created_at';
+        $dirSql = strtolower($dir) === 'asc' ? 'ASC' : 'DESC';
         $sql = 'SELECT o.id, o.nro_orden, o.cliente, o.estado, o.created_at,
                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items,
                        ' . self::fechaEstadoExpr() . ' AS fecha_estado
                 FROM ordenes o' . $where
-             . " ORDER BY o.created_at DESC, o.id DESC LIMIT {$limit} OFFSET {$offset}";
+             . " ORDER BY {$orderExpr} {$dirSql}, o.id DESC LIMIT {$limit} OFFSET {$offset}";
         $stmt = DB::getInstance()->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Listado por PRODUCTOS de un local (un ítem por fila), con el contexto de su
+     * orden. Para la vista/exportación "por productos" del portal.
+     *
+     * @param array<string,mixed> $f
+     * @return array<int, array<string,mixed>>
+     */
+    public static function productosPorPrefijo(string $prefijo, array $f, int $limit = 200, int $offset = 0): array
+    {
+        [$where, $params] = self::wherePublico($prefijo, $f);
+        $limit  = max(1, min(5000, $limit));
+        $offset = max(0, $offset);
+        $sql = "SELECT o.nro_orden, o.cliente, o.estado,
+                       COALESCE(p.codigo, '') AS codigo,
+                       COALESCE(p.descripcion, '') AS descripcion,
+                       COALESCE(p.dimensiones, '') AS dimensiones,
+                       " . self::fechaEstadoExpr() . " AS fecha_estado
+                FROM productos p JOIN ordenes o ON o.id = p.orden_id" . $where
+             . " ORDER BY o.nro_orden, p.secuencia, p.id LIMIT {$limit} OFFSET {$offset}";
+        $stmt = DB::getInstance()->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    /** @param array<string,mixed> $f */
+    public static function contarProductosPorPrefijo(string $prefijo, array $f): int
+    {
+        [$where, $params] = self::wherePublico($prefijo, $f);
+        $stmt = DB::getInstance()->prepare('SELECT COUNT(*) FROM productos p JOIN ordenes o ON o.id = p.orden_id' . $where);
+        $stmt->execute($params);
+        return (int)$stmt->fetchColumn();
     }
 
     /**
