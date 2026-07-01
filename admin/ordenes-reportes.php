@@ -402,6 +402,7 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
       <label class="form-label">Categoría</label>
       <select class="form-select form-select-sm" name="categoria">
         <option value="">Todas</option>
+        <option value="sin" <?= $filtros['categoria'] === 'sin' ? 'selected' : '' ?>>— Sin categoría —</option>
         <?php foreach ($categorias as $c): ?>
           <option value="<?= (int)$c['id'] ?>" <?= (string)$c['id'] === $filtros['categoria'] ? 'selected' : '' ?>><?= h($c['nombre']) ?></option>
         <?php endforeach; ?>

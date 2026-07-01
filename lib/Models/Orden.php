@@ -658,8 +658,13 @@ final class Orden
         }
         if (!empty($f['categoria'])) {
             // La categoría es de la carga; la orden la hereda por su carga_id.
-            $where[] = 'o.carga_id IN (SELECT cc.id FROM cargas cc WHERE cc.categoria_id = :cat)';
-            $params[':cat'] = (int)$f['categoria'];
+            if ($f['categoria'] === 'sin') {
+                // Sin categoría: carga sin categoría asignada (o sin carga).
+                $where[] = '(o.carga_id IS NULL OR o.carga_id IN (SELECT cc.id FROM cargas cc WHERE cc.categoria_id IS NULL))';
+            } else {
+                $where[] = 'o.carga_id IN (SELECT cc.id FROM cargas cc WHERE cc.categoria_id = :cat)';
+                $params[':cat'] = (int)$f['categoria'];
+            }
         }
         if (!empty($f['zona'])) {
             // La orden pertenece a la zona si su (provincia, localidad) está en sus
