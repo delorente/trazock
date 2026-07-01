@@ -281,12 +281,15 @@
         if (tipo === 'INGRESO') {
             html += campoSelect('cfgCategoria', 'Categoría', optionList(c.categorias, 'id', 'nombre'), true);
             html += campoSelect('cfgProveedor', 'Proveedor (opcional)', '<option value="">—</option>' + optionList(c.proveedores, 'id', 'nombre'), false);
-            html += campoSelect('cfgConductor', 'Conductor (opcional)', '<option value="">—</option>' + optionList(c.acompanantes, 'id', 'nombre'), false);
+            var acomp = c.acompanantes || [];
+            var chofLD = acomp.filter(function (a) { return +a.es_chofer_ld === 1; });
+            var ayud   = acomp.filter(function (a) { return +a.es_ayudante === 1; });
+            html += campoSelect('cfgConductor', 'Conductor LD (opcional)', '<option value="">—</option>' + optionList(chofLD, 'id', 'nombre'), false);
             html += campoTexto('cfgRemito', 'N° remito (opcional)');
             // Datos del viaje que trajo la mercadería (opcionales).
             html += campoSelect('cfgVehiculo', 'Vehículo (opcional)', '<option value="">—</option>' + optionList(c.vehiculos, 'id', 'nombre'), false);
-            html += campoChecks('cfgAyudantes', 'Ayudante(s) (opcional)', c.acompanantes,
-                'No hay empleados cargados. Pedí al admin que los cargue (panel → Empleados).');
+            html += campoChecks('cfgAyudantes', 'Ayudante(s) (opcional)', ayud,
+                'No hay empleados con rol Ayudante. Cargalos en el panel → Empleados.');
         } else if (tipo === 'SALIDA_REPARTO') {
             // La hoja de ruta la arma logística en el panel; acá se elige. El conductor,
             // vehículo y ayudantes vienen de la hoja (no se cargan en el scan).

@@ -201,7 +201,7 @@ $nLineas = count($ordenes) + count($manuales);
         <?php endforeach; ?>
         <?php foreach ($manuales as $m): ?>
             <tr class="man">
-                <td><?= h((string)($m['cliente_origen'] ?? '') !== '' ? (string)$m['cliente_origen'] : '—') ?> <span class="man-tag">MAN</span></td>
+                <td><?= h((string)($m['cliente_origen'] ?? '') !== '' ? (string)$m['cliente_origen'] : '—') ?></td>
                 <td class="n"><?= h((string)($m['nro_orden'] ?? '') !== '' ? (string)$m['nro_orden'] : '—') ?></td>
                 <td><?= h((string)($m['cliente_destino'] ?? '') !== '' ? (string)$m['cliente_destino'] : '—') ?></td>
                 <td><?= h((string)($m['localidad'] ?? '') !== '' ? (string)$m['localidad'] : '—') ?></td>

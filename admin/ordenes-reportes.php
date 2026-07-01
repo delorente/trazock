@@ -366,8 +366,8 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
         <?php endforeach; ?>
       </select>
     </div>
-    <button id="btnHrAdd" type="button" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>Agregar a Hoja de Ruta</button>
-    <div id="hrResult" class="small text-muted">Tildá las órdenes de la lista y agregalas. Después "Abrir" para completar y emitir.</div>
+    <button id="btnHrAdd" type="button" class="btn btn-sm btn-primary d-none"><i class="bi bi-plus-lg me-1"></i>Agregar a Hoja de Ruta (<span id="hrCount">0</span>)</button>
+    <div id="hrResult" class="small text-muted">Tildá las órdenes de la lista para agregarlas. Después "Abrir" para completar y emitir.</div>
   </div>
 </div>
 <?php endif; ?>
@@ -679,9 +679,19 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
   const btnAdd = document.getElementById('btnHrAdd');
   const sel = document.getElementById('hrSel');
   const res = document.getElementById('hrResult');
+  const cnt = document.getElementById('hrCount');
+  function refrescarBtn() {
+    const n = document.querySelectorAll('.wa-chk:checked').length;
+    if (cnt) cnt.textContent = String(n);
+    if (btnAdd) btnAdd.classList.toggle('d-none', n === 0);
+  }
+  document.querySelectorAll('.wa-chk').forEach(c => c.addEventListener('change', refrescarBtn));
+  const chkAll = document.getElementById('waChkAll');
+  if (chkAll) chkAll.addEventListener('change', function () { setTimeout(refrescarBtn, 0); });
+  refrescarBtn();
   if (btnToggle) btnToggle.addEventListener('click', function () {
     bar.classList.toggle('d-none');
-    if (!bar.classList.contains('d-none')) bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (!bar.classList.contains('d-none')) { refrescarBtn(); bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   });
   if (btnAdd) btnAdd.addEventListener('click', async function () {
     const ids = Array.from(document.querySelectorAll('.wa-chk:checked')).map(c => +c.value);

@@ -102,7 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $ordenes  = HojaRuta::ordenesDe($id);
 $manuales = HojaRuta::manualesDe($id);
-$empleados = Acompanante::activos();
+$empleados = Acompanante::porRol('cd');       // conductores de reparto (corta distancia)
+$ayudantesPad = Acompanante::porRol('ayudante');
 $vehiculos = Vehiculo::activos();
 $csrf = Auth::tokenCSRF();
 
@@ -154,7 +155,17 @@ flash_render();
       </select>
       <input class="form-control form-control-sm" id="vehiculo_texto" name="vehiculo_texto" placeholder="…o escribir a mano" value="<?= h((int)($hoja['vehiculo_id'] ?? 0) === 0 ? (string)($hoja['vehiculo'] ?? '') : '') ?>" <?= $editable ? '' : 'disabled' ?>>
     </div>
-    <div class="col-md-4"><label class="form-label">Ayudante(s)</label><input class="form-control form-control-sm" name="ayudantes" maxlength="255" value="<?= h((string)($hoja['ayudantes'] ?? '')) ?>" placeholder="Nombres, separados por coma" <?= $editable ? '' : 'disabled' ?>></div>
+    <div class="col-md-4">
+      <label class="form-label">Ayudante(s)</label>
+      <input class="form-control form-control-sm" id="hr_ayudantes" name="ayudantes" maxlength="255" value="<?= h((string)($hoja['ayudantes'] ?? '')) ?>" placeholder="Nombres, separados por coma" <?= $editable ? '' : 'disabled' ?>>
+      <?php if ($editable && $ayudantesPad !== []): ?>
+        <div class="mt-1" style="display:flex;flex-wrap:wrap;gap:4px">
+          <?php foreach ($ayudantesPad as $ay): ?>
+            <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:11px" onclick="hrAddAyudante('<?= h(addslashes((string)$ay['nombre'])) ?>')"><i class="bi bi-plus"></i><?= h($ay['nombre']) ?></button>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </div>
     <div class="col-12"><label class="form-label">Observaciones</label><input class="form-control form-control-sm" name="observaciones" maxlength="600" value="<?= h((string)($hoja['observaciones'] ?? '')) ?>" <?= $editable ? '' : 'disabled' ?>></div>
   </div>
   <?php if ($editable): ?><div class="mt-2"><button class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Guardar encabezado</button></div><?php endif; ?>
@@ -176,15 +187,16 @@ flash_render();
   </div>
   <div style="overflow-x:auto">
     <table class="table table-hover mb-0" style="font-size:13px">
-      <thead class="table-light"><tr><th>Nº orden</th><th>Cliente</th><th>Localidad</th><th class="text-center">Btos</th><th class="text-end">m³</th><th>Teléfono</th><?php if ($editable): ?><th></th><?php endif; ?></tr></thead>
+      <thead class="table-light"><tr><th>Categoría</th><th>Nº orden</th><th>Cliente</th><th>Localidad</th><th class="text-center">Btos</th><th class="text-end">m³</th><th>Teléfono</th><?php if ($editable): ?><th></th><?php endif; ?></tr></thead>
       <tbody>
       <?php if ($ordenes === []): ?>
-        <tr><td colspan="<?= $editable ? 7 : 6 ?>" class="text-center text-muted py-3">Sin órdenes. Agregá por Nº arriba.</td></tr>
+        <tr><td colspan="<?= $editable ? 8 : 7 ?>" class="text-center text-muted py-3">Sin órdenes. Agregá por Nº arriba.</td></tr>
       <?php else: foreach ($ordenes as $o):
         $cli = trim((string)($o['cliente_apellido'] ?? '')) !== '' ? (string)$o['cliente_apellido'] : (string)($o['cliente'] ?? '');
         $loc = trim((string)($o['dest_localidad'] ?? '') . (($o['dest_localidad'] ?? '') && ($o['dest_provincia'] ?? '') ? ' · ' : '') . (string)($o['dest_provincia'] ?? ''));
       ?>
         <tr>
+          <td><?= h((string)($o['categoria'] ?? '') !== '' ? (string)$o['categoria'] : '—') ?></td>
           <td class="mono"><?= h((string)$o['nro_orden']) ?></td>
           <td><?= h($cli !== '' ? $cli : '—') ?></td>
           <td><?= h($loc !== '' ? $loc : '—') ?></td>
@@ -255,5 +267,16 @@ flash_render();
 </div>
 
 <div class="text-muted small">Total: <strong><?= $totBultos ?></strong> bulto(s) · <strong><?= number_format($totM3, 2, ',', '.') ?></strong> m³</div>
+<script>
+// Agrega el nombre de un ayudante del padrón al campo (sin duplicar). Hay que
+// Guardar el encabezado para que quede registrado.
+function hrAddAyudante(nombre) {
+  var inp = document.getElementById('hr_ayudantes');
+  if (!inp) return;
+  var actual = inp.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+  if (actual.indexOf(nombre) === -1) { actual.push(nombre); inp.value = actual.join(', '); }
+  inp.focus();
+}
+</script>
 <?php
 panel_footer();

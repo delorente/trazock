@@ -32,14 +32,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nombre = trim((string)($_POST['nombre'] ?? ''));
             $obs    = trim((string)($_POST['observacion'] ?? ''));
             $id     = (int)($_POST['id'] ?? 0);
+            $ld = isset($_POST['es_chofer_ld']);
+            $cd = isset($_POST['es_chofer_cd']);
+            $ay = isset($_POST['es_ayudante']);
 
             if ($nombre === '') {
                 flash_set('danger', 'El nombre es obligatorio.');
             } elseif ($id > 0) {
-                Acompanante::actualizar($id, $nombre, $obs);
+                Acompanante::actualizar($id, $nombre, $obs, $ld, $cd, $ay);
                 flash_set('success', 'Empleado actualizado.');
             } else {
-                Acompanante::crear($nombre, $obs);
+                Acompanante::crear($nombre, $obs, $ld, $cd, $ay);
                 flash_set('success', 'Empleado creado.');
             }
         }
@@ -65,16 +68,21 @@ panel_header('Empleados', $user, 'acompanantes', count($acompanantes) . ' emplea
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
-                <tr><th>Nombre</th><th>Observación</th><th>Estado</th><th class="text-end">Acciones</th></tr>
+                <tr><th>Nombre</th><th>Observación</th><th class="text-center" title="Chofer larga distancia">Chofer LD</th><th class="text-center" title="Chofer corta distancia">Chofer CD</th><th class="text-center">Ayudante</th><th>Estado</th><th class="text-end">Acciones</th></tr>
             </thead>
             <tbody>
             <?php if ($acompanantes === []): ?>
-                <tr><td colspan="4" class="text-center text-muted py-4">No hay empleados cargados.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">No hay empleados cargados.</td></tr>
             <?php endif; ?>
-            <?php foreach ($acompanantes as $a): ?>
+            <?php
+            $tick = static fn($v) => $v ? '<i class="bi bi-check-lg text-success"></i>' : '<span class="text-muted">·</span>';
+            foreach ($acompanantes as $a): ?>
                 <tr class="<?= $a['activo'] ? '' : 'table-secondary' ?>">
                     <td><?= h($a['nombre']) ?></td>
                     <td class="text-muted small"><?= h($a['observacion'] ?? '') ?></td>
+                    <td class="text-center"><?= $tick((int)$a['es_chofer_ld']) ?></td>
+                    <td class="text-center"><?= $tick((int)$a['es_chofer_cd']) ?></td>
+                    <td class="text-center"><?= $tick((int)$a['es_ayudante']) ?></td>
                     <td>
                         <span class="badge b-<?= $a['activo'] ? 'activo' : 'inactivo' ?>">
                             <?= $a['activo'] ? 'Activo' : 'Inactivo' ?>
@@ -86,6 +94,7 @@ panel_header('Empleados', $user, 'acompanantes', count($acompanantes) . ' emplea
                                 onclick='acompEditar(<?= json_encode([
                                     "id" => (int)$a["id"], "nombre" => $a["nombre"],
                                     "observacion" => $a["observacion"],
+                                    "ld" => (int)$a["es_chofer_ld"], "cd" => (int)$a["es_chofer_cd"], "ay" => (int)$a["es_ayudante"],
                                 ], JSON_HEX_APOS | JSON_HEX_QUOT) ?>)'><i class="bi bi-pencil"></i></button>
                         <form method="post" class="d-inline">
                             <input type="hidden" name="csrf_token" value="<?= h($csrf) ?>">
@@ -124,6 +133,10 @@ panel_header('Empleados', $user, 'acompanantes', count($acompanantes) . ' emplea
           <label class="form-label" for="acomp_obs">Observación</label>
           <input class="form-control" id="acomp_obs" name="observacion" maxlength="255" placeholder="Opcional (ej. teléfono, turno)">
         </div>
+        <div class="mb-1"><label class="form-label">Roles</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="acomp_ld" name="es_chofer_ld"><label class="form-check-label" for="acomp_ld">Chofer LD (larga distancia) — conductor de la hoja de carga</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="acomp_cd" name="es_chofer_cd"><label class="form-check-label" for="acomp_cd">Chofer CD (corta distancia) — conductor de hojas de reparto</label></div>
+        <div class="form-check"><input class="form-check-input" type="checkbox" id="acomp_ay" name="es_ayudante"><label class="form-check-label" for="acomp_ay">Ayudante</label></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -139,12 +152,18 @@ function acompNuevo() {
     document.getElementById('acomp_id').value = '';
     document.getElementById('acomp_nombre').value = '';
     document.getElementById('acomp_obs').value = '';
+    document.getElementById('acomp_ld').checked = false;
+    document.getElementById('acomp_cd').checked = false;
+    document.getElementById('acomp_ay').checked = false;
 }
 function acompEditar(d) {
     document.getElementById('acomp_titulo').textContent = 'Editar empleado';
     document.getElementById('acomp_id').value = d.id;
     document.getElementById('acomp_nombre').value = d.nombre || '';
     document.getElementById('acomp_obs').value = d.observacion || '';
+    document.getElementById('acomp_ld').checked = !!d.ld;
+    document.getElementById('acomp_cd').checked = !!d.cd;
+    document.getElementById('acomp_ay').checked = !!d.ay;
 }
 </script>
 <?php
