@@ -54,7 +54,7 @@ if ($hojaId > 0) {
         $ordenes[] = [
             'categoria'   => (string)($o['categoria'] ?? ''),
             'nro_orden'   => (string)$o['nro_orden'],
-            'cliente'     => trim((string)($o['cliente_apellido'] ?? '')) !== '' ? (string)$o['cliente_apellido'] : (string)($o['cliente'] ?? ''),
+            'cliente'     => trim((string)($o['cliente'] ?? '')) !== '' ? (string)$o['cliente'] : (string)($o['cliente_apellido'] ?? ''),
             'localidad'   => trim((string)($o['dest_localidad'] ?? '') . (($o['dest_localidad'] ?? '') && ($o['dest_provincia'] ?? '') ? ' · ' : '') . (string)($o['dest_provincia'] ?? '')),
             'bultos'      => (int)$o['bultos'],
             'm3'          => (float)$o['m3_total'],
@@ -87,7 +87,7 @@ if ($hojaId > 0) {
         $ordenes[] = [
             'categoria'   => (string)($o['categoria'] ?? ''),
             'nro_orden'   => (string)$o['nro_orden'],
-            'cliente'     => trim((string)($o['cliente_apellido'] ?? '')) !== '' ? (string)$o['cliente_apellido'] : (string)($o['cliente'] ?? ''),
+            'cliente'     => trim((string)($o['cliente'] ?? '')) !== '' ? (string)$o['cliente'] : (string)($o['cliente_apellido'] ?? ''),
             'localidad'   => trim((string)($o['dest_localidad'] ?? '') . (($o['dest_localidad'] ?? '') && ($o['dest_provincia'] ?? '') ? ' · ' : '') . (string)($o['dest_provincia'] ?? '')),
             'bultos'      => (int)$o['bultos'],
             'm3'          => (float)$o['m3'],

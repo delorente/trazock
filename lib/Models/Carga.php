@@ -45,6 +45,15 @@ final class Carga
         return $row === false ? null : $row;
     }
 
+    /** Cambia la categoría/línea de una carga (afecta a todas sus órdenes). */
+    public static function actualizarCategoria(int $id, ?int $categoriaId): void
+    {
+        $stmt = DB::getInstance()->prepare('UPDATE cargas SET categoria_id = :cat WHERE id = :id');
+        $stmt->bindValue(':cat', $categoriaId, $categoriaId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->execute();
+    }
+
     /** Guarda el JSON de extracción editado durante la revisión. */
     public static function guardarDatos(int $id, string $json): void
     {

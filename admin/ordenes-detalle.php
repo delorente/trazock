@@ -12,7 +12,9 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\EtiquetaQr;
+use Trazock\Models\Carga;
 use Trazock\Models\CatalogoProductos;
+use Trazock\Models\Categoria;
 use Trazock\Models\EntregaRemito;
 use Trazock\Models\HojaRuta;
 use Trazock\Models\Orden;
@@ -133,6 +135,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'observaciones'    => trim((string)($_POST['observaciones'] ?? '')),
                 'marca'            => in_array((string)($_POST['marca'] ?? ''), Orden::MARCAS, true) ? (string)$_POST['marca'] : '',
             ]);
+            // Categoría: es de la CARGA (la orden la hereda). Cambiarla afecta a todas
+            // las órdenes de esa carga/import.
+            if (array_key_exists('categoria_id', $_POST)) {
+                $catId = (int)($_POST['categoria_id'] ?? 0);
+                if ($catId > 0 && !Categoria::existeActiva($catId)) { $catId = 0; }
+                $ord = Orden::find($oid);
+                $cargaId = (int)($ord['carga_id'] ?? 0);
+                if ($cargaId > 0) { Carga::actualizarCategoria($cargaId, $catId > 0 ? $catId : null); }
+            }
             flash_set('success', 'Orden actualizada.');
         }
     }
@@ -165,6 +176,11 @@ if (!empty($orden['transportista_id'])) {
     $transpNombre = (string)($t['nombre_completo'] ?? '');
 }
 $transportistasAll = Usuario::transportistasActivos();
+// Categoría de la orden (vive en su carga). Cambiarla afecta a toda la carga/import.
+$categoriasAll = Categoria::activas();
+$cargaAct      = !empty($orden['carga_id']) ? Carga::find((int)$orden['carga_id']) : null;
+$catActual     = $cargaAct ? (int)($cargaAct['categoria_id'] ?? 0) : 0;
+$catHermanas   = !empty($orden['carga_id']) ? Orden::contar(['carga' => [(int)$orden['carga_id']]]) : 1;
 $urlEti    = url('admin/ordenes-etiquetas.php') . '?orden=' . $id;
 $csrf      = Auth::tokenCSRF();
 $historial = Orden::historial($id);
@@ -410,6 +426,16 @@ $campo = static function (string $label, string $valor): void {
             </select>
           </div>
           <div class="col-md-4"><label class="form-label">Fecha de carga</label><input type="date" class="form-control form-control-sm" name="fecha_carga" max="<?= h(date('Y-m-d')) ?>" value="<?= h((string)($orden['fecha_carga'] ?? '')) ?>"></div>
+          <div class="col-md-4">
+            <label class="form-label">Categoría / línea</label>
+            <select class="form-select form-select-sm" name="categoria_id">
+              <option value="">— Sin categoría —</option>
+              <?php foreach ($categoriasAll as $c): ?>
+                <option value="<?= (int)$c['id'] ?>" <?= $catActual === (int)$c['id'] ? 'selected' : '' ?>><?= h($c['nombre']) ?></option>
+              <?php endforeach; ?>
+            </select>
+            <?php if ($catHermanas > 1): ?><div class="form-text" style="font-size:11px"><i class="bi bi-info-circle me-1"></i>Cambia la categoría de las <?= (int)$catHermanas ?> órdenes de esta carga.</div><?php endif; ?>
+          </div>
           <div class="col-md-6"><label class="form-label">Cliente</label><input class="form-control form-control-sm" name="cliente" value="<?= h((string)($orden['cliente'] ?? '')) ?>"></div>
           <div class="col-md-3"><label class="form-label">Apellido</label><input class="form-control form-control-sm" name="cliente_apellido" value="<?= h((string)($orden['cliente_apellido'] ?? '')) ?>"></div>
           <div class="col-md-3"><label class="form-label">Teléfonos</label><input class="form-control form-control-sm" name="telefonos" value="<?= h((string)($orden['telefonos'] ?? '')) ?>"></div>
