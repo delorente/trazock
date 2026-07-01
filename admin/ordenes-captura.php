@@ -11,6 +11,7 @@ require __DIR__ . '/../lib/bootstrap.php';
 require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
+use Trazock\Models\Carga;
 use Trazock\Models\Categoria;
 use Trazock\Models\Usuario;
 
@@ -18,11 +19,36 @@ $user = Auth::requierePanel(['admin', 'logistica']);
 $csrf = Auth::tokenCSRF();
 $categorias     = Categoria::activas();
 $transportistas = Usuario::transportistasActivos();
+$pendientes     = Carga::pendientes();
 
 panel_header('Nueva carga', $user, 'captura',
     'Fotografiá o subí las hojas resumen del camión — el sistema extrae las órdenes con OCR');
 ?>
 <div style="max-width:460px">
+  <?php if ($pendientes !== []): ?>
+  <div class="card mb-3" style="border-color:#3b82f6">
+    <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem">
+      <i class="bi bi-hourglass-split" style="color:#60a5fa"></i>
+      <span style="font-size:13px;font-weight:600">Cargas sin confirmar</span>
+      <span class="text-muted" style="font-size:11px;margin-left:auto">Retomá una previsualización que dejaste a medias</span>
+    </div>
+    <?php foreach ($pendientes as $p): ?>
+      <a class="pend-item" href="<?= h(url('admin/ordenes-revision.php')) ?>?carga=<?= (int)$p['id'] ?>" onclick="showLoading('Abriendo previsualización…')">
+        <div style="min-width:0;flex:1">
+          <div style="font-size:13px;font-weight:600"><?= (int)$p['ordenes'] ?> órden<?= (int)$p['ordenes'] === 1 ? '' : 'es' ?><?php if (!empty($p['categoria_nombre'])): ?> <span class="text-muted" style="font-weight:400">· <?= h($p['categoria_nombre']) ?></span><?php endif; ?></div>
+          <div class="text-muted" style="font-size:11px"><?= h(fmt_fecha($p['created_at'])) ?><?php if (!empty($p['usuario_nombre'])): ?> · <?= h($p['usuario_nombre']) ?><?php endif; ?></div>
+        </div>
+        <span class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:12px">Retomar <i class="bi bi-arrow-right ms-1"></i></span>
+      </a>
+    <?php endforeach; ?>
+  </div>
+  <style>
+    .pend-item{ display:flex; align-items:center; gap:.75rem; padding:.6rem 1rem; border-bottom:1px solid var(--border); text-decoration:none; color:inherit; }
+    .pend-item:last-child{ border-bottom:0; }
+    .pend-item:hover{ background:rgba(59,130,246,.07); }
+  </style>
+  <?php endif; ?>
+
   <div class="card p-3 mb-3">
     <div class="mb-3">
       <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Categoría / línea de producto</div>

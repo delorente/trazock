@@ -138,5 +138,7 @@ final class Zona
             $ins->bindValue(':c', $ciudad === '' ? null : $ciudad, $ciudad === '' ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $ins->execute();
         }
+        // Las zonas alimentan el diccionario de destinos (autocompletado en revisión).
+        Destino::invalidarCache();
     }
 }

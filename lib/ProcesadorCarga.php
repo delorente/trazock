@@ -6,6 +6,7 @@ namespace Trazock;
 use PDO;
 use RuntimeException;
 use Trazock\Models\Carga;
+use Trazock\Models\Destino;
 use Trazock\Models\Lote;
 use Trazock\Models\Orden;
 use Trazock\Models\Producto;
@@ -149,6 +150,10 @@ final class ProcesadorCarga
 
             Carga::marcarConfirmada($cargaId, $creadas);
             $db->commit();
+
+            // Se cargaron nuevas órdenes → el diccionario de destinos puede tener
+            // localidades nuevas; que se reconstruya en la próxima revisión.
+            Destino::invalidarCache();
 
             return ['creadas' => $creadas, 'items' => $itemsTot, 'omitidas' => $omitidas];
         } catch (\Throwable $e) {

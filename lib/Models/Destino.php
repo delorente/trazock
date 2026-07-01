@@ -91,15 +91,63 @@ final class Destino
         ];
     }
 
+    /** Segundos de vida del cache del diccionario de destinos. */
+    private const CACHE_TTL = 600;
+
+    /** Ruta del archivo de cache (o null si no hay directorio escribible). */
+    private static function cachePath(): ?string
+    {
+        $base = sys_get_temp_dir() . '/trazock-cache';
+        if (!is_dir($base)) { @mkdir($base, 0777, true); }
+        if (!is_dir($base) || !is_writable($base)) { return null; }
+        return $base . '/destinos-' . md5(__DIR__) . '.json';
+    }
+
+    /** Borra el cache del diccionario (llamar al confirmar cargas o editar zonas). */
+    public static function invalidarCache(): void
+    {
+        $path = self::cachePath();
+        if ($path !== null && is_file($path)) { @unlink($path); }
+    }
+
     /**
      * Diccionario para autocompletar/separar destinos en la Revisión OCR, armado
      * con datos que ya tenemos: las 24 provincias (∪ variantes tipeadas en la
      * base) y las localidades conocidas (zonas de reparto + histórico de órdenes),
      * cada una con su provincia más frecuente.
      *
+     * Cacheado en disco (TTL corto) porque se arma en cada apertura de la revisión;
+     * se invalida solo al confirmar una carga o editar las zonas.
+     *
      * @return array{provincias: array<int,string>, localidades: array<int, array{localidad:string, provincia:string}>}
      */
-    public static function diccionarioDestinos(): array
+    public static function diccionarioDestinos(bool $refrescar = false): array
+    {
+        $path = self::cachePath();
+        if (!$refrescar && $path !== null && is_file($path)
+            && (time() - (int)@filemtime($path)) < self::CACHE_TTL) {
+            $raw = @file_get_contents($path);
+            if ($raw !== false) {
+                $d = json_decode($raw, true);
+                if (is_array($d) && isset($d['provincias'], $d['localidades'])) {
+                    return $d;
+                }
+            }
+        }
+
+        $d = self::construirDiccionario();
+        if ($path !== null) {
+            @file_put_contents($path, json_encode($d, JSON_UNESCAPED_UNICODE), LOCK_EX);
+        }
+        return $d;
+    }
+
+    /**
+     * Arma el diccionario desde la base (sin cache).
+     *
+     * @return array{provincias: array<int,string>, localidades: array<int, array{localidad:string, provincia:string}>}
+     */
+    private static function construirDiccionario(): array
     {
         $db = DB::getInstance();
 

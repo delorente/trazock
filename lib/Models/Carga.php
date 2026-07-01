@@ -66,6 +66,32 @@ final class Carga
     }
 
     /**
+     * Cargas en borrador (procesadas por OCR pero sin confirmar) con al menos una
+     * orden extraída, para poder retomarlas desde "Nueva carga". Incluye cuántas
+     * órdenes tiene el borrador, quién y cuándo.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public static function pendientes(int $limit = 25): array
+    {
+        $limit = max(1, min(100, $limit));
+        $stmt = DB::getInstance()->prepare(
+            "SELECT c.id, c.fecha, c.created_at, c.categoria_id,
+                    cat.nombre AS categoria_nombre,
+                    u.nombre_completo AS usuario_nombre,
+                    COALESCE(JSON_LENGTH(c.datos_extraidos, '$.ordenes'), 0) AS ordenes
+             FROM cargas c
+             LEFT JOIN usuarios u ON u.id = c.usuario_id
+             LEFT JOIN categorias cat ON cat.id = c.categoria_id
+             WHERE c.estado = 'borrador'
+               AND COALESCE(JSON_LENGTH(c.datos_extraidos, '$.ordenes'), 0) > 0
+             ORDER BY c.id DESC LIMIT {$limit}"
+        );
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Listado de cargas recientes para el panel.
      *
      * @return array<int, array<string, mixed>>
