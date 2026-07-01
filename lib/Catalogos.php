@@ -5,6 +5,7 @@ namespace Trazock;
 
 use Trazock\Models\Acompanante;
 use Trazock\Models\Categoria;
+use Trazock\Models\HojaRuta;
 use Trazock\Models\Motivo;
 use Trazock\Models\Orden;
 use Trazock\Models\Proveedor;
@@ -31,6 +32,7 @@ final class Catalogos
             'vehiculos'       => Vehiculo::activos(),
             'acompanantes'    => Acompanante::activos(),
             'zonas'           => Zona::activasConLocalidades(),
+            'hojas_ruta'      => HojaRuta::abiertasParaScan(),
             'tipos_permitidos' => MaquinaEstados::tiposPermitidos($rol),
             'ordenes_no_entregar' => Orden::noEntregar(),
             'last_updated'    => date('c'),

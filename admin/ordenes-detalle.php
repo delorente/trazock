@@ -13,6 +13,7 @@ require __DIR__ . '/_layout.php';
 use Trazock\Auth;
 use Trazock\EtiquetaQr;
 use Trazock\Models\EntregaRemito;
+use Trazock\Models\HojaRuta;
 use Trazock\Models\Orden;
 use Trazock\Models\Producto;
 use Trazock\Models\Usuario;
@@ -167,6 +168,7 @@ $urlEti    = url('admin/ordenes-etiquetas.php') . '?orden=' . $id;
 $csrf      = Auth::tokenCSRF();
 $historial = Orden::historial($id);
 $remitos   = EntregaRemito::porOrden($id);
+$repartos  = HojaRuta::porOrden($id);
 
 /** Destino "Localidad · Provincia". */
 $loc  = trim((string)($orden['dest_localidad'] ?? ''));
@@ -350,6 +352,21 @@ $campo = static function (string $label, string $valor): void {
   </div>
   <?php endif; ?>
 </div>
+
+<?php if ($repartos !== []): ?>
+<div class="card p-3 mt-3">
+  <div style="font-weight:600;font-size:13px;margin-bottom:.85rem"><i class="bi bi-signpost-split-fill me-1"></i>Salió en reparto</div>
+  <?php foreach ($repartos as $r): ?>
+    <div style="font-size:13px;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:.3rem">
+      <a class="mono fw-bold" style="text-decoration:none;color:#60a5fa" href="<?= h(url('admin/hoja-ruta-armar.php') . '?id=' . (int)$r['id']) ?>"><?= h((string)$r['numero']) ?></a>
+      <span class="text-muted"><?= h(($r['fecha'] ?? '') ? date('d/m/Y', strtotime((string)$r['fecha'])) : '—') ?></span>
+      <?php if (($r['conductor'] ?? '') !== ''): ?><span><i class="bi bi-person me-1"></i><?= h((string)$r['conductor']) ?></span><?php endif; ?>
+      <?php if (($r['vehiculo'] ?? '') !== ''): ?><span><i class="bi bi-truck me-1"></i><?= h((string)$r['vehiculo']) ?></span><?php endif; ?>
+      <span class="badge b-<?= $r['estado'] === 'emitida' ? 'activo' : 'inactivo' ?>"><?= h((string)$r['estado']) ?></span>
+    </div>
+  <?php endforeach; ?>
+</div>
+<?php endif; ?>
 
 <?php if ($remitos !== []): ?>
 <div class="card p-3 mt-3">

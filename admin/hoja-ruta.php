@@ -2,36 +2,24 @@
 declare(strict_types=1);
 
 // =============================================================================
-// admin/hoja-ruta.php — Hoja de ruta imprimible de un lote de SALIDA_REPARTO.
+// admin/hoja-ruta.php — Hoja de ruta imprimible (A4 apaisado, lista para PDF).
 //
-// Página standalone (blanca, lista para imprimir/PDF) con los datos escaneados
-// del reparto + vehículo/chofer/ayudantes cargados en la app. La imprime el
-// depósito tras enviar el lote. Accesible a cualquier usuario con sesión
-// (operador/transportista del depósito, admin, gestor).
-//   ?lote=<id>  ó  ?uuid=<uuid>
+// Dos modos:
+//   ?hoja=<id>          → hoja armada en el panel (HojaRuta): órdenes + manuales.
+//   ?lote=<id>|?uuid=…  → legacy: hoja de un lote de SALIDA_REPARTO escaneado.
+// Cualquier usuario con sesión.
 // =============================================================================
 
 require __DIR__ . '/../lib/bootstrap.php';
 
 use Trazock\Auth;
+use Trazock\Models\HojaRuta;
 use Trazock\Models\Lote;
 
 $user = Auth::validarSesion();
 if ($user === null) {
     header('Location: ' . url('admin/login.php'));
     exit;
-}
-
-// Resolver el lote por id o uuid (la app de escaneo tiene el uuid).
-$lote = null;
-$uuid = trim((string)($_GET['uuid'] ?? ''));
-$id   = (int)($_GET['lote'] ?? 0);
-if ($uuid !== '') {
-    $base = Lote::findByUuid($uuid);
-    if ($base !== null) { $id = (int)$base['id']; }
-}
-if ($id > 0) {
-    $lote = Lote::findById($id);
 }
 
 /** Página mínima de error (misma estética clara). */
@@ -43,36 +31,69 @@ function hr_error(string $msg): void
     exit;
 }
 
-if ($lote === null) {
-    hr_error('No se encontró el lote. Si recién enviaste el reparto, esperá unos segundos a que sincronice y recargá.');
-}
-if ($lote['tipo'] !== 'SALIDA_REPARTO') {
-    hr_error('La hoja de ruta es solo para lotes de salida a reparto.');
+$hojaId = (int)($_GET['hoja'] ?? 0);
+$vehiculo = ''; $chofer = ''; $ayudantes = '';
+$ordenes = []; $manuales = [];
+$salida = '';
+
+if ($hojaId > 0) {
+    // --- Modo panel ---
+    $hoja = HojaRuta::find($hojaId);
+    if ($hoja === null) { hr_error('No se encontró la hoja de ruta.'); }
+    $num       = (string)$hoja['numero'];
+    $vehiculo  = (string)($hoja['vehiculo'] ?? '');
+    $chofer    = (string)($hoja['conductor'] ?? '');
+    $ayudantes = (string)($hoja['ayudantes'] ?? '');
+    $destino   = (string)($hoja['destino'] ?? '');
+    $salida    = (string)($hoja['fecha'] ?? '');
+    foreach (HojaRuta::ordenesDe($hojaId) as $o) {
+        $ordenes[] = [
+            'categoria'   => (string)($o['categoria'] ?? ''),
+            'nro_orden'   => (string)$o['nro_orden'],
+            'cliente'     => trim((string)($o['cliente_apellido'] ?? '')) !== '' ? (string)$o['cliente_apellido'] : (string)($o['cliente'] ?? ''),
+            'localidad'   => trim((string)($o['dest_localidad'] ?? '') . (($o['dest_localidad'] ?? '') && ($o['dest_provincia'] ?? '') ? ' · ' : '') . (string)($o['dest_provincia'] ?? '')),
+            'bultos'      => (int)$o['bultos'],
+            'm3'          => (float)$o['m3_total'],
+            'telefonos'   => (string)($o['telefonos'] ?? ''),
+        ];
+    }
+    $manuales = HojaRuta::manualesDe($hojaId);
+} else {
+    // --- Modo legacy (lote de reparto escaneado) ---
+    $lote = null;
+    $uuid = trim((string)($_GET['uuid'] ?? ''));
+    $id   = (int)($_GET['lote'] ?? 0);
+    if ($uuid !== '') { $base = Lote::findByUuid($uuid); if ($base !== null) { $id = (int)$base['id']; } }
+    if ($id > 0) { $lote = Lote::findById($id); }
+    if ($lote === null) {
+        hr_error('No se encontró el lote. Si recién enviaste el reparto, esperá unos segundos a que sincronice y recargá.');
+    }
+    if ($lote['tipo'] !== 'SALIDA_REPARTO') {
+        hr_error('La hoja de ruta es solo para lotes de salida a reparto.');
+    }
+    $num       = lote_num((int)$lote['id'], (string)$lote['created_at']);
+    $vehiculo  = (string)($lote['vehiculo'] ?? '');
+    $chofer    = trim((string)($lote['chofer'] ?? '')) ?: (string)($lote['transportista_nombre'] ?? '');
+    $ayudantes = (string)($lote['ayudantes'] ?? '');
+    $destino   = '';
+    $salida    = (string)($lote['timestamp_cierre'] ?? $lote['timestamp_apertura'] ?? $lote['created_at']);
+    foreach (Lote::ordenesParaHojaRuta($id) as $o) {
+        $ordenes[] = [
+            'categoria'   => (string)($o['categoria'] ?? ''),
+            'nro_orden'   => (string)$o['nro_orden'],
+            'cliente'     => trim((string)($o['cliente_apellido'] ?? '')) !== '' ? (string)$o['cliente_apellido'] : (string)($o['cliente'] ?? ''),
+            'localidad'   => trim((string)($o['dest_localidad'] ?? '') . (($o['dest_localidad'] ?? '') && ($o['dest_provincia'] ?? '') ? ' · ' : '') . (string)($o['dest_provincia'] ?? '')),
+            'bultos'      => (int)$o['bultos'],
+            'm3'          => (float)$o['m3'],
+            'telefonos'   => (string)($o['telefonos'] ?? ''),
+        ];
+    }
 }
 
-$ordenes = Lote::ordenesParaHojaRuta($id);
-$num     = lote_num((int)$lote['id'], (string)$lote['created_at']);
-$chofer  = trim((string)($lote['chofer'] ?? '')) ?: (string)($lote['transportista_nombre'] ?? '');
-
-$totBultos = 0;
-$totM3     = 0.0;
-foreach ($ordenes as $o) { $totBultos += (int)$o['bultos']; $totM3 += (float)$o['m3']; }
-
-/** Destino "Localidad · Provincia". */
-function hr_dest(array $o): string
-{
-    $loc = trim((string)($o['dest_localidad'] ?? ''));
-    $pr  = trim((string)($o['dest_provincia'] ?? ''));
-    $d = $loc . ($loc !== '' && $pr !== '' ? ' · ' : '') . $pr;
-    return $d !== '' ? $d : '—';
-}
-/** Apellido/cliente legible para la columna "Cliente Destino". */
-function hr_cliente(array $o): string
-{
-    $ap = trim((string)($o['cliente_apellido'] ?? ''));
-    if ($ap !== '') { return $ap; }
-    return trim((string)($o['cliente'] ?? '')) ?: '—';
-}
+$totBultos = 0; $totM3 = 0.0;
+foreach ($ordenes as $o)  { $totBultos += (int)$o['bultos']; $totM3 += (float)$o['m3']; }
+foreach ($manuales as $m) { $totBultos += (int)($m['bultos'] ?? 0); $totM3 += (float)($m['m3'] ?? 0); }
+$nLineas = count($ordenes) + count($manuales);
 ?><!doctype html>
 <html lang="es">
 <head>
@@ -94,7 +115,7 @@ function hr_cliente(array $o): string
         .hr-head .t h1{font-size:1.15rem;margin:0;letter-spacing:-.01em}
         .hr-head .t .sub{font-size:.78rem;color:#555;margin-top:2px}
         .hr-head .meta{font-size:.72rem;color:#555;text-align:right;line-height:1.5}
-        .hr-via{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+        .hr-via{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
         .hr-via .c{border:1px solid #cfd6df;border-radius:6px;padding:6px 9px}
         .hr-via .c .l{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:#777}
         .hr-via .c .v{font-size:.92rem;font-weight:600;min-height:1.1em}
@@ -104,6 +125,8 @@ function hr_cliente(array $o): string
         td.n,th.n{text-align:center;white-space:nowrap}
         tfoot td{font-weight:700;background:#f6f8fa}
         .blankcol{background:#fcfcfd}
+        .man td{background:#fffdf5}
+        .man-tag{font-size:.6rem;color:#a15c00;font-weight:700}
         .hr-notes{margin-top:12px;font-size:.7rem;color:#333;border:1px solid #e0e4ea;border-radius:6px;padding:8px 10px;background:#fbfcfd}
         .hr-foot{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
         .hr-foot .box{border:1px solid #cfd6df;border-radius:6px;padding:8px 10px}
@@ -121,7 +144,7 @@ function hr_cliente(array $o): string
 </head>
 <body>
 <div class="hr-bar no-print">
-    <a class="btn" href="<?= h(url('admin/lotes.php')) ?>">← Lotes</a>
+    <a class="btn" href="<?= h(url('admin/hojas-ruta.php')) ?>">← Hojas de ruta</a>
     <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir / PDF</button>
 </div>
 
@@ -129,19 +152,20 @@ function hr_cliente(array $o): string
     <div class="hr-head">
         <img src="<?= h(asset('assets/img/logo.jpg')) ?>" alt="Corredora de Servicios">
         <div class="t">
-            <h1>Hoja de Ruta — Camiones de Distribución</h1>
-            <div class="sub">Lote <?= h($num) ?> · <?= count($ordenes) ?> orden(es) · <?= (int)$totBultos ?> bulto(s)</div>
+            <h1>Hoja de Ruta — Salida a Reparto</h1>
+            <div class="sub"><?= h($num) ?> · <?= $nLineas ?> línea(s) · <?= (int)$totBultos ?> bulto(s)</div>
         </div>
         <div class="meta">
             Emisión: <?= h(fmt_fecha(date('Y-m-d H:i:s'), 'd/m/Y H:i')) ?><br>
-            Salida: <?= h(fmt_fecha((string)($lote['timestamp_cierre'] ?? $lote['timestamp_apertura'] ?? $lote['created_at']), 'd/m/Y H:i')) ?>
+            Salida: <?= h($salida !== '' ? fmt_fecha($salida, 'd/m/Y') : '—') ?>
         </div>
     </div>
 
     <div class="hr-via">
-        <div class="c"><div class="l">Unidad asignada</div><div class="v"><?= h(trim((string)($lote['vehiculo'] ?? '')) ?: '—') ?></div></div>
-        <div class="c"><div class="l">Chofer</div><div class="v"><?= h($chofer !== '' ? $chofer : '—') ?></div></div>
-        <div class="c"><div class="l">Acompañante(s)</div><div class="v"><?= h(trim((string)($lote['ayudantes'] ?? '')) ?: '—') ?></div></div>
+        <div class="c"><div class="l">Unidad asignada</div><div class="v"><?= h(trim($vehiculo) ?: '—') ?></div></div>
+        <div class="c"><div class="l">Chofer</div><div class="v"><?= h(trim($chofer) ?: '—') ?></div></div>
+        <div class="c"><div class="l">Acompañante(s)</div><div class="v"><?= h(trim($ayudantes) ?: '—') ?></div></div>
+        <div class="c"><div class="l">Destino / zona</div><div class="v"><?= h(trim((string)($destino ?? '')) ?: '—') ?></div></div>
     </div>
 
     <table>
@@ -160,22 +184,33 @@ function hr_cliente(array $o): string
             </tr>
         </thead>
         <tbody>
-        <?php if ($ordenes === []): ?>
-            <tr><td colspan="10" style="text-align:center;padding:1rem;color:#777">El lote no tiene órdenes escaneadas.</td></tr>
-        <?php else: foreach ($ordenes as $o): ?>
+        <?php if ($nLineas === 0): ?>
+            <tr><td colspan="10" style="text-align:center;padding:1rem;color:#777">La hoja no tiene órdenes ni líneas.</td></tr>
+        <?php endif; ?>
+        <?php foreach ($ordenes as $o): ?>
             <tr>
-                <td><?= h((string)($o['categoria'] ?? '—')) ?></td>
-                <td class="n"><?= h((string)$o['nro_orden']) ?></td>
-                <td><?= h(hr_cliente($o)) ?></td>
-                <td><?= h(hr_dest($o)) ?></td>
+                <td><?= h($o['categoria'] !== '' ? $o['categoria'] : '—') ?></td>
+                <td class="n"><?= h($o['nro_orden']) ?></td>
+                <td><?= h($o['cliente'] !== '' ? $o['cliente'] : '—') ?></td>
+                <td><?= h($o['localidad'] !== '' ? $o['localidad'] : '—') ?></td>
                 <td class="n"><?= (int)$o['bultos'] ?></td>
                 <td class="n"><?= number_format((float)$o['m3'], 2, ',', '.') ?></td>
-                <td><?= h((string)($o['telefonos'] ?? '') !== '' ? (string)$o['telefonos'] : '—') ?></td>
-                <td class="blankcol"></td>
-                <td class="blankcol"></td>
-                <td class="blankcol"></td>
+                <td><?= h($o['telefonos'] !== '' ? $o['telefonos'] : '—') ?></td>
+                <td class="blankcol"></td><td class="blankcol"></td><td class="blankcol"></td>
             </tr>
-        <?php endforeach; endif; ?>
+        <?php endforeach; ?>
+        <?php foreach ($manuales as $m): ?>
+            <tr class="man">
+                <td><?= h((string)($m['cliente_origen'] ?? '') !== '' ? (string)$m['cliente_origen'] : '—') ?> <span class="man-tag">MAN</span></td>
+                <td class="n"><?= h((string)($m['nro_orden'] ?? '') !== '' ? (string)$m['nro_orden'] : '—') ?></td>
+                <td><?= h((string)($m['cliente_destino'] ?? '') !== '' ? (string)$m['cliente_destino'] : '—') ?></td>
+                <td><?= h((string)($m['localidad'] ?? '') !== '' ? (string)$m['localidad'] : '—') ?></td>
+                <td class="n"><?= $m['bultos'] !== null ? (int)$m['bultos'] : '' ?></td>
+                <td class="n"><?= $m['m3'] !== null ? number_format((float)$m['m3'], 2, ',', '.') : '' ?></td>
+                <td><?= h((string)($m['telefono'] ?? '') !== '' ? (string)$m['telefono'] : '—') ?></td>
+                <td class="blankcol"></td><td class="blankcol"></td><td class="blankcol"></td>
+            </tr>
+        <?php endforeach; ?>
         </tbody>
         <tfoot>
             <tr>
@@ -196,17 +231,11 @@ function hr_cliente(array $o): string
     <div class="hr-foot">
         <div class="box">
             <div class="l">Salida de la unidad</div>
-            <div class="row2">
-                <div class="fld">Horario<div class="ln"></div></div>
-                <div class="fld">Kilómetros<div class="ln"></div></div>
-            </div>
+            <div class="row2"><div class="fld">Horario<div class="ln"></div></div><div class="fld">Kilómetros<div class="ln"></div></div></div>
         </div>
         <div class="box">
             <div class="l">Regreso de la unidad</div>
-            <div class="row2">
-                <div class="fld">Horario<div class="ln"></div></div>
-                <div class="fld">Kilómetros<div class="ln"></div></div>
-            </div>
+            <div class="row2"><div class="fld">Horario<div class="ln"></div></div><div class="fld">Kilómetros<div class="ln"></div></div></div>
         </div>
         <div class="box">
             <div class="l">Conforme salida depósito</div>

@@ -31,6 +31,7 @@ function panel_menu(): array
                 ['key' => 'conflictos', 'label' => 'Conflictos',  'href' => 'conflictos.php',       'icon' => 'exclamation-triangle-fill','roles' => ['admin', 'gestor', 'logistica'], 'conflicto' => true],
                 ['key' => 'reportes',   'label' => 'Reportes',    'href' => 'ordenes-reportes.php', 'icon' => 'bar-chart-fill',           'roles' => ['admin', 'gestor', 'logistica']],
                 ['key' => 'movimientos','label' => 'Movimientos', 'href' => 'movimientos.php',      'icon' => 'truck',                    'roles' => ['admin', 'gestor', 'logistica']],
+                ['key' => 'hojas-ruta', 'label' => 'Hojas de ruta','href' => 'hojas-ruta.php',      'icon' => 'signpost-split-fill',      'roles' => ['admin', 'logistica']],
                 ['key' => 'estado-masivo','label' => 'Estado masivo','href' => 'estado-masivo.php', 'icon' => 'calendar-check',           'roles' => ['admin']],
                 ['key' => 'hoja-ruta-editar','label' => 'Editar hoja ruta','href' => 'hoja-ruta-editar.php','icon' => 'pencil-square',     'roles' => ['admin']],
                 ['key' => 'costos',     'label' => 'Costos',      'href' => 'costos.php',           'icon' => 'cash-coin',                'roles' => ['admin', 'gestor', 'contable']],

@@ -33,7 +33,7 @@
         async guardarCatalogos(cat) {
             const db = await dbPromise;
             const tx = db.transaction('catalogos', 'readwrite');
-            const claves = ['categorias', 'proveedores', 'motivos', 'transportistas', 'tipos_permitidos'];
+            const claves = ['categorias', 'proveedores', 'motivos', 'transportistas', 'tipos_permitidos', 'hojas_ruta'];
             for (const k of claves) {
                 await tx.store.put(cat[k] !== undefined ? cat[k] : null, k);
             }
@@ -45,7 +45,7 @@
             const db = await dbPromise;
             const tx = db.transaction('catalogos', 'readonly');
             const out = {};
-            const claves = ['categorias', 'proveedores', 'motivos', 'transportistas', 'tipos_permitidos', 'last_updated'];
+            const claves = ['categorias', 'proveedores', 'motivos', 'transportistas', 'tipos_permitidos', 'hojas_ruta', 'last_updated'];
             for (const k of claves) {
                 out[k] = await tx.store.get(k);
             }

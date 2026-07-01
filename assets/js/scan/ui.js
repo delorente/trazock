@@ -288,17 +288,23 @@
             html += campoChecks('cfgAyudantes', 'Ayudante(s) (opcional)', c.acompanantes,
                 'No hay empleados cargados. Pedí al admin que los cargue (panel → Empleados).');
         } else if (tipo === 'SALIDA_REPARTO') {
-            html += campoSelect('cfgConductor', 'Conductor', '<option value="">— elegí —</option>' + optionList(c.acompanantes, 'id', 'nombre'), true);
+            // La hoja de ruta la arma logística en el panel; acá se elige. El conductor,
+            // vehículo y ayudantes vienen de la hoja (no se cargan en el scan).
+            const hojas = c.hojas_ruta || [];
+            if (hojas.length) {
+                const opts = '<option value="">— elegí —</option>' + hojas.map(function (h) {
+                    return '<option value="' + h.id + '">' + esc(h.numero) + (h.destino ? ' · ' + esc(h.destino) : '') + '</option>';
+                }).join('');
+                html += campoSelect('cfgHojaRuta', 'Hoja de ruta', opts, true);
+            } else {
+                html += '<div class="alert alert-warning py-2 small">No hay hojas de ruta abiertas. Pedí a logística que arme una (panel → Hojas de ruta).</div>';
+            }
             const zonas = c.zonas || [];
             if (zonas.length) {
                 html += campoSelect('cfgZona', 'Zona de reparto', optionList(zonas, 'id', 'nombre'), true);
             } else {
                 html += '<div class="alert alert-warning py-2 small">No hay zonas de reparto cargadas. Pedí al admin que cree al menos una (panel → Zonas).</div>';
             }
-            // Datos del viaje para la hoja de ruta: se eligen del desplegable (sin escribir).
-            html += campoSelect('cfgVehiculo', 'Vehículo / unidad (hoja de ruta)', '<option value="">—</option>' + optionList(c.vehiculos, 'id', 'nombre'), false);
-            html += campoChecks('cfgAyudantes', 'Ayudante(s) (hoja de ruta)', c.acompanantes,
-                'No hay empleados cargados. Pedí al admin que los cargue (panel → Empleados).');
         } else if (tipo === 'ENTREGA') {
             html += '<div class="alert alert-info py-2 small">El transportista sos vos (' + esc(estado.usuario.nombre) + ').</div>';
         } else if (tipo === 'REINGRESO') {
@@ -369,7 +375,7 @@
         const lote = {
             uuid: uuid(), tipo: tipo,
             categoria_id: valOf('cfgCategoria'), proveedor_id: valOf('cfgProveedor'),
-            conductor_empleado_id: valOf('cfgConductor'), motivo_id: valOf('cfgMotivo'),
+            conductor_empleado_id: valOf('cfgConductor'), hoja_ruta_id: valOf('cfgHojaRuta'), motivo_id: valOf('cfgMotivo'),
             motivo_libre: textOf('cfgMotivoLibre'), numero_remito: textOf('cfgRemito'),
             vehiculo_id: valOf('cfgVehiculo'), ayudante_ids: checkIdsOf('cfgAyudantes'),
             observaciones: $('cfgObs').value.trim() || null,
@@ -399,7 +405,7 @@
     function textOf(id) { const el = $(id); return el && el.value.trim() ? el.value.trim() : null; }
     function validarConfig(tipo, l) {
         if (tipo === 'INGRESO' && !l.categoria_id) return 'Elegí una categoría.';
-        if (tipo === 'SALIDA_REPARTO' && !l.conductor_empleado_id) return 'Elegí un conductor.';
+        if (tipo === 'SALIDA_REPARTO' && !l.hoja_ruta_id) return 'Elegí una hoja de ruta.';
         if (tipo === 'SALIDA_REPARTO' && !l.zona_id) return 'Elegí una zona de reparto.';
         if (tipo === 'SALIDA_REPARTO' && (!l.zona_localidades || l.zona_localidades.length === 0)) return 'La zona elegida no tiene localidades cargadas.';
         if ((tipo === 'REINGRESO' || tipo === 'BAJA') && !l.motivo_id) return 'Elegí un motivo.';
@@ -439,7 +445,8 @@
         const nombreDe = (arr, id, k) => { const x = (arr || []).find(o => +o.id === +id); return x ? x[k] : ''; };
         if (l.tipo === 'INGRESO') return nombreDe(c.categorias, l.categoria_id, 'nombre');
         if (l.tipo === 'SALIDA_REPARTO') {
-            const t = nombreDe(c.acompanantes, l.conductor_empleado_id, 'nombre');
+            const h = (c.hojas_ruta || []).find(x => +x.id === +l.hoja_ruta_id);
+            const t = h ? ('Hoja ' + h.numero) : '';
             return l.zona_nombre ? (t + ' · Zona ' + l.zona_nombre) : t;
         }
         if (l.tipo === 'ENTREGA') {
@@ -746,8 +753,7 @@
         if (navigator.onLine) { TZSync.syncAhora(); showToast('Lote enviado', 'ok'); }
         else { showToast('Lote guardado — se enviará al reconectar', 'ok'); }
         irSelector();
-        // Salida a reparto: ofrecer imprimir la hoja de ruta (abre en pestaña nueva).
-        if (esReparto && navigator.onLine) { try { await modalHojaRuta(loteUuid); } catch (e) {} }
+        // La hoja de ruta se imprime desde el panel (logística). El scan ya no la ofrece.
     }
 
     // Ofrece imprimir la hoja de ruta del reparto recién enviado (página del panel,

@@ -9,6 +9,7 @@ use Throwable;
 use Trazock\Models\Acompanante;
 use Trazock\Models\Categoria;
 use Trazock\Models\Conflicto;
+use Trazock\Models\HojaRuta;
 use Trazock\Models\Lote;
 use Trazock\Models\Motivo;
 use Trazock\Models\Orden;
@@ -238,6 +239,7 @@ final class ProcesadorLote
         // Datos del viaje: ids (formato nuevo) + nombres legacy (lotes viejos en cola).
         $vehiculoId      = $intOrNull($loteData['vehiculo_id'] ?? null);
         $conductorEmpId  = $intOrNull($loteData['conductor_empleado_id'] ?? null); // padrón de empleados
+        $hojaRutaId      = $intOrNull($loteData['hoja_ruta_id'] ?? null);           // hoja de ruta (reparto)
         $ayudanteIds     = is_array($loteData['ayudante_ids'] ?? null)
             ? array_map('intval', $loteData['ayudante_ids']) : [];
         $vehiculoLegacy  = trim((string)($loteData['vehiculo'] ?? '')) ?: null;
@@ -258,6 +260,7 @@ final class ProcesadorLote
             'proveedor_id'       => null,
             'transportista_id'   => null,
             'conductor_empleado_id' => null,
+            'hoja_ruta_id'       => null,
             'vehiculo'           => null,
             'vehiculo_id'        => null,
             'chofer'             => null,
@@ -294,10 +297,23 @@ final class ProcesadorLote
                 break;
 
             case TipoLote::SALIDA_REPARTO:
-                // Requiere conductor (del padrón) o, para lotes viejos en cola, el
-                // transportista usuario que mandaba el formato anterior.
+                if ($hojaRutaId !== null) {
+                    // Flujo nuevo: el scan elige la hoja de ruta; el viaje se toma de ella.
+                    $hoja = HojaRuta::find($hojaRutaId);
+                    if ($hoja === null) {
+                        throw new LoteException('La hoja de ruta indicada no existe.', 400);
+                    }
+                    $d['hoja_ruta_id']          = (int)$hoja['id'];
+                    $d['conductor_empleado_id'] = $hoja['conductor_empleado_id'] !== null ? (int)$hoja['conductor_empleado_id'] : null;
+                    $d['chofer']                = trim((string)($hoja['conductor'] ?? '')) ?: null;
+                    $d['vehiculo_id']           = $hoja['vehiculo_id'] !== null ? (int)$hoja['vehiculo_id'] : null;
+                    $d['vehiculo']              = trim((string)($hoja['vehiculo'] ?? '')) ?: null;
+                    $d['ayudantes']             = trim((string)($hoja['ayudantes'] ?? '')) ?: null;
+                    break;
+                }
+                // Legacy: conductor suelto (lotes viejos en cola, antes de la hoja de ruta).
                 if ($conductorEmpId === null && $transportistaId === null) {
-                    throw new LoteException('Un lote de SALIDA_REPARTO requiere conductor.', 400);
+                    throw new LoteException('Un lote de SALIDA_REPARTO requiere hoja de ruta.', 400);
                 }
                 self::resolverViaje($d, $vehiculoId, $ayudanteIds, $conductorEmpId, $vehiculoLegacy, $ayudantesLegacy, $choferLegacy);
                 if ($conductorEmpId !== null && $d['conductor_empleado_id'] === null) {

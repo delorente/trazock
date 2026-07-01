@@ -52,12 +52,12 @@ final class Lote
         $db   = DB::getInstance();
         $stmt = $db->prepare(
             'INSERT INTO lotes
-                (uuid, tipo, categoria_id, proveedor_id, transportista_id, conductor_empleado_id,
+                (uuid, tipo, categoria_id, proveedor_id, transportista_id, conductor_empleado_id, hoja_ruta_id,
                  vehiculo, vehiculo_id, chofer, ayudantes, motivo_id,
                  motivo_libre, responsable_id, observaciones, numero_remito,
                  timestamp_apertura, timestamp_cierre, timestamp_sync, dispositivo_info)
              VALUES
-                (:uuid, :tipo, :categoria_id, :proveedor_id, :transportista_id, :conductor_empleado_id,
+                (:uuid, :tipo, :categoria_id, :proveedor_id, :transportista_id, :conductor_empleado_id, :hoja_ruta_id,
                  :vehiculo, :vehiculo_id, :chofer, :ayudantes, :motivo_id,
                  :motivo_libre, :responsable_id, :observaciones, :numero_remito,
                  :ts_apertura, :ts_cierre, NOW(), :dispositivo)'
@@ -75,6 +75,7 @@ final class Lote
         $bindNullableInt(':proveedor_id', $d['proveedor_id']);
         $bindNullableInt(':transportista_id', $d['transportista_id']);
         $bindNullableInt(':conductor_empleado_id', $d['conductor_empleado_id'] ?? null);
+        $bindNullableInt(':hoja_ruta_id', $d['hoja_ruta_id'] ?? null);
         $bindNullableStr(':vehiculo', $d['vehiculo'] ?? null);
         $bindNullableInt(':vehiculo_id', $d['vehiculo_id'] ?? null);
         $bindNullableStr(':chofer', $d['chofer'] ?? null);
