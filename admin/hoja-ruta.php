@@ -35,6 +35,7 @@ $hojaId = (int)($_GET['hoja'] ?? 0);
 $vehiculo = ''; $chofer = ''; $ayudantes = '';
 $ordenes = []; $manuales = [];
 $salida = '';
+$salidaDisp = '—';
 
 if ($hojaId > 0) {
     // --- Modo panel ---
@@ -46,6 +47,9 @@ if ($hojaId > 0) {
     $ayudantes = (string)($hoja['ayudantes'] ?? '');
     $destino   = (string)($hoja['destino'] ?? '');
     $salida    = (string)($hoja['fecha'] ?? '');
+    // La fecha de la hoja es un DATE (sin hora): se muestra tal cual, sin conversión
+    // de zona horaria (fmt_fecha la correría un día por interpretarla como UTC).
+    $salidaDisp = $salida !== '' ? date('d/m/Y', strtotime($salida)) : '—';
     foreach (HojaRuta::ordenesDe($hojaId) as $o) {
         $ordenes[] = [
             'categoria'   => (string)($o['categoria'] ?? ''),
@@ -77,6 +81,8 @@ if ($hojaId > 0) {
     $ayudantes = (string)($lote['ayudantes'] ?? '');
     $destino   = '';
     $salida    = (string)($lote['timestamp_cierre'] ?? $lote['timestamp_apertura'] ?? $lote['created_at']);
+    // Acá sí es un datetime en UTC (timestamp del lote): se convierte a la TZ local.
+    $salidaDisp = $salida !== '' ? fmt_fecha($salida, 'd/m/Y') : '—';
     foreach (Lote::ordenesParaHojaRuta($id) as $o) {
         $ordenes[] = [
             'categoria'   => (string)($o['categoria'] ?? ''),
@@ -158,7 +164,7 @@ $nLineas = count($ordenes) + count($manuales);
         </div>
         <div class="meta">
             Emisión: <?= h(fmt_fecha(date('Y-m-d H:i:s'), 'd/m/Y H:i')) ?><br>
-            <span class="salida-prev">Salida Prevista: <?= h($salida !== '' ? fmt_fecha($salida, 'd/m/Y') : '—') ?></span>
+            <span class="salida-prev">Salida Prevista: <?= h($salidaDisp) ?></span>
         </div>
     </div>
 
