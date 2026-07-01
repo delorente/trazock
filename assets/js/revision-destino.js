@@ -58,7 +58,9 @@
         // ciudades cuyo nombre contiene a la provincia (San Miguel de Tucumán).
         function trySplit(token) {
             const ns = stripNS(token);
-            if (LOCbyNS.has(ns)) return null; // el token entero ya es una localidad conocida
+            // No exigimos que el token NO sea localidad conocida: cargas viejas mal
+            // separadas "envenenan" el diccionario con formas pegadas. Los nombres
+            // reales largos quedan protegidos por el tope de longitud del resto (≤ 8).
             for (const p of PROVbylen) {
                 if (ns.length > p.ns.length && ns.endsWith(p.ns)) {
                     const rest = ns.slice(0, ns.length - p.ns.length);
@@ -76,6 +78,27 @@
             let prov = String(rawProv == null ? '' : rawProv).trim();
             let locChg = false, provChg = false;
             const notas = [];
+
+            // (A) La provincia ya está y la localidad la trae PEGADA al final
+            //     (loc "PALPALAJUJUY" + prov "JUJUY" -> loc "PALPALA"). Resistente al
+            //     diccionario "envenenado" por cargas viejas mal separadas: si el token
+            //     no tiene espacios lo corta aunque el pegado figure como localidad
+            //     conocida. Con espacios solo corta si el resto es localidad conocida,
+            //     para no romper nombres reales ("SAN SALVADOR DE JUJUY").
+            if (prov && loc) {
+                const provNS = stripNS(prov);
+                const locNS = stripNS(loc);
+                if (provNS && locNS !== provNS && locNS.endsWith(provNS)) {
+                    const restNS = locNS.slice(0, locNS.length - provNS.length);
+                    const sinEspacios = !/\s/.test(loc);
+                    const conocida = LOCbyNS.get(restNS);
+                    if (restNS.length >= 2 && (conocida || (sinEspacios && restNS.length <= 8))) {
+                        loc = conocida ? up(conocida.loc) : up(restNS);
+                        locChg = true;
+                        notas.push('corté la provincia de la localidad');
+                    }
+                }
+            }
 
             // (D) Separar un token "pegado" (revisar primero provincia, luego localidad).
             for (const cual of ['prov', 'loc']) {
