@@ -115,6 +115,7 @@ $nLineas = count($ordenes) + count($manuales);
         .hr-head .t h1{font-size:1.15rem;margin:0;letter-spacing:-.01em}
         .hr-head .t .sub{font-size:.78rem;color:#555;margin-top:2px}
         .hr-head .meta{font-size:.72rem;color:#555;text-align:right;line-height:1.5}
+        .hr-head .meta .salida-prev{font-size:1rem;font-weight:700;color:#111}
         .hr-via{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
         .hr-via .c{border:1px solid #cfd6df;border-radius:6px;padding:6px 9px}
         .hr-via .c .l{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;color:#777}
@@ -157,7 +158,7 @@ $nLineas = count($ordenes) + count($manuales);
         </div>
         <div class="meta">
             Emisión: <?= h(fmt_fecha(date('Y-m-d H:i:s'), 'd/m/Y H:i')) ?><br>
-            Salida: <?= h($salida !== '' ? fmt_fecha($salida, 'd/m/Y') : '—') ?>
+            <span class="salida-prev">Salida Prevista: <?= h($salida !== '' ? fmt_fecha($salida, 'd/m/Y') : '—') ?></span>
         </div>
     </div>
 
