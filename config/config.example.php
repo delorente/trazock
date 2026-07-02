@@ -147,8 +147,8 @@ define('WA_APP_SECRET', '');
 // son OPCIONALES: si no se definen, el código usa los defaults de abajo.
 
 // Proveedor activo. Hoy solo 'nominatim' (OSM, gratis; su licencia permite
-// almacenar las coordenadas). Al sumar Mapbox/Google se agrega el driver y se
-// cambia acá, sin tocar nada más.
+// almacenar las coordenadas). Valores posibles: 'nominatim' (default) | 'mapbox'.
+// Mapbox tiene mejor cobertura de calles/alturas en Argentina; requiere MAPBOX_TOKEN.
 // define('GEOCODER_DRIVER', 'nominatim');
 
 // Base del servicio Nominatim. Por defecto usa el público de OSM. Para volumen
@@ -158,6 +158,10 @@ define('WA_APP_SECRET', '');
 // User-Agent identificatorio. Nominatim EXIGE identificarse con un contacto real
 // (mail). Si no se define, se deriva uno de APP_URL (aceptable para bajo volumen).
 // define('GEOCODER_USER_AGENT', 'Trazock/1.0 (tucorreo@ejemplo.com)');
+
+// Token de Mapbox (account.mapbox.com → Access tokens). Necesario solo si
+// GEOCODER_DRIVER = 'mapbox'. NUNCA commitear el real.
+// define('MAPBOX_TOKEN', '');
 
 // Origen del recorrido (depósito) para la sugerencia de orden de paradas. Se usa
 // en la FASE 2 (pantalla de planificación); no hace falta para geocodificar.

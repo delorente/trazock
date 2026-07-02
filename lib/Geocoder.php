@@ -30,8 +30,9 @@ interface GeocoderDriver
 {
     /**
      * Geocodifica una consulta libre. Devuelve la mejor coincidencia o null.
+     * `preciso` = true si matcheó a nivel calle/altura (no solo la localidad).
      *
-     * @return array{lat: float, lng: float}|null
+     * @return array{lat: float, lng: float, preciso: bool}|null
      */
     public function geocode(string $query): ?array;
 
@@ -102,7 +103,71 @@ final class NominatimDriver implements GeocoderDriver
         if (!is_array($data) || $data === [] || !isset($data[0]['lat'], $data[0]['lon'])) {
             return null;
         }
-        return ['lat' => (float)$data[0]['lat'], 'lng' => (float)$data[0]['lon']];
+        // place_rank de Nominatim: 30 = altura/edificio, ~26-28 = calle, <26 =
+        // localidad/región. Consideramos "preciso" de calle para arriba.
+        $rank = isset($data[0]['place_rank']) ? (int)$data[0]['place_rank'] : 0;
+        return ['lat' => (float)$data[0]['lat'], 'lng' => (float)$data[0]['lon'], 'preciso' => $rank >= 26];
+    }
+}
+
+/**
+ * Driver Mapbox (Geocoding API v6). Mejor cobertura de calles/alturas en Argentina
+ * que OSM. Requiere MAPBOX_TOKEN en config. Tiene free tier amplio; recordá que sus
+ * términos distinguen geocoding "temporary" (no almacenar) de "permanent" — nosotros
+ * cacheamos, tenerlo presente para el volumen/plan.
+ */
+final class MapboxDriver implements GeocoderDriver
+{
+    private string $token;
+
+    public function __construct()
+    {
+        $this->token = defined('MAPBOX_TOKEN') ? (string)MAPBOX_TOKEN : '';
+    }
+
+    public function nombre(): string
+    {
+        return 'mapbox';
+    }
+
+    public function geocode(string $query): ?array
+    {
+        if ($this->token === '') {
+            return null; // sin token no se puede; el llamador verá 'fallida'
+        }
+        $url = 'https://api.mapbox.com/search/geocode/v6/forward?' . http_build_query([
+            'q'            => $query,
+            'country'      => 'ar',
+            'limit'        => 1,
+            'language'     => 'es',
+            'access_token' => $this->token,
+        ]);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 20,
+            CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+        ]);
+        if (defined('ANTHROPIC_CA_BUNDLE') && ANTHROPIC_CA_BUNDLE !== '') {
+            curl_setopt($ch, CURLOPT_CAINFO, ANTHROPIC_CA_BUNDLE);
+        }
+        $raw  = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($raw === false || $code !== 200) {
+            return null;
+        }
+        $data = json_decode((string)$raw, true);
+        $f = $data['features'][0] ?? null;
+        if (!is_array($f) || !isset($f['geometry']['coordinates'][0], $f['geometry']['coordinates'][1])) {
+            return null;
+        }
+        $coords = $f['geometry']['coordinates']; // [lng, lat]
+        $tipo   = (string)($f['properties']['feature_type'] ?? '');
+        $preciso = in_array($tipo, ['address', 'street'], true);
+        return ['lat' => (float)$coords[1], 'lng' => (float)$coords[0], 'preciso' => $preciso];
     }
 }
 
@@ -118,7 +183,8 @@ final class Geocoder
                 ? (string)GEOCODER_DRIVER
                 : 'nominatim';
             self::$driver = match ($name) {
-                // Al sumar Mapbox/Google: agregar el case aquí.
+                'mapbox' => new MapboxDriver(),
+                // Al sumar Google u otro: agregar el case aquí.
                 default => new NominatimDriver(),
             };
         }
@@ -175,12 +241,14 @@ final class Geocoder
      *
      * @return array<string, mixed> Fila de geo_direcciones (con lat/lng/precision).
      */
-    public static function resolver(?string $domicilio, ?string $localidad, ?string $provincia, ?string $cp): array
+    public static function resolver(?string $domicilio, ?string $localidad, ?string $provincia, ?string $cp, bool $forzar = false): array
     {
         $clave = self::clave($domicilio, $localidad, $provincia, $cp);
-        $cached = self::cache($clave);
-        if ($cached !== null) {
-            return $cached;
+        if (!$forzar) {
+            $cached = self::cache($clave);
+            if ($cached !== null) {
+                return $cached;
+            }
         }
 
         $driver   = self::driver();
@@ -203,7 +271,9 @@ final class Geocoder
             if ($res !== null) {
                 $lat = $res['lat'];
                 $lng = $res['lng'];
-                $precision = $prec;
+                // Si el intento "exacta" solo matcheó a nivel localidad (no calle),
+                // lo bajamos a 'localidad' para no mostrarlo como verde engañoso.
+                $precision = ($prec === 'exacta' && empty($res['preciso'])) ? 'localidad' : $prec;
                 break;
             }
         }
@@ -256,9 +326,12 @@ final class Geocoder
      * vacía o repetida se descartan). Fuente única de "qué falta geocodificar",
      * usada por el script CLI y por el botón manual del panel.
      *
+     * Con $incluirNoExactas=true además reprocesa las YA cacheadas que no quedaron
+     * exactas (para re-geocodificar amarillas/rojas con un proveedor mejor).
+     *
      * @return array<int, array<string, mixed>> filas con dest_domicilio/localidad/provincia/cp
      */
-    public static function pendientes(): array
+    public static function pendientes(bool $incluirNoExactas = false): array
     {
         $rows = DB::getInstance()->query(
             "SELECT dest_domicilio, dest_localidad, dest_provincia, dest_cp
@@ -274,8 +347,12 @@ final class Geocoder
             if ($clave === '' || isset($pend[$clave])) {
                 continue;
             }
-            if (self::cache($clave) !== null) {
-                continue; // ya geocodificada
+            $c = self::cache($clave);
+            if ($c !== null) {
+                // Ya cacheada: se salta, salvo que pidamos reprocesar las no-exactas.
+                if (!$incluirNoExactas || (string)($c['precision'] ?? '') === 'exacta') {
+                    continue;
+                }
             }
             $pend[$clave] = $r;
         }
@@ -289,9 +366,9 @@ final class Geocoder
      *
      * @return array{pendientes:int, procesadas:int, exactas:int, aprox:int, fallidas:int, restantes:int}
      */
-    public static function procesarPendientes(int $limite = 0, int $pausaMs = 1100): array
+    public static function procesarPendientes(int $limite = 0, int $pausaMs = 1100, bool $incluirNoExactas = false): array
     {
-        $pend       = self::pendientes();
+        $pend       = self::pendientes($incluirNoExactas);
         $pendientes = count($pend);
         $lote       = $limite > 0 ? array_slice($pend, 0, $limite) : $pend;
         $n          = count($lote);
@@ -300,7 +377,7 @@ final class Geocoder
         $aprox   = 0;
         $fallidas = 0;
         foreach ($lote as $i => $r) {
-            $fila = self::resolver($r['dest_domicilio'], $r['dest_localidad'], $r['dest_provincia'], $r['dest_cp']);
+            $fila = self::resolver($r['dest_domicilio'], $r['dest_localidad'], $r['dest_provincia'], $r['dest_cp'], $incluirNoExactas);
             $prec = (string)($fila['precision'] ?? 'fallida');
             if ($prec === 'exacta') {
                 $exactas++;

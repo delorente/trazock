@@ -8,6 +8,10 @@ declare(strict_types=1);
 //   php scripts/geocodificar.php                 # procesa TODO lo pendiente
 //   php scripts/geocodificar.php --limit=50       # solo las primeras 50
 //   php scripts/geocodificar.php --pausa=1500     # 1500 ms entre pedidos
+//   php scripts/geocodificar.php --refresh        # RE-geocodifica las no-exactas
+//                                                   (amarillas/rojas) con el driver
+//                                                   actual — útil al cambiar de
+//                                                   proveedor (p. ej. a Mapbox).
 //
 // Idempotente: lo ya cacheado se saltea, así que re-ejecutarlo es seguro y barato.
 // Respeta el rate-limit del proveedor pausando entre pedidos (default 1100 ms,
@@ -27,11 +31,14 @@ if (PHP_SAPI !== 'cli') {
 
 $limite  = 0;
 $pausaMs = 1100;
+$refresh = false;
 foreach (array_slice($argv, 1) as $arg) {
     if (preg_match('/^--limit=(\d+)$/', $arg, $m)) {
         $limite = (int)$m[1];
     } elseif (preg_match('/^--pausa=(\d+)$/', $arg, $m)) {
         $pausaMs = (int)$m[1];
+    } elseif ($arg === '--refresh') {
+        $refresh = true;
     } else {
         fwrite(STDERR, "Argumento no reconocido: {$arg}\n");
         exit(1);
@@ -39,8 +46,8 @@ foreach (array_slice($argv, 1) as $arg) {
 }
 
 // Direcciones DISTINTAS de las órdenes que faltan geocodificar (misma fuente que
-// usa el botón manual del panel).
-$pendientes = Geocoder::pendientes();
+// usa el botón manual del panel). Con --refresh, incluye las no-exactas cacheadas.
+$pendientes = Geocoder::pendientes($refresh);
 $totalPend  = count($pendientes);
 
 if ($limite > 0) {
@@ -48,7 +55,7 @@ if ($limite > 0) {
 }
 $aProcesar = count($pendientes);
 
-echo "Direcciones sin geocodificar: {$totalPend}"
+echo ($refresh ? 'Direcciones a re-geocodificar (no exactas + nuevas): ' : 'Direcciones sin geocodificar: ') . $totalPend
     . ($limite > 0 && $aProcesar < $totalPend ? " (proceso {$aProcesar} en esta corrida)" : '') . "\n";
 echo 'Driver: ' . Geocoder::driver()->nombre() . " · pausa {$pausaMs} ms entre pedidos\n";
 
@@ -62,7 +69,7 @@ $exactas = 0;
 $aprox   = 0;
 $fallidas = 0;
 foreach ($pendientes as $i => $r) {
-    $fila = Geocoder::resolver($r['dest_domicilio'], $r['dest_localidad'], $r['dest_provincia'], $r['dest_cp']);
+    $fila = Geocoder::resolver($r['dest_domicilio'], $r['dest_localidad'], $r['dest_provincia'], $r['dest_cp'], $refresh);
     $prec = (string)($fila['precision'] ?? 'fallida');
     $dir  = (string)($fila['direccion'] ?? '');
 
