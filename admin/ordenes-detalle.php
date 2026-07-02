@@ -272,23 +272,6 @@ $campo = static function (string $label, string $valor): void {
   <?php endif; ?>
 </div>
 
-<div class="card p-3 mb-3">
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem">
-    <div style="font-weight:600;font-size:13px"><i class="bi bi-geo-alt-fill me-1" style="color:var(--blue,#3b82f6)"></i>Seguimiento público</div>
-    <span class="text-muted" style="font-size:12px">Enlace para enviarle al cliente</span>
-  </div>
-  <div class="input-group input-group-sm mb-2">
-    <input class="form-control mono" id="segUrl" value="<?= h($segUrl) ?>" readonly>
-    <button class="btn btn-outline-secondary" type="button" id="segCopiar" title="Copiar enlace"><i class="bi bi-clipboard"></i></button>
-  </div>
-  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-    <a class="btn btn-sm btn-outline-success" href="<?= h($waUrl) ?>" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
-    <a class="btn btn-sm btn-outline-secondary" href="<?= h($mailUrl) ?>"><i class="bi bi-envelope me-1"></i>Email</a>
-    <a class="btn btn-sm btn-outline-secondary" href="<?= h($segUrl) ?>" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i>Ver página</a>
-  </div>
-  <p class="text-muted mb-0 mt-2" style="font-size:11px">El cliente ve solo el texto público del estado, nunca el código interno. Esos textos se editan en Administración → Seguimiento.</p>
-</div>
-
 <div style="display:grid;grid-template-columns:1fr 300px;gap:1rem;align-items:start" class="tz-detalle-grid">
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;border-bottom:1px solid var(--border)">
@@ -397,6 +380,24 @@ $campo = static function (string $label, string $valor): void {
   </div>
 </div>
 <?php endif; ?>
+
+<!-- Seguimiento público: al final, para tener arriba la info más importante. -->
+<div class="card p-3 mt-3">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem">
+    <div style="font-weight:600;font-size:13px"><i class="bi bi-geo-alt-fill me-1" style="color:var(--blue,#3b82f6)"></i>Seguimiento público</div>
+    <span class="text-muted" style="font-size:12px">Enlace para enviarle al cliente</span>
+  </div>
+  <div class="input-group input-group-sm mb-2">
+    <input class="form-control mono" id="segUrl" value="<?= h($segUrl) ?>" readonly>
+    <button class="btn btn-outline-secondary" type="button" id="segCopiar" title="Copiar enlace"><i class="bi bi-clipboard"></i></button>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a class="btn btn-sm btn-outline-success" href="<?= h($waUrl) ?>" target="_blank" rel="noopener"><i class="bi bi-whatsapp me-1"></i>WhatsApp</a>
+    <a class="btn btn-sm btn-outline-secondary" href="<?= h($mailUrl) ?>"><i class="bi bi-envelope me-1"></i>Email</a>
+    <a class="btn btn-sm btn-outline-secondary" href="<?= h($segUrl) ?>" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1"></i>Ver página</a>
+  </div>
+  <p class="text-muted mb-0 mt-2" style="font-size:11px">El cliente ve solo el texto público del estado, nunca el código interno. Esos textos se editan en Administración → Seguimiento.</p>
+</div>
 
 <style>@media(max-width:768px){.tz-detalle-grid{grid-template-columns:1fr!important}}</style>
 
