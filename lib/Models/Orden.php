@@ -744,7 +744,8 @@ final class Orden
 
         $sql = 'SELECT o.id, o.carga_id, o.nro_orden, o.nro_remito, o.fecha_remito,
                        o.hoja_ruta, o.transportista_id, o.fecha_carga,
-                       o.cliente, o.telefonos, o.telefono_wa, o.dest_provincia, o.dest_localidad, o.m3_total,
+                       o.cliente, o.telefonos, o.telefono_wa, o.dest_provincia, o.dest_localidad,
+                       o.dest_domicilio, o.dest_cp, o.m3_total,
                        o.valor_declarado, o.observaciones, o.marca, o.estado, o.created_at AS fecha_ingreso,
                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items,
                        (SELECT u.nombre_completo FROM usuarios u WHERE u.id = o.transportista_id) AS transportista_nombre,

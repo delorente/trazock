@@ -13,6 +13,7 @@ require __DIR__ . '/../lib/bootstrap.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Trazock\Auth;
+use Trazock\Geocoder;
 use Trazock\Models\Carga;
 use Trazock\Models\Categoria;
 use Trazock\Models\Destino;
@@ -326,6 +327,41 @@ $transportistas = Orden::transportistasUsados();
 $csrf        = Auth::tokenCSRF();
 $paginas     = (int)max(1, ceil($total / $porPagina));
 
+// --- Datos para la vista Mapa (pestaña) --------------------------------------
+// Ubica en el mapa las órdenes de la página actual que ya tienen geocode cacheado
+// (mismo set que la lista). Reusa la caché geo_direcciones por Geocoder::clave.
+$mapaData = [];
+$mapaSinUbicar = 0;
+foreach ($ordenes as $o) {
+    $clave = Geocoder::clave($o['dest_domicilio'] ?? null, $o['dest_localidad'] ?? null, $o['dest_provincia'] ?? null, $o['dest_cp'] ?? null);
+    $geo = $clave !== '' ? Geocoder::cache($clave) : null;
+    if ($geo !== null && $geo['lat'] !== null && $geo['lng'] !== null && (string)($geo['precision'] ?? '') !== 'fallida') {
+        $mapaData[] = [
+            'id'        => (int)$o['id'],
+            'nro'       => (string)$o['nro_orden'],
+            'cliente'   => (string)($o['cliente'] ?? ''),
+            'localidad' => (string)($o['dest_localidad'] ?? ''),
+            'lat'       => (float)$geo['lat'],
+            'lng'       => (float)$geo['lng'],
+            'precision' => (string)$geo['precision'],
+        ];
+    } else {
+        $mapaSinUbicar++;
+    }
+}
+
+// CSP propio de esta pantalla: reemplaza al global para permitir los tiles OSM del
+// mapa (Leaflet los baja como <img>). Solo afecta a Reportes.
+if (!headers_sent()) {
+    header(
+        "Content-Security-Policy: default-src 'self'; "
+        . "img-src 'self' data: https://*.tile.openstreetmap.org; media-src 'self' blob:; "
+        . "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; "
+        . "connect-src 'self'; worker-src 'self'; manifest-src 'self'; "
+        . "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    );
+}
+
 // Destinos sospechosos (fuera de zonas + sin historial): aviso antes de exportar/avisar.
 $conocidasProv = Destino::provinciasConocidas();
 $provSospechosas = [];
@@ -493,7 +529,11 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
 </a>
 <?php endif; ?>
 
-<div class="print-area">
+<div class="rep-view-tabs no-print">
+  <button type="button" id="tabListado" class="rep-tab active"><i class="bi bi-list-ul me-1"></i>Listado</button>
+  <button type="button" id="tabMapa" class="rep-tab"><i class="bi bi-map me-1"></i>Mapa<?php if ($mapaSinUbicar > 0): ?> <span class="rep-tab-hint">(<?= (int)$mapaSinUbicar ?> sin ubicar)</span><?php endif; ?></button>
+</div>
+<div class="print-area" id="repListado">
   <div class="rep-print-title" style="display:none">Reportes de órdenes — <?= (int)$total ?> órdenes · <?= number_format($totales['m3'], 2, ',', '.') ?> m³</div>
   <div class="card">
     <div class="tz-table-scroll" style="overflow:auto">
@@ -559,6 +599,36 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
     <?php endif; ?>
   </div>
 </div>
+
+<!-- Vista Mapa: mismas órdenes filtradas; los pines tildan las mismas casillas de la lista -->
+<div class="card no-print" id="repMapa" style="display:none">
+  <div id="route-map"></div>
+  <div class="rep-map-note">
+    <i class="bi bi-info-circle me-1"></i>Click en un pin para seleccionar/deseleccionar la orden.
+    <?php if ($puedeMarcar): ?> Después «Hoja de ruta» → «Agregar a Hoja de Ruta».<?php endif; ?>
+    <?php if ($mapaSinUbicar > 0): ?><span class="text-muted"> · <?= (int)$mapaSinUbicar ?> orden(es) de esta página sin geocodificar (usá «Geolocalizar direcciones» en Hojas de ruta).</span><?php endif; ?>
+  </div>
+</div>
+
+<style>
+.rep-view-tabs{display:inline-flex;gap:4px;margin-bottom:.6rem;background:var(--card2,#2e333d);border:1px solid var(--border);border-radius:8px;padding:3px}
+.rep-tab{font-size:13px;font-weight:600;color:var(--muted);background:none;border:none;padding:6px 14px;border-radius:6px;cursor:pointer}
+.rep-tab.active{background:var(--card);color:var(--text)}
+.rep-tab-hint{font-size:11px;color:#fbbf24;font-weight:500}
+#route-map{height:calc(100vh - 260px);min-height:420px;border-radius:8px}
+.leaflet-container{background:var(--card2,#2e333d)}
+.rep-map-note{font-size:12px;color:var(--muted);padding:.6rem 1rem;border-top:1px solid var(--border)}
+.rep-pin{width:20px;height:20px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+.rep-pin.exacta{background:#22c55e}
+.rep-pin.localidad{background:#eab308}
+.rep-pin.sel{background:#3b82f6;width:24px;height:24px;box-shadow:0 0 0 3px rgba(59,130,246,.45)}
+@media print{.rep-view-tabs{display:none!important}#repMapa{display:none!important}#repListado{display:block!important}}
+</style>
+<link rel="stylesheet" href="<?= h(asset('assets/vendor/leaflet/leaflet.css')) ?>">
+<script>window.__REP_MAPA__ = { stops: <?= json_encode($mapaData, JSON_UNESCAPED_UNICODE) ?> };</script>
+<script src="<?= h(asset('assets/vendor/leaflet/leaflet.js')) ?>"></script>
+<script src="<?= h(asset('assets/js/admin/reportes-mapa.js')) ?>"></script>
+
 <style>
 /* Encabezado de la tabla fijo al hacer scroll (la tabla scrollea dentro del alto disponible). */
 .tz-table-scroll{max-height:calc(100vh - 230px)}
