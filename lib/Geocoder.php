@@ -250,4 +250,77 @@ final class Geocoder
         ]);
         return self::cache($clave) ?? [];
     }
+
+    /**
+     * Direcciones DISTINTAS de las órdenes que todavía no están cacheadas (clave
+     * vacía o repetida se descartan). Fuente única de "qué falta geocodificar",
+     * usada por el script CLI y por el botón manual del panel.
+     *
+     * @return array<int, array<string, mixed>> filas con dest_domicilio/localidad/provincia/cp
+     */
+    public static function pendientes(): array
+    {
+        $rows = DB::getInstance()->query(
+            "SELECT dest_domicilio, dest_localidad, dest_provincia, dest_cp
+               FROM ordenes
+              WHERE (dest_localidad IS NOT NULL AND dest_localidad <> '')
+                 OR (dest_domicilio IS NOT NULL AND dest_domicilio <> '')
+              GROUP BY dest_domicilio, dest_localidad, dest_provincia, dest_cp"
+        )->fetchAll(PDO::FETCH_ASSOC);
+
+        $pend = [];
+        foreach ($rows as $r) {
+            $clave = self::clave($r['dest_domicilio'], $r['dest_localidad'], $r['dest_provincia'], $r['dest_cp']);
+            if ($clave === '' || isset($pend[$clave])) {
+                continue;
+            }
+            if (self::cache($clave) !== null) {
+                continue; // ya geocodificada
+            }
+            $pend[$clave] = $r;
+        }
+        return array_values($pend);
+    }
+
+    /**
+     * Geocodifica hasta $limite direcciones pendientes (0 = todas), pausando
+     * $pausaMs entre pedidos (respeta el rate-limit). HACE RED. Devuelve stats.
+     * El botón del panel lo llama con un tope chico para no colgar el request.
+     *
+     * @return array{pendientes:int, procesadas:int, exactas:int, aprox:int, fallidas:int, restantes:int}
+     */
+    public static function procesarPendientes(int $limite = 0, int $pausaMs = 1100): array
+    {
+        $pend       = self::pendientes();
+        $pendientes = count($pend);
+        $lote       = $limite > 0 ? array_slice($pend, 0, $limite) : $pend;
+        $n          = count($lote);
+
+        $exactas = 0;
+        $aprox   = 0;
+        $fallidas = 0;
+        foreach ($lote as $i => $r) {
+            $fila = self::resolver($r['dest_domicilio'], $r['dest_localidad'], $r['dest_provincia'], $r['dest_cp']);
+            $prec = (string)($fila['precision'] ?? 'fallida');
+            if ($prec === 'exacta') {
+                $exactas++;
+            } elseif ($prec === 'fallida') {
+                $fallidas++;
+            } else {
+                $aprox++;
+            }
+            if ($i < $n - 1 && $pausaMs > 0) {
+                usleep($pausaMs * 1000);
+            }
+        }
+
+        return [
+            'pendientes' => $pendientes,
+            'procesadas' => $n,
+            'exactas'    => $exactas,
+            'aprox'      => $aprox,
+            'fallidas'   => $fallidas,
+            'restantes'  => max(0, $pendientes - $n),
+        ];
+    }
 }

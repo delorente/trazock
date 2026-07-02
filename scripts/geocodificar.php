@@ -38,30 +38,9 @@ foreach (array_slice($argv, 1) as $arg) {
     }
 }
 
-$db = DB::getInstance();
-
-// Direcciones DISTINTAS de las órdenes (con al menos localidad o domicilio). El
-// GROUP BY colapsa las repetidas; la caché las deduplica una vez más por clave.
-$rows = $db->query(
-    "SELECT dest_domicilio, dest_localidad, dest_provincia, dest_cp
-       FROM ordenes
-      WHERE (dest_localidad IS NOT NULL AND dest_localidad <> '')
-         OR (dest_domicilio IS NOT NULL AND dest_domicilio <> '')
-      GROUP BY dest_domicilio, dest_localidad, dest_provincia, dest_cp"
-)->fetchAll();
-
-$pendientes = [];
-foreach ($rows as $r) {
-    $clave = Geocoder::clave($r['dest_domicilio'], $r['dest_localidad'], $r['dest_provincia'], $r['dest_cp']);
-    if ($clave === '' || isset($pendientes[$clave])) {
-        continue;
-    }
-    if (Geocoder::cache($clave) !== null) {
-        continue; // ya geocodificada
-    }
-    $pendientes[$clave] = $r;
-}
-$pendientes = array_values($pendientes);
+// Direcciones DISTINTAS de las órdenes que faltan geocodificar (misma fuente que
+// usa el botón manual del panel).
+$pendientes = Geocoder::pendientes();
 $totalPend  = count($pendientes);
 
 if ($limite > 0) {

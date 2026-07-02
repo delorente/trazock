@@ -11,6 +11,7 @@ require __DIR__ . '/../lib/bootstrap.php';
 require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
+use Trazock\Geocoder;
 use Trazock\Models\HojaRuta;
 
 $user = Auth::requierePanel(['admin', 'logistica']);
@@ -25,6 +26,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($accion === 'nueva') {
         $id = HojaRuta::crear((int)$user['id']);
         header('Location: ' . url('admin/hoja-ruta-armar.php') . '?id=' . $id);
+        exit;
+    }
+    if ($accion === 'geocodificar') {
+        // Botón manual (stopgap hasta configurar el cron): geocodifica un tope de
+        // direcciones nuevas por click, para no colgar el request (Nominatim va a
+        // ~1 req/s). Si quedan más, avisa que se vuelva a tocar.
+        @set_time_limit(0);
+        $r = Geocoder::procesarPendientes(25, 1100);
+        if ($r['pendientes'] === 0) {
+            flash_set('info', 'No hay direcciones nuevas para geolocalizar: está todo al día.');
+        } else {
+            $msg = 'Geolocalizadas ' . $r['procesadas'] . ' dirección(es) nuevas '
+                 . '(exactas ' . $r['exactas'] . ', aproximadas ' . $r['aprox'] . ', sin resolver ' . $r['fallidas'] . ').';
+            if ($r['restantes'] > 0) {
+                flash_set('warning', $msg . ' Quedan ' . $r['restantes'] . ' pendientes: volvé a tocar «Geolocalizar».');
+            } else {
+                flash_set('success', $msg);
+            }
+        }
+        header('Location: ' . url('admin/hojas-ruta.php'));
         exit;
     }
     if ($accion === 'eliminar') {
@@ -45,7 +66,9 @@ $hojas = HojaRuta::listar();
 $csrf  = Auth::tokenCSRF();
 
 $acciones = '<form method="post" class="d-inline"><input type="hidden" name="csrf_token" value="' . h($csrf) . '"><input type="hidden" name="accion" value="nueva">'
-          . '<button class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nueva hoja</button></form>';
+          . '<button class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nueva hoja</button></form>'
+          . '<form method="post" class="d-inline ms-2"><input type="hidden" name="csrf_token" value="' . h($csrf) . '"><input type="hidden" name="accion" value="geocodificar">'
+          . '<button class="btn btn-outline-secondary btn-sm" title="Geolocalizar las direcciones nuevas para el mapa de recorridos"><i class="bi bi-geo-alt me-1"></i>Geolocalizar direcciones</button></form>';
 panel_header('Hojas de ruta', $user, 'hojas-ruta', 'Salida a reparto · ' . count($hojas) . ' hoja(s)', $acciones);
 flash_render();
 ?>
