@@ -510,13 +510,17 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
   <div><div class="sumbar-n"><?= number_format($totales['m3'], 2, ',', '.') ?></div><div class="sumbar-l">m³ total</div></div>
   <div class="sumbar-div"></div>
   <div><div class="sumbar-n"><?= number_format($totales['items'], 0, ',', '.') ?></div><div class="sumbar-l">Ítems</div></div>
-  <div style="margin-left:auto;align-items:center">
+  <div class="rep-view-tabs no-print" style="margin-left:auto;margin-bottom:0">
+    <button type="button" id="tabListado" class="rep-tab active"><i class="bi bi-list-ul me-1"></i>Listado</button>
+    <button type="button" id="tabMapa" class="rep-tab"><i class="bi bi-map me-1"></i>Mapa<?php if ($mapaSinUbicar > 0): ?> <span class="rep-tab-hint">(<?= (int)$mapaSinUbicar ?> sin ubicar)</span><?php endif; ?></button>
+  </div>
+  <div style="margin-left:.6rem;align-items:center">
     <div class="input-group input-group-sm" style="width:280px">
       <input type="search" class="form-control form-control-sm" form="filtrosForm" name="q" value="<?= h($filtros['q']) ?>" placeholder="Buscar orden, remito, cliente…">
       <button class="btn btn-outline-primary" type="submit" form="filtrosForm" title="Buscar"><i class="bi bi-search"></i></button>
     </div>
   </div>
-  <div style="margin-left:.85rem;font-size:12px;color:var(--muted)">Actualizado <?= h(fmt_fecha(date('Y-m-d H:i:s'), 'd/m/Y · H:i')) ?></div>
+  <div style="margin-left:.85rem;font-size:10px;line-height:1.15;color:var(--muted)">Actualizado<br><?= h(fmt_fecha(date('Y-m-d H:i:s'), 'd/m/Y · H:i')) ?></div>
 </div>
 
 <?php if ($provSospechosas !== []):
@@ -529,10 +533,6 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
 </a>
 <?php endif; ?>
 
-<div class="rep-view-tabs no-print">
-  <button type="button" id="tabListado" class="rep-tab active"><i class="bi bi-list-ul me-1"></i>Listado</button>
-  <button type="button" id="tabMapa" class="rep-tab"><i class="bi bi-map me-1"></i>Mapa<?php if ($mapaSinUbicar > 0): ?> <span class="rep-tab-hint">(<?= (int)$mapaSinUbicar ?> sin ubicar)</span><?php endif; ?></button>
-</div>
 <div class="print-area" id="repListado">
   <div class="rep-print-title" style="display:none">Reportes de órdenes — <?= (int)$total ?> órdenes · <?= number_format($totales['m3'], 2, ',', '.') ?> m³</div>
   <div class="card">
