@@ -12,6 +12,7 @@ require __DIR__ . '/_layout.php';
 
 use Trazock\Auth;
 use Trazock\Models\Carga;
+use Trazock\Models\CargaDocumento;
 use Trazock\Models\Categoria;
 use Trazock\Models\Usuario;
 
@@ -23,7 +24,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['accion'] ?? '') === 'desca
     if (!Auth::validarCSRF((string)($_POST['csrf_token'] ?? ''))) {
         flash_set('danger', 'Sesión inválida. Recargá e intentá de nuevo.');
     } else {
-        $ok = Carga::descartarBorrador((int)($_POST['carga_id'] ?? 0));
+        $cargaDesc = (int)($_POST['carga_id'] ?? 0);
+        // Archivos de sus documentos ANTES de borrar (las filas se van por CASCADE).
+        $archivos = $cargaDesc > 0 ? CargaDocumento::archivosDeCarga($cargaDesc) : [];
+        $ok = Carga::descartarBorrador($cargaDesc);
+        if ($ok) {
+            foreach ($archivos as $a) { @unlink(documentos_dir() . '/' . basename($a)); }
+        }
         flash_set($ok ? 'success' : 'warning', $ok ? 'Carga sin confirmar descartada.' : 'No se pudo descartar (¿ya no existe?).');
     }
     header('Location: ' . url('admin/ordenes-captura.php'));

@@ -108,6 +108,12 @@ define('ANTHROPIC_MODEL', 'claude-sonnet-4-6');
 // <proyecto>/storage/remitos (protegida por .htaccess).
 // define('REMITOS_DIR', '/home/intercongress.ar/storage/remitos');
 
+// Carpeta de los DOCUMENTOS ORIGINALES importados por OCR (hojas resumen: imagen
+// o PDF). Mismo criterio que REMITOS_DIR: conviene una ruta fuera del webroot,
+// existente y escribible. Si se deja sin definir, usa <proyecto>/storage/documentos
+// (protegida por .htaccess).
+// define('DOCUMENTOS_DIR', '/home/intercongress.ar/storage/documentos');
+
 // =============================================================================
 // WhatsApp Business Cloud API (Meta) — aviso de entrega al cliente final
 // =============================================================================

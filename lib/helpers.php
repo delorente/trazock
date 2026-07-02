@@ -204,6 +204,52 @@ if (!function_exists('remitos_dir')) {
     }
 }
 
+if (!function_exists('documentos_dir')) {
+    /**
+     * Carpeta donde se archivan los documentos originales (hojas resumen) que se
+     * importan por OCR. Config DOCUMENTOS_DIR o <proyecto>/storage/documentos.
+     * Crea la carpeta si no existe. Devuelve la ruta absoluta sin barra final.
+     */
+    function documentos_dir(): string
+    {
+        $dir = defined('DOCUMENTOS_DIR') && DOCUMENTOS_DIR !== ''
+            ? (string)DOCUMENTOS_DIR
+            : dirname(__DIR__) . '/storage/documentos';
+        $dir = rtrim($dir, '/\\');
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+        return $dir;
+    }
+}
+
+if (!function_exists('carga_documentos_html')) {
+    /**
+     * HTML de una tarjeta con los documentos originales (hojas resumen) de una
+     * carga: miniaturas para imágenes, ícono para PDF, cada uno abre el visor
+     * (api/documento-ver.php). Devuelve '' si la carga no tiene documentos.
+     */
+    function carga_documentos_html(int $cargaId): string
+    {
+        $docs = \Trazock\Models\CargaDocumento::porCarga($cargaId);
+        if ($docs === []) {
+            return '';
+        }
+        $items = '';
+        foreach ($docs as $d) {
+            $ver   = h(url('api/documento-ver.php') . '?uuid=' . rawurlencode((string)$d['uuid']));
+            $esImg = str_starts_with((string)($d['mime'] ?? ''), 'image/');
+            $inner = $esImg
+                ? '<img src="' . $ver . '" style="width:88px;height:88px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">'
+                : '<div style="width:88px;height:88px;border-radius:8px;border:1px solid var(--border);display:grid;place-items:center"><i class="bi bi-file-earmark-pdf" style="font-size:1.8rem;color:#ef4444"></i></div>';
+            $items .= '<a href="' . $ver . '" target="_blank" rel="noopener" title="' . h((string)$d['archivo']) . '">' . $inner . '</a>';
+        }
+        return '<div class="card p-3 mb-3"><div style="font-weight:600;font-size:13px;margin-bottom:.6rem">'
+            . '<i class="bi bi-paperclip me-1"></i>Documento(s) original(es) (' . count($docs) . ')</div>'
+            . '<div class="d-flex flex-wrap gap-2">' . $items . '</div></div>';
+    }
+}
+
 if (!function_exists('tel_e164')) {
     /**
      * Normaliza un teléfono argentino a E.164 (sin el '+'), apto para WhatsApp.

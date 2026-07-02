@@ -66,6 +66,8 @@ panel_header('Carga confirmada', $user, 'captura', '', $volver);
   </div>
 </div>
 
+<?= carga_documentos_html($cargaId) ?>
+
 <?php if ($omitidas > 0): ?>
 <div class="card p-3 mb-3" style="border-color:rgba(234,179,8,.35);background:rgba(234,179,8,.06)">
   <div style="font-size:13px;color:#fbbf24">

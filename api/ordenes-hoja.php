@@ -15,6 +15,7 @@ use Trazock\Api;
 use Trazock\Auth;
 use Trazock\ExtractorOcr;
 use Trazock\Models\Carga;
+use Trazock\Models\CargaDocumento;
 use Trazock\Models\Categoria;
 use Trazock\Models\Usuario;
 
@@ -67,6 +68,30 @@ if ($cargaId <= 0) {
     if ($c === null || $c['estado'] === 'confirmada') {
         Api::error('Carga inválida o ya confirmada.', 400);
     }
+}
+
+// Archivar el documento original (imagen/PDF) ANTES de procesarlo, así queda
+// guardado aunque el OCR falle (se puede reprocesar). Best-effort: si no se puede
+// escribir el archivo, no se bloquea la carga.
+try {
+    $mime = 'application/octet-stream';
+    if (function_exists('finfo_open')) {
+        $fi  = finfo_open(FILEINFO_MIME_TYPE);
+        $det = $fi ? finfo_buffer($fi, $bytes) : false;
+        if ($fi) { finfo_close($fi); }
+        if (is_string($det) && $det !== '') { $mime = $det; }
+    }
+    $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp',
+            'image/heic' => 'heic', 'application/pdf' => 'pdf'][$mime] ?? 'bin';
+    $docUuid = sprintf('%08x-%04x-4%03x-%04x-%012x',
+        random_int(0, 0xffffffff), random_int(0, 0xffff), random_int(0, 0xfff),
+        random_int(0x8000, 0xbfff), random_int(0, 0xffffffffffff));
+    $archivo = $docUuid . '.' . $ext;
+    if (@file_put_contents(documentos_dir() . '/' . $archivo, $bytes) !== false) {
+        CargaDocumento::registrar($cargaId, $docUuid, $archivo, $mime, strlen($bytes), hash('sha256', $bytes), (int)$user['id']);
+    }
+} catch (Throwable $e) {
+    error_log('ordenes-hoja: no se pudo archivar el documento: ' . $e->getMessage());
 }
 
 // Extracción OCR de la hoja.

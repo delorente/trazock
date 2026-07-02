@@ -1,0 +1,9 @@
+# Los documentos importados NO se sirven directo por web: solo vía
+# api/documento-ver.php (con login). Bloqueo de acceso directo a esta carpeta.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

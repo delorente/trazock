@@ -60,6 +60,8 @@ panel_header('Revisión OCR', $user, 'captura',
   .dest-nota{ font-size:11px; line-height:1.2; color:#60a5fa; }
 </style>
 
+<?= carga_documentos_html($cargaId) ?>
+
 <div class="card mb-3" style="overflow:hidden">
   <div style="overflow-x:auto">
     <table class="table mb-0" id="tabla">
