@@ -33,6 +33,7 @@ $filtros = [
     'hoja_ruta'    => filtro_multi_valores('hoja_ruta'),  // multi (hojas de ruta)
     'prefijo'      => filtro_multi_valores('prefijo'),    // multi (local / origen)
     'transportista'=> trim((string)($_GET['transportista'] ?? '')),
+    'hoja_reparto' => trim((string)($_GET['hoja_reparto'] ?? '')),
     'estado'       => trim((string)($_GET['estado'] ?? '')),
     'marca'        => trim((string)($_GET['marca'] ?? '')),
     'fecha_desde'  => trim((string)($_GET['fecha_desde'] ?? '')),
@@ -371,6 +372,7 @@ foreach ($cargas as $c) {
 $provOpts = array_map(static fn($p) => [$p, $p], $provincias);
 $hrOpts   = array_map(static fn($h) => [$h, $h], $hojasRuta);
 $prefOpts = Prefijo::paraFiltro();
+$hojasReparto = HojaRuta::listar();
 $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
 ?>
 <?php if ($puedeMarcar): ?>
@@ -427,6 +429,15 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
         <option value="">Todos</option>
         <?php foreach ($transportistas as $t): ?>
           <option value="<?= (int)$t['id'] ?>" <?= (string)$t['id'] === $filtros['transportista'] ? 'selected' : '' ?>><?= h($t['nombre']) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </div>
+    <div>
+      <label class="form-label">Hoja de ruta (reparto)</label>
+      <select class="form-select form-select-sm" name="hoja_reparto">
+        <option value="">Todas</option>
+        <?php foreach ($hojasReparto as $hr): ?>
+          <option value="<?= (int)$hr['id'] ?>" <?= (string)$hr['id'] === $filtros['hoja_reparto'] ? 'selected' : '' ?>><?= h((string)$hr['numero'] . ((string)($hr['destino'] ?? '') !== '' ? ' · ' . (string)$hr['destino'] : '') . ' (' . (int)$hr['n_ordenes'] . ')') ?></option>
         <?php endforeach; ?>
       </select>
     </div>

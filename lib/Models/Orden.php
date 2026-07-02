@@ -346,6 +346,27 @@ final class Orden
         return (bool)$stmt->fetchColumn();
     }
 
+    /**
+     * Busca una orden por Nº tolerando ceros a la izquierda de cada grupo
+     * ("775-286391" encuentra "0775-00286391"). Prueba primero coincidencia exacta;
+     * si no, un REGEXP anclado con 0* por grupo. Devuelve TODAS las coincidencias
+     * (0, 1 o varias) para que el llamador distinga "no existe" de "ambiguo".
+     *
+     * @return array<int, array<string,mixed>>
+     */
+    public static function buscarFlexiblePorNro(string $nro): array
+    {
+        $nro = trim($nro);
+        if ($nro === '') { return []; }
+        $exacta = self::findByNroOrden($nro);
+        if ($exacta !== null) { return [$exacta]; }
+        $re = self::regexNroSinCeros($nro);
+        if ($re === null) { return []; }
+        $stmt = DB::getInstance()->prepare('SELECT * FROM ordenes WHERE nro_orden REGEXP :re LIMIT 5');
+        $stmt->execute([':re' => '^' . $re . '$']); // anclado: coincidencia completa
+        return $stmt->fetchAll();
+    }
+
     /** Fija el estado derivado de la orden (recalculado al transicionar ítems). */
     public static function actualizarEstado(int $id, string $estado): void
     {
@@ -655,6 +676,11 @@ final class Orden
         if (!empty($f['transportista'])) {
             $where[] = 'o.transportista_id = :transp';
             $params[':transp'] = (int)$f['transportista'];
+        }
+        // Hoja de ruta de reparto (interna): órdenes ligadas a esa hoja (HR-######).
+        if (!empty($f['hoja_reparto'])) {
+            $where[] = 'EXISTS (SELECT 1 FROM hoja_ruta_ordenes hro WHERE hro.orden_id = o.id AND hro.hoja_id = :hrep)';
+            $params[':hrep'] = (int)$f['hoja_reparto'];
         }
         if (!empty($f['categoria'])) {
             // La categoría es de la carga; la orden la hereda por su carga_id.
