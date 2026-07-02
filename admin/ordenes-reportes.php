@@ -392,7 +392,7 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
   </div>
 </div>
 <?php endif; ?>
-<form method="get" action="<?= h(url('admin/ordenes-reportes.php')) ?>" class="card mb-3 no-print" style="padding:.85rem 1rem">
+<form id="filtrosForm" method="get" action="<?= h(url('admin/ordenes-reportes.php')) ?>" class="card mb-3 no-print" style="padding:.85rem 1rem">
   <div id="filtrosToggle" class="d-flex align-items-center gap-2" style="cursor:pointer;user-select:none">
     <i class="bi bi-chevron-down" id="filtrosChevron"></i>
     <span style="font-weight:600;font-size:13px">Filtros</span>
@@ -461,10 +461,6 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
     </div>
     <div><label class="form-label">F. carga desde</label><input type="date" class="form-control form-control-sm" name="fecha_desde" value="<?= h($filtros['fecha_desde']) ?>"></div>
     <div><label class="form-label">F. carga hasta</label><input type="date" class="form-control form-control-sm" name="fecha_hasta" value="<?= h($filtros['fecha_hasta']) ?>"></div>
-    <div>
-      <label class="form-label">Buscar</label>
-      <input type="text" class="form-control form-control-sm" name="q" value="<?= h($filtros['q']) ?>" placeholder="Orden, remito, cliente…">
-    </div>
     <div style="display:flex;align-items:flex-end;gap:.4rem">
       <button class="btn btn-primary btn-sm px-3" type="submit">Buscar</button>
       <?php if ($qsBase !== ''): ?><a class="btn btn-outline-secondary btn-sm" href="<?= h(url('admin/ordenes-reportes.php')) ?>">Limpiar</a><?php endif; ?>
@@ -478,7 +474,13 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
   <div><div class="sumbar-n"><?= number_format($totales['m3'], 2, ',', '.') ?></div><div class="sumbar-l">m³ total</div></div>
   <div class="sumbar-div"></div>
   <div><div class="sumbar-n"><?= number_format($totales['items'], 0, ',', '.') ?></div><div class="sumbar-l">Ítems</div></div>
-  <div style="margin-left:auto;font-size:12px;color:var(--muted)">Actualizado <?= h(fmt_fecha(date('Y-m-d H:i:s'), 'd/m/Y · H:i')) ?></div>
+  <div style="margin-left:auto;align-items:center">
+    <div class="input-group input-group-sm" style="width:280px">
+      <input type="search" class="form-control form-control-sm" form="filtrosForm" name="q" value="<?= h($filtros['q']) ?>" placeholder="Buscar orden, remito, cliente…">
+      <button class="btn btn-outline-primary" type="submit" form="filtrosForm" title="Buscar"><i class="bi bi-search"></i></button>
+    </div>
+  </div>
+  <div style="margin-left:.85rem;font-size:12px;color:var(--muted)">Actualizado <?= h(fmt_fecha(date('Y-m-d H:i:s'), 'd/m/Y · H:i')) ?></div>
 </div>
 
 <?php if ($provSospechosas !== []):
