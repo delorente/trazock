@@ -113,7 +113,8 @@ foreach ($ordenes as $o)  { $totBultos += (int)$o['bultos']; $totM3 += (float)$o
 foreach ($manuales as $m) { $totBultos += (int)($m['bultos'] ?? 0); $totM3 += (float)($m['m3'] ?? 0); }
 
 $acciones = $volver
-    . '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/hoja-ruta.php') . '?hoja=' . $id) . '" target="_blank"><i class="bi bi-printer me-1"></i>Imprimir</a>';
+    . '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/hoja-ruta.php') . '?hoja=' . $id) . '" target="_blank"><i class="bi bi-printer me-1"></i>Imprimir</a>'
+    . '<a class="btn btn-sm btn-outline-secondary" href="' . h(url('admin/ruta-planificar.php') . '?id=' . $id) . '"><i class="bi bi-signpost-2 me-1"></i>Planificar recorrido</a>';
 if ($editable) {
     $acciones .= '<form method="post" class="d-inline"><input type="hidden" name="csrf_token" value="' . h($csrf) . '"><input type="hidden" name="id" value="' . $id . '"><input type="hidden" name="accion" value="emitir"><button class="btn btn-sm btn-success"><i class="bi bi-check2-circle me-1"></i>Emitir</button></form>';
 } else {

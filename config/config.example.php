@@ -139,6 +139,32 @@ define('WA_VERIFY_TOKEN', '');
 define('WA_APP_SECRET', '');
 
 // =============================================================================
+// Geocoding / secuenciación de rutas (feature D)
+// =============================================================================
+// Convierte la dirección de destino en coordenada (lat/lng) para ubicar las
+// paradas en el mapa y sugerir el orden del recorrido. El geocoding corre
+// DIFERIDO (scripts/geocodificar.php), nunca en una página. Todas estas claves
+// son OPCIONALES: si no se definen, el código usa los defaults de abajo.
+
+// Proveedor activo. Hoy solo 'nominatim' (OSM, gratis; su licencia permite
+// almacenar las coordenadas). Al sumar Mapbox/Google se agrega el driver y se
+// cambia acá, sin tocar nada más.
+// define('GEOCODER_DRIVER', 'nominatim');
+
+// Base del servicio Nominatim. Por defecto usa el público de OSM. Para volumen
+// alto conviene tu propia instancia o un mirror con más cupo.
+// define('GEOCODER_NOMINATIM_URL', 'https://nominatim.openstreetmap.org');
+
+// User-Agent identificatorio. Nominatim EXIGE identificarse con un contacto real
+// (mail). Si no se define, se deriva uno de APP_URL (aceptable para bajo volumen).
+// define('GEOCODER_USER_AGENT', 'Trazock/1.0 (tucorreo@ejemplo.com)');
+
+// Origen del recorrido (depósito) para la sugerencia de orden de paradas. Se usa
+// en la FASE 2 (pantalla de planificación); no hace falta para geocodificar.
+// define('DEPOT_LAT', -34.6037);
+// define('DEPOT_LNG', -58.3816);
+
+// =============================================================================
 // Superadmin protegido (acceso de emergencia)
 // =============================================================================
 // Nombre de usuario que el panel NO permite editar, desactivar ni borrar — tu

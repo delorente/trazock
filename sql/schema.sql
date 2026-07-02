@@ -841,3 +841,41 @@ ALTER TABLE `lotes`
 -- =============================================================================
 -- END: 032_hojas_ruta.sql
 -- =============================================================================
+
+-- =============================================================================
+-- BEGIN: 034_geocoding_rutas.sql — secuenciación de rutas (feature D), fase 1.
+-- Tablas nuevas (aditivo): caché de geocoding + orden de paradas por hoja.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS `geo_direcciones` (
+    `id`            INT UNSIGNED   NOT NULL AUTO_INCREMENT,
+    `clave_norm`    VARCHAR(255)   NOT NULL,
+    `direccion`     VARCHAR(400)   DEFAULT NULL,
+    `lat`           DECIMAL(10, 7) DEFAULT NULL,
+    `lng`           DECIMAL(10, 7) DEFAULT NULL,
+    `precision`     ENUM('exacta', 'localidad', 'provincia', 'fallida') NOT NULL DEFAULT 'fallida',
+    `fuente`        VARCHAR(30)    DEFAULT NULL,
+    `geocoded_at`   TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_geo_clave` (`clave_norm`),
+    INDEX `idx_geo_precision` (`precision`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `ruta_secuencia` (
+    `id`              INT UNSIGNED   NOT NULL AUTO_INCREMENT,
+    `hoja_id`         INT UNSIGNED   NOT NULL,
+    `tipo`            ENUM('orden', 'manual') NOT NULL DEFAULT 'orden',
+    `ref_id`          INT UNSIGNED   NOT NULL,
+    `posicion`        INT UNSIGNED   NOT NULL DEFAULT 0,
+    `lat`             DECIMAL(10, 7) DEFAULT NULL,
+    `lng`             DECIMAL(10, 7) DEFAULT NULL,
+    `override_manual` TINYINT(1)     NOT NULL DEFAULT 0,
+    `created_at`      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at`      TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_ruta_parada` (`hoja_id`, `tipo`, `ref_id`),
+    INDEX `idx_ruta_hoja` (`hoja_id`, `posicion`),
+    CONSTRAINT `fk_ruta_hoja` FOREIGN KEY (`hoja_id`) REFERENCES `hojas_ruta` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- =============================================================================
+-- END: 034_geocoding_rutas.sql
+-- =============================================================================
