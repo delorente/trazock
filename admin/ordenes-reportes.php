@@ -561,7 +561,7 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
               <?php endif; ?>
               <?php if ($obs !== ''): ?><i class="bi bi-chat-left-text-fill tz-obs-ic" title="<?= h($obs) ?>"></i><?php endif; ?>
             </td>
-            <td><?= estado_badge((string)($o['estado'] ?? '')) ?></td>
+            <td><?= estado_badge((string)($o['estado'] ?? '')) ?><?php if ((string)($o['fecha_estado'] ?? '') !== ''): ?><div class="text-muted" style="font-size:10px;line-height:1.1;margin-top:2px;white-space:nowrap"><?= h(fmt_fecha((string)$o['fecha_estado'], 'd/m/y H:i')) ?></div><?php endif; ?></td>
             <td class="mono" style="font-size:12px"><a href="<?= h(url('admin/ordenes-detalle.php') . '?id=' . (int)$o['id'] . '&vol=' . rawurlencode($volverQS)) ?>" style="color:#60a5fa;text-decoration:none"><?= h((string)$o['nro_orden']) ?></a></td>
             <td style="font-size:13px"><span style="<?= rep_cliente_estilo((string)($o['estado'] ?? ''), $marca) ?>"><?= h((string)($o['cliente'] ?? '') !== '' ? (string)$o['cliente'] : '—') ?></span></td>
             <td style="font-size:13px"><?= h((string)($o['categoria'] ?? '—')) ?></td>

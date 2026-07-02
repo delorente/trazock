@@ -754,7 +754,8 @@ final class Orden
                        (SELECT h.id FROM hoja_ruta_ordenes hro JOIN hojas_ruta h ON h.id = hro.hoja_id
                           WHERE hro.orden_id = o.id ORDER BY h.id DESC LIMIT 1) AS hr_reparto_id,
                        (SELECT h.numero FROM hoja_ruta_ordenes hro JOIN hojas_ruta h ON h.id = hro.hoja_id
-                          WHERE hro.orden_id = o.id ORDER BY h.id DESC LIMIT 1) AS hr_reparto_numero
+                          WHERE hro.orden_id = o.id ORDER BY h.id DESC LIMIT 1) AS hr_reparto_numero,
+                       ' . self::fechaEstadoExpr() . ' AS fecha_estado
                 FROM ordenes o'
              . $where
              // Prioridad siempre arriba; dentro de cada grupo, lo más reciente primero.
