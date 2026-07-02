@@ -501,11 +501,11 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
           <th style="width:58px">Marca</th>
           <th>Estado</th>
           <th>Nº orden</th><th>Cliente</th><th>Categoría</th><th style="text-align:center">Ítems</th><th>Provincia</th><th>Localidad</th><th>Teléfono</th><th>m³</th>
-          <th>F. remito</th><th>Nº remito</th><th>Hoja ruta</th><th>Transportista</th><th>F. carga</th>
+          <th>Hoja de ruta</th><th>Transportista</th><th>F. carga</th>
         </tr></thead>
         <tbody>
         <?php if ($ordenes === []): ?>
-          <tr><td colspan="<?= $puedeMarcar ? 16 : 15 ?>" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
+          <tr><td colspan="<?= $puedeMarcar ? 14 : 13 ?>" class="text-muted" style="text-align:center;padding:1.5rem">No hay órdenes para los filtros seleccionados.</td></tr>
         <?php else: foreach ($ordenes as $o): ?>
           <?php $marca = (string)($o['marca'] ?? ''); $obs = trim((string)($o['observaciones'] ?? '')); ?>
           <tr>
@@ -531,9 +531,11 @@ $hojasAbiertas = $puedeMarcar ? HojaRuta::abiertasParaScan() : [];
               <?php if ((string)($o['telefono_wa'] ?? '') === ''): ?><i class="bi bi-whatsapp text-danger" title="Sin teléfono apto para WhatsApp"></i><?php endif; ?>
             </td>
             <td><?= number_format((float)($o['m3_total'] ?? 0), 2, ',', '.') ?></td>
-            <td style="color:var(--muted)"><?= h(($o['fecha_remito'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_remito'])) : '—') ?></td>
-            <td class="mono" style="font-size:12px"><?= h((string)($o['nro_remito'] ?? '—')) ?></td>
-            <td class="mono" style="font-size:12px"><?= h((string)($o['hoja_ruta'] ?? '') !== '' ? (string)$o['hoja_ruta'] : '—') ?></td>
+            <td class="mono" style="font-size:12px">
+              <?php $hrId = (int)($o['hr_reparto_id'] ?? 0); if ($hrId > 0): ?>
+                <a href="<?= h(url('admin/hoja-ruta-armar.php') . '?id=' . $hrId) ?>" style="color:#60a5fa;text-decoration:none"><?= h((string)($o['hr_reparto_numero'] ?? '')) ?></a>
+              <?php endif; ?>
+            </td>
             <td style="font-size:12px"><?= h((string)($o['transportista_nombre'] ?? '') !== '' ? (string)$o['transportista_nombre'] : '—') ?></td>
             <td style="color:var(--muted)"><?= h(($o['fecha_carga'] ?? '') ? date('d/m/Y', strtotime((string)$o['fecha_carga'])) : '—') ?></td>
           </tr>

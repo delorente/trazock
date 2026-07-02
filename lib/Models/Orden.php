@@ -749,7 +749,11 @@ final class Orden
                        (SELECT COUNT(*) FROM productos p WHERE p.orden_id = o.id) AS cant_items,
                        (SELECT u.nombre_completo FROM usuarios u WHERE u.id = o.transportista_id) AS transportista_nombre,
                        (SELECT cat.nombre FROM cargas cg JOIN categorias cat ON cat.id = cg.categoria_id
-                          WHERE cg.id = o.carga_id) AS categoria
+                          WHERE cg.id = o.carga_id) AS categoria,
+                       (SELECT h.id FROM hoja_ruta_ordenes hro JOIN hojas_ruta h ON h.id = hro.hoja_id
+                          WHERE hro.orden_id = o.id ORDER BY h.id DESC LIMIT 1) AS hr_reparto_id,
+                       (SELECT h.numero FROM hoja_ruta_ordenes hro JOIN hojas_ruta h ON h.id = hro.hoja_id
+                          WHERE hro.orden_id = o.id ORDER BY h.id DESC LIMIT 1) AS hr_reparto_numero
                 FROM ordenes o'
              . $where
              // Prioridad siempre arriba; dentro de cada grupo, lo más reciente primero.
