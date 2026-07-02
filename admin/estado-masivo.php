@@ -155,8 +155,11 @@ flash_render();
         <input class="form-control" id="motivo" name="motivo" maxlength="50" value="<?= h($prev['motivo']) ?>" placeholder="Opcional (def. «Corrección de estado»)">
       </div>
       <div class="mb-3">
-        <label class="form-label" for="listado">Órdenes con su fecha *</label>
-        <textarea class="form-control mono" id="listado" name="listado" rows="12" required placeholder="Una por línea: Nº de orden , fecha&#10;775-286391,06-01-26&#10;775-287115,09-01-26"><?= h($prev['listado']) ?></textarea>
+        <div class="d-flex align-items-center justify-content-between">
+          <label class="form-label mb-0" for="listado">Órdenes con su fecha *</label>
+          <button type="button" class="btn btn-sm btn-link text-muted p-0" id="btnLimpiar"><i class="bi bi-eraser me-1"></i>Limpiar</button>
+        </div>
+        <textarea class="form-control mono mt-1" id="listado" name="listado" rows="12" required placeholder="Una por línea: Nº de orden , fecha&#10;775-286391,06-01-26&#10;775-287115,09-01-26"><?= h($prev['listado']) ?></textarea>
         <div class="form-text">Una por línea, formato <strong>nº,fecha</strong>. Fecha DD-MM-AA (ej. 06-01-26). El nº se busca aunque no tenga los ceros a la izquierda. Hasta 2000.</div>
       </div>
       <button class="btn btn-primary w-100" type="submit"><i class="bi bi-calendar-check me-1"></i>Aplicar</button>
@@ -205,5 +208,12 @@ flash_render();
     <?php endif; ?>
   </div>
 </div>
+<script>
+(function () {
+  var btn = document.getElementById('btnLimpiar');
+  var ta = document.getElementById('listado');
+  if (btn && ta) btn.addEventListener('click', function () { ta.value = ''; ta.focus(); });
+})();
+</script>
 <?php
 panel_footer();
