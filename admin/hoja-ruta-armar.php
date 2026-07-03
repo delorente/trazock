@@ -202,7 +202,7 @@ flash_render();
       <?php if ($ordenes === []): ?>
         <tr><td colspan="<?= $editable ? 8 : 7 ?>" class="text-center text-muted py-3">Sin órdenes. Agregá por Nº arriba.</td></tr>
       <?php else: foreach ($ordenes as $o):
-        $cli = trim((string)($o['cliente_apellido'] ?? '')) !== '' ? (string)$o['cliente_apellido'] : (string)($o['cliente'] ?? '');
+        $cli = trim((string)($o['cliente'] ?? '')) !== '' ? (string)$o['cliente'] : (string)($o['cliente_apellido'] ?? '');
         $loc = trim((string)($o['dest_localidad'] ?? '') . (($o['dest_localidad'] ?? '') && ($o['dest_provincia'] ?? '') ? ' · ' : '') . (string)($o['dest_provincia'] ?? ''));
       ?>
         <tr>
